@@ -1,0 +1,31 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+group 'com.122006'
+version '1.0-SNAPSHOT'
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+    maven {
+        url uri('https://oss.sonatype.org/service/local/staging/deploy/maven2')
+    }
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile 'com.github.braisdom:mangosdk-spi:1.1.1'
+    compile files("${System.getProperty('java.home')}/../lib/tools.jar")
+    compile 'com.google.auto.service:auto-service:1.0-rc6'
+}
+compileJava {
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
+}
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: uri('../../repo'))
+        }
+    }
+}
+
