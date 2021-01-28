@@ -4,6 +4,7 @@ import com.by122006.jsf.Magic;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,23 +22,34 @@ public class TextStringFormat {
         }
         {
             String add = "test";
-            String test = $("test ${add}");
-            String will = $("test ", add);
+            String test = $("fwe ${add}");
+            String will = $("fwe ", add);
             assertEquals(test, will);
         }
         {
-            String test = $("test ${1+2}");
-            String will = $("test ", 1+2);
+            String test = $("gr ${System.currentTimeMillis()/10}");
+            String will = $("gr ", System.currentTimeMillis()/10);
+            assertEquals(test, will);
+        }
+        {
+            String test = $("测试 [${1+2}]");
+            String will = $("测试 [", 1+2+"]");
+            assertEquals(test, will);
+        }
+        {
+            String add = "test2";
+            String test = $("test ${add} test3");
+            String will = "test test2 test3";
             assertEquals(test, will);
         }
         {
             String test = $("test ${1+2}${2+3}");
-            String will = $("test ", 1+2,5);
+            String will ="test 35";
             assertEquals(test, will);
         }
         {
-            String test = $("test ${Integer.valueOf(12)}${2+3}");
-            String will = $("test ", Integer.valueOf(12),5);
+            String test = $("test [${new Date()}]${2+3}");
+            String will = "test ["+new Date()+"]5";
             assertEquals(test, will);
         }
         {
@@ -45,6 +57,11 @@ public class TextStringFormat {
             String will = $("test ", "inStr");
             assertEquals(test, will);
         }
+//        {
+//            String test = $("test ${\"in\\\"Str\"}");
+//            String will = $("test ", "in  \"Str");
+//            assertEquals(test, will);
+//        }
     }
 
     private static void assertEquals(String test, String will) {

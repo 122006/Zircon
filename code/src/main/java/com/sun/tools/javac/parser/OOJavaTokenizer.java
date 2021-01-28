@@ -1,5 +1,6 @@
 package com.sun.tools.javac.parser;
 
+import javax.xml.bind.Element;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +35,12 @@ public class OOJavaTokenizer extends JavaTokenizer {
         System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
         if (wList.size() > 0) {
             Tokens.Token remove = wList.remove(0);
-            System.out.println("add '" + (remove instanceof Tokens.StringToken ? ((Tokens.StringToken) remove).stringVal:remove) + "'    index: " + remove.pos + "~" + remove.endPos);
+            System.out.println("add '" + (remove instanceof Tokens.StringToken ? ((Tokens.StringToken) remove).stringVal : remove) + "'    index: " + remove.pos + "~" + remove.endPos);
             return remove;
         }
         Tokens.Token stringToken = stringHandler();
         if (stringToken != null) {
-            System.out.println("add '" + (stringToken instanceof Tokens.StringToken ? ((Tokens.StringToken) stringToken).stringVal:stringToken) + "'    index: " + stringToken.pos + "~" + stringToken.endPos);
+            System.out.println("add '" + (stringToken instanceof Tokens.StringToken ? ((Tokens.StringToken) stringToken).stringVal : stringToken) + "'    index: " + stringToken.pos + "~" + stringToken.endPos);
             return stringToken;
         }
 
@@ -136,7 +137,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 find = indexOf(oStartIndex, '$', true);
                 if (find == -1) {
                     //记录 '"'~'"'的字符串
-                    String chars = subChars(oStartIndex + 1, stringGroup.endIndex-1);
+                    String chars = subChars(oStartIndex + 1, stringGroup.endIndex - 1);
                     reIndex(stringGroup.endIndex);
                     mStringGroup.remove();
                     return loadStringToken(oStartIndex, stringGroup.endIndex + 1, chars);
@@ -179,7 +180,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
                                 return null;
                             } else {
                                 //记录 '}'~'"'的字符串
-                                String chars = subChars(oStartIndex + 1, end-1);
+                                String chars = subChars(oStartIndex + 1, end - 1);
                                 reIndex(end);
                                 latterLoadToken(loadStringToken(oStartIndex, end, chars));
                                 return loadCommaToken(oStartIndex, oStartIndex + 1);
@@ -207,7 +208,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
     private void findAndReplaceWhiteBetweenCode(StringGroup stringGroup, int find) {
         int searchBracket = find + 2;
         int bracket = 1;
-        int bcNum=0;
+        int bcNum = 0;
         while (true) {
             if (find >= reader.buflen) throw new RuntimeException(">= buflen");
             if (find >= stringGroup.endIndex) throw new RuntimeException(">= string end");
@@ -217,14 +218,22 @@ public class OOJavaTokenizer extends JavaTokenizer {
             if (charAt(searchBracket) == '}' && charAt(searchBracket - 1) != '\\') {
                 bracket--;
             }
-            if (charAt(searchBracket) == '\\' && charAt(searchBracket+1) == '"') {
-                bcNum++;
-                if (bcNum%2==1){
+            if (charAt(searchBracket) == '\\' && charAt(searchBracket + 1) == '"') {
+                if (charAt(searchBracket-1)=='\\') {
+                    if (charAt(searchBracket-2)=='\\') throw new RuntimeException("\"多次转义错误");
+                    reader.buf[searchBracket-1] = '"';
                     reader.buf[searchBracket] = ' ';
-                    reader.buf[searchBracket+1] = '"';
-                }else {
-                    reader.buf[searchBracket] = '"';
-                    reader.buf[searchBracket+1] = ' ';
+                    reader.buf[searchBracket + 1] = ' ';
+                } else {
+
+                    bcNum++;
+                    if (bcNum % 2 == 1) {
+                        reader.buf[searchBracket] = ' ';
+                        reader.buf[searchBracket + 1] = '"';
+                    } else {
+                        reader.buf[searchBracket] = '"';
+                        reader.buf[searchBracket + 1] = ' ';
+                    }
                 }
 
             }
@@ -308,7 +317,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
         public boolean searchEnd() {
             leftBracket2 = 1;
             int find = startIndex + 1;
-            int mul=0;
+            int mul = 0;
             while (true) {
                 if (find >= reader.buflen) throw new RuntimeException(">= buflen");
                 if (charAt(find) == '(' && charAt(find - 1) != '\\') {
@@ -319,7 +328,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 }
 
                 if (leftBracket2 == 0) {
-                    if ((mul==1)&&charAt(find - 1) == '"') {
+                    if ((mul == 1) && charAt(find - 1) == '"') {
                         endIndex = find;
                         return true;
                     } else {
