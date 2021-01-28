@@ -1,12 +1,9 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Names;
-
-import javax.swing.table.TableRowSorter;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringTokenizer;
 
 public class OOJavaTokenizer extends JavaTokenizer {
 
@@ -34,15 +31,15 @@ public class OOJavaTokenizer extends JavaTokenizer {
 //            aroundString=true;
 //            System.out.println("Start");
 //        }
-        System.out.println("    readToken:"+subChars(reader.bp,reader.bp+20));
+        System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
         if (wList.size() > 0) {
             Tokens.Token remove = wList.remove(0);
-            System.out.println("add '" + remove + "'    index: " + remove.pos + "~" + remove.endPos);
+            System.out.println("add '" + (remove instanceof Tokens.StringToken ? ((Tokens.StringToken) remove).stringVal:remove) + "'    index: " + remove.pos + "~" + remove.endPos);
             return remove;
         }
         Tokens.Token stringToken = stringHandler();
         if (stringToken != null) {
-            System.out.println("add '" + stringToken + "'    index: " + stringToken.pos + "~" + stringToken.endPos);
+            System.out.println("add '" + (stringToken instanceof Tokens.StringToken ? ((Tokens.StringToken) stringToken).stringVal:stringToken) + "'    index: " + stringToken.pos + "~" + stringToken.endPos);
             return stringToken;
         }
 
@@ -55,7 +52,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
     }
 
 
-    public void replaceReaderChar(){
+    public void replaceReaderChar() {
         int oStartIndex = reader.bp;
         switch (charAt(oStartIndex)) {
             case '\t':
@@ -68,10 +65,10 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 } while (charAt(oStartIndex) == '\t' || charAt(oStartIndex) == '\f');
                 break;
         }
-        if (charAt(oStartIndex) == '$' && charAt(oStartIndex + 1) == '(' && charAt(oStartIndex - 1) == '"'){
+        if (charAt(oStartIndex) == '$' && charAt(oStartIndex + 1) == '(' && charAt(oStartIndex - 1) == '"') {
             int leftBracket2 = 1;
             int find = oStartIndex + 1;
-            int endIndex=-1;
+            int endIndex = -1;
             while (true) {
                 if (find >= reader.buflen) throw new RuntimeException(">= buflen");
                 if (charAt(find) == '(' && charAt(find - 1) != '\\') {
@@ -81,20 +78,20 @@ public class OOJavaTokenizer extends JavaTokenizer {
                     leftBracket2--;
                 }
                 if (leftBracket2 == 0) {
-                    endIndex= find+1;
+                    endIndex = find + 1;
                     break;
                 }
                 find++;
             }
-            String preCode=subChars(oStartIndex,endIndex);
-            String toCode="";
-            int preLength=reader.buf.length;
-            int toLength=preLength-preCode.length()+preCode.length();
-            char[] chars=new char[toLength];
-            System.arraycopy(reader.buf,0,chars,0,oStartIndex);
-            System.arraycopy(reader.buf,oStartIndex,chars,oStartIndex,toCode.length());
-            System.arraycopy(reader.buf,oStartIndex+preCode.length(),chars,oStartIndex+toCode.length(),toLength-(oStartIndex+toCode.length()));
-            reader.buf=chars;
+            String preCode = subChars(oStartIndex, endIndex);
+            String toCode = "";
+            int preLength = reader.buf.length;
+            int toLength = preLength - preCode.length() + preCode.length();
+            char[] chars = new char[toLength];
+            System.arraycopy(reader.buf, 0, chars, 0, oStartIndex);
+            System.arraycopy(reader.buf, oStartIndex, chars, oStartIndex, toCode.length());
+            System.arraycopy(reader.buf, oStartIndex + preCode.length(), chars, oStartIndex + toCode.length(), toLength - (oStartIndex + toCode.length()));
+            reader.buf = chars;
 //            reader.buflen=toLength;
 
         }
@@ -110,7 +107,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
     private Tokens.Token stringHandler() {
         int oStartIndex = reader.bp;
         if (mStringGroup != null && oStartIndex > mStringGroup.endIndex) {
-            throw new RuntimeException("搜索结果异常");
+            throw new RuntimeException("搜索结果异常，StringGroup未正确结束");
         }
         switch (charAt(oStartIndex)) {
             case '\t':
@@ -127,10 +124,11 @@ public class OOJavaTokenizer extends JavaTokenizer {
             StringGroup stringGroup = createStringGroup(oStartIndex);
             boolean b = stringGroup.searchEnd();
             if (!b) {
-                System.out.println("忽略内容: "+subChars(stringGroup.startIndex,stringGroup.endIndex));
+                System.out.println("忽略内容: " + subChars(stringGroup.startIndex, stringGroup.endIndex));
                 stringGroup.remove();
                 return null;
             }
+            System.out.println("发现动态字符串: " + subChars(stringGroup.startIndex, stringGroup.endIndex));
             int find = stringGroup.startIndex + 1;
             while (true) {
                 if (find >= this.reader.buflen) throw new RuntimeException(">= buflen");
@@ -138,16 +136,17 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 find = indexOf(oStartIndex, '$', true);
                 if (find == -1) {
                     //记录 '"'~'"'的字符串
-                    String chars = subChars(oStartIndex + 1, stringGroup.endIndex);
-                    reIndex(stringGroup.endIndex + 1);
+                    String chars = subChars(oStartIndex + 1, stringGroup.endIndex-1);
+                    reIndex(stringGroup.endIndex);
                     mStringGroup.remove();
-                    return loadStringToken(oStartIndex, stringGroup.endIndex, chars);
+                    return loadStringToken(oStartIndex, stringGroup.endIndex + 1, chars);
                 } else {
                     if (charAt(find - 1) == '\\' || charAt(find + 1) != '{') continue;
                     //记录 '"'~'${'的字符串
                     stringGroup.createDynamicCode(find);
                     stringGroup.leftBracket++;
                     String chars = subChars(oStartIndex + 1, find);
+                    findAndReplaceWhiteBetweenCode(stringGroup, find);
                     reIndex(find + 2);
                     latterLoadToken(loadCommaToken(find, find + 2));
                     return loadStringToken(oStartIndex + 1, find, chars);
@@ -171,17 +170,17 @@ public class OOJavaTokenizer extends JavaTokenizer {
                         if (find >= mStringGroup.endIndex) throw new RuntimeException(">= string end");
                         find = indexOf(find + 1, '$', true);
                         if (find == -1) {
-                            int end=mStringGroup.endIndex;
+                            int end = mStringGroup.endIndex;
                             mStringGroup.remove();
-                            if (end == oStartIndex + 1) {
+                            if (end == oStartIndex + 2) {
                                 //'}'后立刻跟一个'"'
                                 //跳过'"'
-                                reIndex(end + 1);
+                                reIndex(end);
                                 return null;
                             } else {
                                 //记录 '}'~'"'的字符串
-                                String chars = subChars(oStartIndex + 1, end);
-                                reIndex(end + 2);
+                                String chars = subChars(oStartIndex + 1, end-1);
+                                reIndex(end);
                                 latterLoadToken(loadStringToken(oStartIndex, end, chars));
                                 return loadCommaToken(oStartIndex, oStartIndex + 1);
                             }
@@ -191,7 +190,8 @@ public class OOJavaTokenizer extends JavaTokenizer {
                             String chars = subChars(oStartIndex + 1, find);
                             mStringGroup.createDynamicCode(find);
                             mStringGroup.leftBracket++;
-                            reIndex(find + 1);
+                            findAndReplaceWhiteBetweenCode(mStringGroup, find);
+                            reIndex(find + 2);
                             latterLoadToken(loadStringToken(oStartIndex, mStringGroup.getLastDynamicCode().endIndex, chars));
                             latterLoadToken(loadCommaToken(find, find + 2));
                             return loadCommaToken(oStartIndex, oStartIndex + 1);
@@ -204,13 +204,44 @@ public class OOJavaTokenizer extends JavaTokenizer {
         return null;
     }
 
+    private void findAndReplaceWhiteBetweenCode(StringGroup stringGroup, int find) {
+        int searchBracket = find + 2;
+        int bracket = 1;
+        int bcNum=0;
+        while (true) {
+            if (find >= reader.buflen) throw new RuntimeException(">= buflen");
+            if (find >= stringGroup.endIndex) throw new RuntimeException(">= string end");
+            if (charAt(searchBracket) == '{' && charAt(searchBracket - 1) != '\\') {
+                bracket++;
+            }
+            if (charAt(searchBracket) == '}' && charAt(searchBracket - 1) != '\\') {
+                bracket--;
+            }
+            if (charAt(searchBracket) == '\\' && charAt(searchBracket+1) == '"') {
+                bcNum++;
+                if (bcNum%2==1){
+                    reader.buf[searchBracket] = ' ';
+                    reader.buf[searchBracket+1] = '"';
+                }else {
+                    reader.buf[searchBracket] = '"';
+                    reader.buf[searchBracket+1] = ' ';
+                }
+
+            }
+            if (bracket == 0) {
+                break;
+            }
+            searchBracket++;
+        }
+    }
+
     private String subChars(int startIndex, int endIndex) {
-        if(endIndex>reader.buflen){
-            endIndex=reader.buflen;
+        if (endIndex > reader.buflen) {
+            endIndex = reader.buflen;
         }
         int length = endIndex - startIndex;
-        if (length==0) return "";
-        if (length<0) throw new RuntimeException("截取字符串错误： "+startIndex+"~"+endIndex);
+        if (length == 0) return "";
+        if (length < 0) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
         return new String(chars);
@@ -220,7 +251,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
 
     protected class StringGroup {
         int startIndex = -1;//'"'
-        int endIndex = -1;//'"'(end)
+        int endIndex = -1;//'"'+1(end)
         List<DynamicCode> dynamicCodes = new ArrayList<>();
 
         /**
@@ -277,6 +308,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
         public boolean searchEnd() {
             leftBracket2 = 1;
             int find = startIndex + 1;
+            int mul=0;
             while (true) {
                 if (find >= reader.buflen) throw new RuntimeException(">= buflen");
                 if (charAt(find) == '(' && charAt(find - 1) != '\\') {
@@ -285,14 +317,18 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 if (charAt(find) == ')' && charAt(find - 1) != '\\') {
                     leftBracket2--;
                 }
+
                 if (leftBracket2 == 0) {
-                    if (charAt(find - 1) == '"') {
-                        endIndex = find - 1;
+                    if ((mul==1)&&charAt(find - 1) == '"') {
+                        endIndex = find;
                         return true;
                     } else {
                         endIndex = find;
                         return false;
                     }
+                }
+                if (charAt(find) == '"' && charAt(find - 1) != '\\') {
+                    mul++;
                 }
                 find++;
             }
