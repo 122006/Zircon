@@ -82,6 +82,8 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
             JavaCompiler compiler=JavaCompiler.instance(context);
             OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer", pcl, classLoader);
             OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavadocTokenizer", pcl, classLoader);
+            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup", pcl, classLoader);
+            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup$DynamicCode", pcl, classLoader);
             Class<?> OOScannerClass = OOProcessor.reloadClass("com.sun.tools.javac.parser.OOScanner", pcl, classLoader);
             Class<?> OOScannerFactoryClass = OOProcessor.reloadClass("com.sun.tools.javac.parser.OOScannerFactory", pcl, classLoader);
 
