@@ -23,12 +23,12 @@ public class TextStringFormat {
         {
             String add = "test";
             String test = $("fwe ${add}");
-            String will = $("fwe ", add);
+            String will = "fwe test";
             assertEquals(test, will);
         }
         {
             String test = $("gr ${System.currentTimeMillis()/10}");
-            String will = $("gr ", System.currentTimeMillis()/10);
+            String will = "gr "+System.currentTimeMillis()/10;
             assertEquals(test, will);
         }
         {
@@ -57,6 +57,8 @@ public class TextStringFormat {
             String will = $("test ", "inStr");
             assertEquals(test, will);
         }
+
+        assertEquals($("test (${1+2})"), "test (3)");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");
