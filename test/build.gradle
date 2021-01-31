@@ -17,5 +17,5 @@ dependencies {
     implementation 'com.by122006.jsf:impl:0.1'
 }
 compileJava {
-    options.compilerArgs  << "-Xplugin:JavaOO"
+    options.compilerArgs  << "-Xplugin:MagicString"
 }

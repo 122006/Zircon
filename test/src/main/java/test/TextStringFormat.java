@@ -93,7 +93,7 @@ public class TextStringFormat {
 
         String string = "world";
 
-        String will = $("hello ${str}");
+        String will = $("hello ${string}");
 
 
 

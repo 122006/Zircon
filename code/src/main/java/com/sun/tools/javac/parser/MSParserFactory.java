@@ -4,10 +4,10 @@ import com.sun.tools.javac.util.Context;
 
 import java.nio.CharBuffer;
 
-public class OOParserFactory  extends ParserFactory{
+public class MSParserFactory extends ParserFactory{
     private Context context;
 
-    protected OOParserFactory(Context context) {
+    protected MSParserFactory(Context context) {
         super(context);
         this.context = context;
     }
@@ -20,13 +20,13 @@ public class OOParserFactory  extends ParserFactory{
         ScannerFactory scannerFactory=ScannerFactory.instance(context);
         if (var1 instanceof CharBuffer) {
             CharBuffer var4 = (CharBuffer)var1;
-            return var2 ? new OOScanner(scannerFactory, new JavadocTokenizer(scannerFactory, var4)) : new OOScanner(scannerFactory, var4);
+            return var2 ? new MSScanner(scannerFactory, new JavadocTokenizer(scannerFactory, var4)) : new MSScanner(scannerFactory, var4);
         } else {
             char[] var3 = var1.toString().toCharArray();
             return this.newScanner(var3, var3.length, var2);
         }
     }
     public Scanner newScanner(char[] var1, int var2, boolean var3) {
-        return var3 ? new OOScanner(scannerFactory, new JavadocTokenizer(scannerFactory, var1, var2)) : new OOScanner(scannerFactory, var1, var2);
+        return var3 ? new MSScanner(scannerFactory, new JavadocTokenizer(scannerFactory, var1, var2)) : new MSScanner(scannerFactory, var1, var2);
     }
 }

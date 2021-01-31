@@ -7,7 +7,13 @@
     
     几乎不会增加额外编译时间
     
-    代码内容支持idea提示（需自行配置）
+    代码内容支持idea补全提示（需自行配置）
+    
+    
+ ![avatar](https://github.com/122006/MagicJavaString/blob/master/others/input.png)
+
+
+ 
 
 * 使用示例
          
@@ -28,7 +34,7 @@
 		    //如果编译安卓项目，加入以下代码
 		    gradle.projectsEvaluated {
                 tasks.withType(JavaCompile) {
-                     options.compilerArgs << "-Xplugin:JavaOO"
+                     options.compilerArgs << "-Xplugin:MagicString"
                 }
             }
 	    }
@@ -43,7 +49,7 @@
 	    
 	    //如果编译标准java项目(非安卓项目)，加入以下代码
 	    compileJava {
-            options.compilerArgs  << "-Xplugin:JavaOO"
+            options.compilerArgs  << "-Xplugin:MagicString"
         }
 
 * 其他注意事项
@@ -51,4 +57,10 @@
    * $()中参数只允许纯字符串或纯代码，混合模式暂时无法解析 
             
         eg: $(~~"${123}"+123~~,"123"+"123")
+        
+   * 暂时不支持 `$变量名最长匹配` 解析。期望在后续版本中进行支持
+   
+   * idea代码补全配置 
+   
+   ![avatar](https://github.com/122006/MagicJavaString/blob/master/others/languageinjection.png)
    

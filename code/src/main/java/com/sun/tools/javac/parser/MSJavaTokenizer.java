@@ -7,17 +7,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class JSFJavaTokenizer extends JavaTokenizer {
+public class MSJavaTokenizer extends JavaTokenizer {
 
-    protected JSFJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
+    protected MSJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
     }
 
-    protected JSFJavaTokenizer(ScannerFactory scannerFactory, char[] chars, int i) {
+    protected MSJavaTokenizer(ScannerFactory scannerFactory, char[] chars, int i) {
         super(scannerFactory, chars, i);
     }
 
-    protected JSFJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
+    protected MSJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
         super(scannerFactory, unicodeReader);
     }
 
