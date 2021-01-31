@@ -133,14 +133,14 @@ public class OOProcessor extends AbstractProcessor {
 
         @Override
         public void started(TaskEvent e) {
-            System.out.println("started:" + pclassloader + "    TaskEvent.Kind." + e.getKind().name());
+//            System.out.println("started:" + pclassloader + "    TaskEvent.Kind." + e.getKind().name());
             if (e.getKind() == TaskEvent.Kind.ANALYZE && !done) {
                 patch(compiler, pclassloader);
                 e.getCompilationUnit().accept(new TreeScanner<Void, Void>() {
                     @Override
                     public Void visitLiteral(LiteralTree node, Void unused) {
                         JCTree.JCLiteral var3 = (JCTree.JCLiteral) node;
-                        System.out.println(var3.getTag() + ": " + node.getValue());
+//                        System.out.println(var3.getTag() + ": " + node.getValue());
                         return super.visitLiteral(node, unused);
                     }
                 }, null);
@@ -181,7 +181,7 @@ public class OOProcessor extends AbstractProcessor {
 
     static void patch(JavaCompiler compiler, ClassLoader pcl) {
         try {
-            System.out.println("patch start");
+//            System.out.println("patch start");
             JavaCompiler delCompiler = (JavaCompiler) get(compiler, "delegateCompiler");
             if (delCompiler != null)
                 compiler = delCompiler; // javac has delegateCompiler. netbeans hasn't
@@ -213,12 +213,12 @@ public class OOProcessor extends AbstractProcessor {
 //            context.put(ScannerFactory.scannerFactoryKey, (ScannerFactory) null);
             ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
             ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
-            System.out.println("OOScannerFactoryClass=" + OOScannerFactoryClass);
-            System.out.println(Stream.of(OOScannerFactoryClass.getDeclaredMethods()).map(Method::getName).collect(Collectors.joining("    ,")));
+//            System.out.println("OOScannerFactoryClass=" + OOScannerFactoryClass);
+//            System.out.println(Stream.of(OOScannerFactoryClass.getDeclaredMethods()).map(Method::getName).collect(Collectors.joining("    ,")));
             Object instance = getInstance(OOScannerFactoryClass, context);
-            System.out.println("ScannerFactory=" + instance);
+//            System.out.println("ScannerFactory=" + instance);
             set(parserFactory, "scannerFactory", instance);
-            System.out.println("patch end");
+//            System.out.println("patch end");
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(e);

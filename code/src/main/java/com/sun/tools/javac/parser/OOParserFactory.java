@@ -13,7 +13,7 @@ public class OOParserFactory  extends ParserFactory{
     }
     public JavacParser newParser(CharSequence var1, boolean var2, boolean var3, boolean var4) {
         Scanner var5 = newScanner(var1, var2);
-        System.out.println("newParser: "+var5);
+//        System.out.println("newParser: "+var5);
         return new JavacParser(this, var5, var2, var4, var3);
     }
     public Scanner newScanner(CharSequence var1, boolean var2) {

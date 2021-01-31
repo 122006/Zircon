@@ -59,7 +59,7 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
 //                    return;
 //                }
 //                e.getSourceFile();
-                System.out.println("start: TaskEvent.Kind."+e.getKind());
+//                System.out.println("start: TaskEvent.Kind."+e.getKind());
                 if (e.getKind() != TaskEvent.Kind.PARSE) {
                     return;
                 }
@@ -68,7 +68,7 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
 
             @Override
             public void finished(TaskEvent e) {
-                System.out.println("end: TaskEvent.Kind."+e.getKind());
+//                System.out.println("end: TaskEvent.Kind."+e.getKind());
                 if (e.getKind() != TaskEvent.Kind.PARSE) {
                     return;
                 }
@@ -80,22 +80,28 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
     private void startTask(Context context, ClassLoader pcl, ClassLoader classLoader) {
         try {
             JavaCompiler compiler=JavaCompiler.instance(context);
-            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer", pcl, classLoader);
+
+
+            OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer", pcl, classLoader);
+            OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer$Group", pcl, classLoader);
+            OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer$Item", pcl, classLoader);
+
             OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavadocTokenizer", pcl, classLoader);
-            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup", pcl, classLoader);
-            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup$DynamicCode", pcl, classLoader);
+//            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer", pcl, classLoader);
+//            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup", pcl, classLoader);
+//            OOProcessor.reloadClass("com.sun.tools.javac.parser.OOJavaTokenizer$StringGroup$DynamicCode", pcl, classLoader);
             Class<?> OOScannerClass = OOProcessor.reloadClass("com.sun.tools.javac.parser.OOScanner", pcl, classLoader);
             Class<?> OOScannerFactoryClass = OOProcessor.reloadClass("com.sun.tools.javac.parser.OOScannerFactory", pcl, classLoader);
 
 //            context.put(ScannerFactory.scannerFactoryKey, (ScannerFactory) null);
             ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
             ParserFactory parserFactory = (ParserFactory) OOProcessor.get(compiler, "parserFactory");
-            System.out.println("OOScannerFactoryClass=" + OOScannerFactoryClass);
-            System.out.println(Stream.of(OOScannerFactoryClass.getDeclaredMethods()).map(Method::getName).collect(Collectors.joining("    ,")));
+//            System.out.println("OOScannerFactoryClass=" + OOScannerFactoryClass);
+//            System.out.println(Stream.of(OOScannerFactoryClass.getDeclaredMethods()).map(Method::getName).collect(Collectors.joining("    ,")));
             Object instance = OOProcessor.getInstance(OOScannerFactoryClass, context);
-            System.out.println("ScannerFactory=" + instance);
+//            System.out.println("ScannerFactory=" + instance);
             OOProcessor.set(parserFactory, "scannerFactory", instance);
-            System.out.println("patch end");
+//            System.out.println("patch end");
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -103,7 +109,7 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
 
     @Override
     public Void visitLiteral(LiteralTree node, Void unused) {
-        System.out.println(node.getValue());
+//        System.out.println(node.getValue());
         return super.visitLiteral(node, unused);
     }
 

@@ -11,10 +11,10 @@ public class OOScannerFactory extends ScannerFactory {
 
     public OOScannerFactory(Context context) {
         super(preSuper(context));
-        System.out.println("OOScannerFactory");
+//        System.out.println("OOScannerFactory");
     }
     public static OOScannerFactory instance(Context var0) {
-        System.out.println("OOScannerFactory instance");
+//        System.out.println("OOScannerFactory instance");
         Object var1 = var0.get(scannerFactoryKey);
         if (!(var1 instanceof OOScannerFactory)) {
             var1 = new OOScannerFactory(var0);

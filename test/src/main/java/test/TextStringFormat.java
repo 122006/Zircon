@@ -28,12 +28,12 @@ public class TextStringFormat {
         }
         {
             String test = $("gr ${System.currentTimeMillis()/10}");
-            String will = "gr "+System.currentTimeMillis()/10;
+            String will = "gr " + System.currentTimeMillis() / 10;
             assertEquals(test, will);
         }
         {
             String test = $("测试 [${1+2}]");
-            String will = $("测试 [", 1+2+"]");
+            String will = $("测试 [", 1 + 2 + "]");
             assertEquals(test, will);
         }
         {
@@ -44,12 +44,12 @@ public class TextStringFormat {
         }
         {
             String test = $("test ${1+2}${2+3}");
-            String will ="test 35";
+            String will = "test 35";
             assertEquals(test, will);
         }
         {
             String test = $("test [${new Date()}]${2+3}");
-            String will = "test ["+new Date()+"]5";
+            String will = "test [" + new Date() + "]5";
             assertEquals(test, will);
         }
         {
@@ -59,6 +59,13 @@ public class TextStringFormat {
         }
 
         assertEquals($("test (${1+2})"), "test (3)");
+        assertEquals($("test (${\"te\\\"st\"})"), "test (te\"st)");
+        assertEquals($("test (${\"te\\nst\"})"), "test (te\nst)");
+        assertEquals($("test (${\"te\\\\\\\"st\"})"), "test (te\\\"st)");
+        assertEquals($("(${\"test\"})"), "(test)");
+        assertEquals($("(${})"), "()");
+        assertEquals($("${}"), "");
+        assertEquals($(), "");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");

@@ -3,6 +3,7 @@ package com.sun.tools.javac.parser;
 import javax.xml.bind.Element;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -10,17 +11,17 @@ public class OOJavaTokenizer extends JavaTokenizer {
 
     protected OOJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
-        System.out.println("OOJavaTokenizer1");
+//        System.out.println("OOJavaTokenizer1");
     }
 
     protected OOJavaTokenizer(ScannerFactory scannerFactory, char[] chars, int i) {
         super(scannerFactory, chars, i);
-        System.out.println("OOJavaTokenizer2");
+//        System.out.println("OOJavaTokenizer2");
     }
 
     protected OOJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
         super(scannerFactory, unicodeReader);
-        System.out.println("OOJavaTokenizer3");
+//        System.out.println("OOJavaTokenizer3");
     }
 
     boolean aroundString = false;
@@ -102,8 +103,6 @@ public class OOJavaTokenizer extends JavaTokenizer {
         wList.add(token);
     }
 
-    //$"xxxxxxx${new String(\"dsadd\")}fadasdad"
-    //"xxxxxxx+new String("dsadd")+fadasdad"
 
     private Tokens.Token stringHandler() {
         int oStartIndex = reader.bp;
@@ -144,11 +143,11 @@ public class OOJavaTokenizer extends JavaTokenizer {
                 } else {
                     if (charAt(find - 1) == '\\' || charAt(find + 1) != '{') continue;
                     //记录 '"'~'${'的字符串
-                    stringGroup.createDynamicCode(find);
+                    stringGroup.createDynamicCode(find).format();
                     stringGroup.leftBracket++;
                     String chars = subChars(oStartIndex + 1, find);
-                    findAndReplaceWhiteBetweenCode(stringGroup, find);
                     reIndex(find + 2);
+                    stringGroup.getLastDynamicCode().resetLastCode();
                     latterLoadToken(loadCommaToken(find, find + 2));
                     return loadStringToken(oStartIndex + 1, find, chars);
                 }
@@ -189,10 +188,10 @@ public class OOJavaTokenizer extends JavaTokenizer {
                             if (charAt(find + 1) != '{') continue;
                             //记录  '}'~'${'
                             String chars = subChars(oStartIndex + 1, find);
-                            mStringGroup.createDynamicCode(find);
+                            mStringGroup.createDynamicCode(find).format();
                             mStringGroup.leftBracket++;
-                            findAndReplaceWhiteBetweenCode(mStringGroup, find);
                             reIndex(find + 2);
+                            mStringGroup.getLastDynamicCode().resetLastCode();
                             latterLoadToken(loadStringToken(oStartIndex, mStringGroup.getLastDynamicCode().endIndex, chars));
                             latterLoadToken(loadCommaToken(find, find + 2));
                             return loadCommaToken(oStartIndex, oStartIndex + 1);
@@ -205,44 +204,6 @@ public class OOJavaTokenizer extends JavaTokenizer {
         return null;
     }
 
-    private void findAndReplaceWhiteBetweenCode(StringGroup stringGroup, int find) {
-        int searchBracket = find + 2;
-        int bracket = 1;
-        int bcNum = 0;
-        while (true) {
-            if (find >= reader.buflen) throw new RuntimeException(">= buflen");
-            if (find >= stringGroup.endIndex) throw new RuntimeException(">= string end");
-            if (charAt(searchBracket) == '{' && charAt(searchBracket - 1) != '\\') {
-                bracket++;
-            }
-            if (charAt(searchBracket) == '}' && charAt(searchBracket - 1) != '\\') {
-                bracket--;
-            }
-            if (charAt(searchBracket) == '\\' && charAt(searchBracket + 1) == '"') {
-                if (charAt(searchBracket-1)=='\\') {
-                    if (charAt(searchBracket-2)=='\\') throw new RuntimeException("\"多次转义错误");
-                    reader.buf[searchBracket-1] = '"';
-                    reader.buf[searchBracket] = ' ';
-                    reader.buf[searchBracket + 1] = ' ';
-                } else {
-
-                    bcNum++;
-                    if (bcNum % 2 == 1) {
-                        reader.buf[searchBracket] = ' ';
-                        reader.buf[searchBracket + 1] = '"';
-                    } else {
-                        reader.buf[searchBracket] = '"';
-                        reader.buf[searchBracket + 1] = ' ';
-                    }
-                }
-
-            }
-            if (bracket == 0) {
-                break;
-            }
-            searchBracket++;
-        }
-    }
 
     private String subChars(int startIndex, int endIndex) {
         if (endIndex > reader.buflen) {
@@ -250,7 +211,7 @@ public class OOJavaTokenizer extends JavaTokenizer {
         }
         int length = endIndex - startIndex;
         if (length == 0) return "";
-        if (length < 0) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
+        if (startIndex > endIndex) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
         return new String(chars);
@@ -289,7 +250,48 @@ public class OOJavaTokenizer extends JavaTokenizer {
             }
 
             public boolean isEnd() {
-                return endIndex != -1;
+                return reader.bp>=endIndex;
+            }
+
+            /**
+             * 分析并处理代码
+             */
+            public void format() {
+                int searchBracket = startIndex + 2;
+                int bracket = 1;
+                while (true) {
+                    if (searchBracket >= reader.buflen) throw new RuntimeException(">= buflen");
+                    if (searchBracket >= StringGroup.this.endIndex) throw new RuntimeException(">= string end");
+                    if (charAt(searchBracket) == '{' && charAt(searchBracket - 1) != '\\') {
+                        bracket++;
+                    }
+                    if (charAt(searchBracket) == '}' && charAt(searchBracket - 1) != '\\') {
+                        bracket--;
+                    }
+                    searchBracket++;
+                    if (bracket == 0) {
+                        break;
+                    }
+                }
+                endIndex=searchBracket;
+
+            }
+
+            /**
+             * 后续代码重置
+             */
+            public void resetLastCode(){
+                String str=subChars(startIndex+2,endIndex-1);
+                String toStr=str.replace("\\\"","\"");
+                int replaceCount = str.length() - toStr.length();
+                if (replaceCount!=0){
+                    System.out.println("替代后续文本 ${"+str+"}->${"+toStr+"}");
+                    System.arraycopy(toStr.toCharArray(), 0,reader.buf, startIndex+2,  toStr.length());
+                    char[] array=new char[replaceCount];
+                    Arrays.fill(array, ' ');
+                    System.arraycopy( array, 0,reader.buf, startIndex+2+toStr.length(), replaceCount);
+
+                }
             }
         }
 
@@ -299,7 +301,10 @@ public class OOJavaTokenizer extends JavaTokenizer {
             dynamicCodes.add(e);
             return e;
         }
-
+        public DynamicCode getLastDynamicCode() {
+            if (dynamicCodes.size()==0) throw new RuntimeException("动态代码块匹配错误");
+            return dynamicCodes.get(dynamicCodes.size()-1);
+        }
         public void remove() {
 //            this.endIndex = endIndex;
             mStringGroup = null;
@@ -310,10 +315,11 @@ public class OOJavaTokenizer extends JavaTokenizer {
             return getLastDynamicCode().isEnd();
         }
 
-        public DynamicCode getLastDynamicCode() {
-            return dynamicCodes.get(dynamicCodes.size() - 1);
-        }
 
+        /**
+         * 匹配结束点：['"'  ~  '"']) 结束点为')'
+         * @return 是否是严格匹配   :以")结尾
+         */
         public boolean searchEnd() {
             leftBracket2 = 1;
             int find = startIndex + 1;
