@@ -86,12 +86,18 @@ public class TextStringFormat {
         new RuntimeException("测试未通过").printStackTrace();
     }
 
+
     @Test
     public void test1() {
-        String add = "test";
-        String test = $("1234 ${add}");
-        String will = $("1234 ", add);
-        assert Objects.equals(test, will);
+
+
+        String string = "world";
+
+        String will = $("hello ${str}");
+
+
+
+        assert Objects.equals(will, "hello world");
     }
 
 
