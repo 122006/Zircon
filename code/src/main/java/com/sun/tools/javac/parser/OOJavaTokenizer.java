@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
 
+@Deprecated
 public class OOJavaTokenizer extends JavaTokenizer {
 
     protected OOJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {

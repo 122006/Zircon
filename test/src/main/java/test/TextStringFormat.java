@@ -59,7 +59,9 @@ public class TextStringFormat {
         }
 
         assertEquals($("test (${1+2})"), "test (3)");
-        assertEquals($("test (${\"te\\\"st\"})"), "test (te\"st)");
+        assertEquals($("test (${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
+        assertEquals($("test ","(${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
+        assertEquals($("${\"Test,mode\".substring(0,6)}"," end"), "Test,mode".substring(0,6)+" end");
         assertEquals($("test (${\"te\\nst\"})"), "test (te\nst)");
         assertEquals($("test (${\"te\\\\\\\"st\"})"), "test (te\\\"st)");
         assertEquals($("(${\"test\"})"), "(test)");

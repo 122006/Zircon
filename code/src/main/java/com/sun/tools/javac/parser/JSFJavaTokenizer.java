@@ -1,12 +1,11 @@
 package com.sun.tools.javac.parser;
 
-import jdk.nashorn.internal.parser.TokenKind;
+import com.sun.tools.javac.util.Log;
 
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
 public class JSFJavaTokenizer extends JavaTokenizer {
 
@@ -23,20 +22,32 @@ public class JSFJavaTokenizer extends JavaTokenizer {
     }
 
 
+    public void log(String str) {
+        fac.log.printRawLines(Log.WriterKind.NOTICE, str);
+    }
+
+    public void wain(String str) {
+        fac.log.printRawLines(Log.WriterKind.WARNING, str);
+    }
+
+    public void error(String str) {
+        fac.log.printRawLines(Log.WriterKind.ERROR, str);
+    }
+
     public Tokens.Token readToken() {
-        System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
-        if (thisGroup==null&&isTargetString()) {
+//        System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
+        if (thisGroup == null && isTargetString()) {
             try {
                 formatGroup();
-                for (Item item : thisGroup.items) {
-                    if (item.token != null) {
-                        System.out.println("    token:" + item.token.kind);
-                    } else {
-                        System.out.println("    token:" + null);
-                    }
-                }
+//                for (Item item : thisGroup.items) {
+//                    if (item.token != null) {
+//                        System.out.println("    token:" + item.token.kind);
+//                    } else {
+//                        System.out.println("    token:" + null);
+//                    }
+//                }
             } catch (Exception e) {
-                e.printStackTrace();
+                wain("[" + subChars(reader.bp, reader.bp + 20) + "] " + e.getMessage());
             }
         }
         if (thisGroup != null) {
@@ -66,8 +77,8 @@ public class JSFJavaTokenizer extends JavaTokenizer {
         }
         Tokens.Token token = super.readToken();
         if (thisGroup != null) {
-            int nextCharIndex=reader.bp;
-            while (charAt(nextCharIndex)==' '){
+            int nextCharIndex = reader.bp;
+            while (charAt(nextCharIndex) == ' ') {
                 nextCharIndex++;
             }
             for (int i = 0; i < thisGroup.items.size(); i++) {
@@ -99,16 +110,17 @@ public class JSFJavaTokenizer extends JavaTokenizer {
         return charAt(index) == '$' && nextChar(index) == '(';
     }
 
-    public void error(int post, String error) {
+    public void throwError(int post, String error) {
         throw new RuntimeException("index[" + post + "]发生错误: " + error);
     }
 
     Group thisGroup;
 
     private void formatGroup() {
-        if (nowChar(reader.bp) != '$') error(reader.bp, "错误");
+        if (nowChar(reader.bp) != '$') throwError(reader.bp, "错误");
         Group group = new Group(reader.bp);
         group.searchEnd();
+        log("匹配到字符串: " + subChars(group.mappingStartIndex, group.mappingEndIndex));
         int searchIndex = group.mappingStartIndex;
         {
             group.items.add(new Item(searchIndex, searchIndex + 1, null));
@@ -120,10 +132,89 @@ public class JSFJavaTokenizer extends JavaTokenizer {
         char thisItemFirstChar = ' ';
         int thisItemFirstIndex = -1;
         int pCount = 0;
+        boolean findComma = false;
         while ((++searchIndex) < group.mappingEndIndex - 1) {
             char ch = charAt(searchIndex);
-            System.out.println("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch);
+//            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch);
             if (ch == ' ') continue;
+            if (findComma) {
+                if (lastChar(searchIndex) == '\\') continue;
+                switch (ch) {
+                    case '(':
+                        switch (thisItemFirstChar){
+                            case '{':
+                                break;
+                            case '(':
+                                pCount++;
+                                break;
+                            case ' ':
+                                pCount=1;
+                                thisItemFirstChar='(';
+                                break;
+                            default:
+                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
+                                break;
+                        }
+                        break;
+                    case '{':
+                        switch (thisItemFirstChar){
+                            case '{':
+                                pCount++;
+                                break;
+                            case '(':
+                                break;
+                            case ' ':
+                                pCount=1;
+                                thisItemFirstChar='{';
+                                break;
+                            default:
+                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
+                                break;
+                        }
+                        break;
+                    case ')':
+                        switch (thisItemFirstChar){
+                            case '(':
+                                pCount--;
+                                break;
+                            case '{':
+                                break;
+                            default:
+                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
+                                break;
+                        }
+                        break;
+                    case '}':
+                        switch (thisItemFirstChar){
+                            case '(':
+                                break;
+                            case '{':
+                                pCount--;
+                                break;
+                            default:
+                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
+                                break;
+                        }
+                        break;
+                    case ',':
+                        if (pCount==0){
+                            group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
+                            group.items.add(new Item(searchIndex, searchIndex + 1, null));
+                            findComma=false;
+                        }
+                        break;
+                    default:
+                        if (searchIndex==group.mappingEndIndex - 1){
+                            if (pCount!=0){
+                                throwError(searchIndex,"未完整的Code模式");
+                            }else {
+                                group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
+                                findComma=false;
+                            }
+                        }
+                        continue;
+                }
+            }
             if (thisItemFirstIndex == -1) {
                 if (ch == ',') {
                     group.items.add(new Item(searchIndex, searchIndex + 1, null));
@@ -135,12 +226,15 @@ public class JSFJavaTokenizer extends JavaTokenizer {
                     thisItemFirstChar = ch;
                     thisItemFirstIndex = searchIndex;
                 } else {
-                    error(thisItemFirstIndex, "格式化字符串格式起始错误：" + ch);
+                    findComma = true;
+                    thisItemFirstChar = ' ';
+                    thisItemFirstIndex = searchIndex;
+//                    error(thisItemFirstIndex, "格式化字符串格式起始错误：" + ch);
                 }
 
             } else {
                 if (ch == '"' && charAt(searchIndex - 1) != '\\') {
-                    if (thisItemFirstChar == '$') error(thisItemFirstIndex, "${}表达式还未结束");
+                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "${}表达式还未结束");
                     //   '"'xxxxx~'"'
                     String str = subChars(thisItemFirstIndex + 1, searchIndex);
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
@@ -149,9 +243,9 @@ public class JSFJavaTokenizer extends JavaTokenizer {
                     if (nc != ',' && nc != ')')
                         group.loadCommaToken(searchIndex, searchIndex + 1);
                 } else if (ch == '$' && charAt(searchIndex - 1) != '\\' && charAt(searchIndex + 1) == '{') {
-                    if (thisItemFirstChar == '$') error(thisItemFirstIndex, "不支持${}表达式嵌套");
+                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "不支持${}表达式嵌套");
                     //   '"'xxxxx~'$'{
-                    String str = subChars(thisItemFirstIndex+1, searchIndex);
+                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
                     group.loadCommaToken(searchIndex, searchIndex + 1);
@@ -167,16 +261,16 @@ public class JSFJavaTokenizer extends JavaTokenizer {
                             String toStr = str.replace("\\\"", "\"").replace("\\\\", "\\");
                             int replaceCount = str.length() - toStr.length();
                             if (replaceCount != 0) {
-                                System.out.println("替代后续文本 ${" + str + "}->${" + toStr + "}");
+                                log("替代后续文本 ${" + str + "}->${" + toStr + "}");
                                 System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
                                 char[] array = new char[replaceCount];
                                 Arrays.fill(array, ' ');
                                 System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
 
                             }
-                            if (searchIndex-(thisItemFirstIndex + 2)==0){
-                                group.loadStringToken(searchIndex,searchIndex,"");
-                            }else {
+                            if (searchIndex - (thisItemFirstIndex + 2) == 0) {
+                                group.loadStringToken(searchIndex, searchIndex, "");
+                            } else {
                                 group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
                             }
 
@@ -215,7 +309,7 @@ public class JSFJavaTokenizer extends JavaTokenizer {
             int leftBracket2 = -1;
             int find = mappingStartIndex;
             while (true) {
-                if (find >= reader.buflen) error(mappingStartIndex, "未找到匹配结束点");
+                if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
                 if (charAt(find) == '(' && charAt(find - 1) != '\\') {
                     leftBracket2 = (leftBracket2 == -1) ? 1 : (leftBracket2 + 1);
                 }

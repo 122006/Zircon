@@ -49,7 +49,7 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
 
     @Override
     public void init(JavacTask task, String... args) {
-        System.out.println("init JavaOOPlugin");
+        System.out.println("start [动态字符串插件]");
         BasicJavacTask javacTask = (BasicJavacTask) task;
         Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
@@ -63,7 +63,11 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
                 if (e.getKind() != TaskEvent.Kind.PARSE) {
                     return;
                 }
-                startTask(context,JavaOOPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                try {
+                    startTask(context,JavaOOPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                } catch (Exception exception) {
+                    exception.printStackTrace();
+                }
             }
 
             @Override
@@ -77,12 +81,15 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
         });
     }
 
-    private void startTask(Context context, ClassLoader pcl, ClassLoader classLoader) {
+    private void startTask(Context context, ClassLoader pcl, ClassLoader classLoader) throws Exception{
+        JavaCompiler compiler= null;
         try {
-            JavaCompiler compiler=JavaCompiler.instance(context);
-
-
-            OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer", pcl, classLoader);
+            compiler = JavaCompiler.instance(context);
+        } catch (Exception e) {
+//            e.printStackTrace();
+            return;
+        }
+        OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer", pcl, classLoader);
             OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer$Group", pcl, classLoader);
             OOProcessor.reloadClass("com.sun.tools.javac.parser.JSFJavaTokenizer$Item", pcl, classLoader);
 
@@ -102,9 +109,6 @@ public class JavaOOPlugin extends TreeScanner<Void, Void> implements Plugin {
 //            System.out.println("ScannerFactory=" + instance);
             OOProcessor.set(parserFactory, "scannerFactory", instance);
 //            System.out.println("patch end");
-        } catch (Exception exception) {
-            exception.printStackTrace();
-        }
     }
 
     @Override
