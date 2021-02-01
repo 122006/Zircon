@@ -24,7 +24,9 @@
           
 * 插件引入
 
-    Step 1. 在你的根目录项目`build.gradle`文件中加入以下仓库目录及插件依赖
+    **使用Gradle构建项目**
+
+    Step 1. 在你的根目录项目`build.gradle`文件中进行如下操作
 
 	    allprojects {
 		    repositories {
@@ -38,20 +40,59 @@
                 }
             }
 	    }
-    Step 2. 在需要使用插件的module的`build.gradle`文件中增加工具类依赖
+
+    Step 3. 在需要使用插件的module的`build.gradle`文件中进行如下操作
 
 	    dependencies {
 	        ...
 	        annotationProcessor 'com.by122006.jsf.MagicJavaString:code:版本号'
             compile 'com.by122006.jsf.MagicJavaString:impl:版本号'
 	    }
+
     当前版本号：[![](https://jitpack.io/v/122006/MagicJavaString.svg)](https://jitpack.io/#122006/ASM_SmartRunPluginImp)
 	    
 	    //如果编译标准java项目(非安卓项目)，加入以下代码
 	    compileJava {
             options.compilerArgs  << "-Xplugin:MagicString"
         }
+        
+    **使用Maven构建项目**
+    
+    Step 1. 增加依赖
 
+	    <dependency>
+            <groupId>com.github.122006.MagicJavaString</groupId>
+            <artifactId>code</artifactId>
+            <version>0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.122006.MagicJavaString</groupId>
+            <artifactId>impl</artifactId>
+            <version>0.3</version>
+        </dependency>
+        
+    Step 2. 配置jitpack仓库
+
+	    <repositories>
+        	<repository>
+        	    <id>jitpack.io</id>
+        	    <url>https://jitpack.io</url>
+        	</repository>
+        </repositories>
+    当前版本号：[![](https://jitpack.io/v/122006/MagicJavaString.svg)](https://jitpack.io/#122006/ASM_SmartRunPluginImp)
+	    
+    Step 2. 配置javac参数("-Xplugin:MagicString")
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <configuration>
+            <compilerArgs>
+              <arg>-Xplugin:MagicString</arg>
+            </compilerArgs>
+          </configuration>
+        </plugin>
+        
+        
 * 其他注意事项
 
    * $()中参数只允许纯字符串或纯代码，混合模式暂时无法解析 
