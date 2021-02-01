@@ -104,5 +104,5 @@
    
    * idea代码补全配置 
    
-   ![languageinjection](https://github.com/122006/ZrString/blob/master/others/languageinjections.png)
+   ![languageinjection](https://github.com/122006/Zircon/blob/master/others/languageinjections.png)
    
