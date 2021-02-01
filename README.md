@@ -82,6 +82,8 @@
     当前版本号：[![](https://jitpack.io/v/122006/MagicJavaString.svg)](https://jitpack.io/#122006/ASM_SmartRunPluginImp)
 	    
     Step 2. 配置javac参数("-Xplugin:MagicString")
+    
+    
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
