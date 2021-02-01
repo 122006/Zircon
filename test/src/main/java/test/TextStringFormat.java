@@ -48,11 +48,6 @@ public class TextStringFormat {
             assertEquals(test, will);
         }
         {
-            String test = $("test [${new Date()}]${2+3}");
-            String will = "test [" + new Date() + "]5";
-            assertEquals(test, will);
-        }
-        {
             String test = $("test ${\"inStr\"}");
             String will = $("test ", "inStr");
             assertEquals(test, will);
