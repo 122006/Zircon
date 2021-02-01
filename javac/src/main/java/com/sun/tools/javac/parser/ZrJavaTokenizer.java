@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
+    static boolean debug=false;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -21,8 +22,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         super(scannerFactory, unicodeReader);
     }
 
-
     public void log(String str) {
+        if (!debug) return;
         fac.log.printRawLines(Log.WriterKind.NOTICE, str);
     }
 

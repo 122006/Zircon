@@ -4,9 +4,6 @@ apply plugin: 'maven'
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
-    maven {
-        url uri('https://oss.sonatype.org/service/local/staging/deploy/maven2')
-    }
 }
 
 dependencies {

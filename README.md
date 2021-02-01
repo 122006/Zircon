@@ -12,8 +12,6 @@
     
     
  ![example](https://github.com/122006/Zircon/blob/master/others/input.png)
-
-
  
 
 * 使用示例
@@ -46,7 +44,7 @@
 
 	    dependencies {
 	        ...
-	        annotationProcessor 'com.github.122006.Zircon:code:版本号'
+	        annotationProcessor 'com.github.122006.Zircon:javac:版本号'
             compile 'com.github.122006.Zircon:impl:版本号'
 	    }
 

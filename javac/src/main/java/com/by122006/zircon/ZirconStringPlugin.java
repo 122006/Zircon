@@ -80,13 +80,13 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            e.printStackTrace();
             return;
         }
-        reloadClass("com.sun.tools.javac.parser.MSJavaTokenizer", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.MSJavaTokenizer$Group", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.MSJavaTokenizer$Item", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Group", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Item", pcl, classLoader);
 
-        reloadClass("com.sun.tools.javac.parser.MSJavadocTokenizer", pcl, classLoader);
-        Class<?> OOScannerClass = reloadClass("com.sun.tools.javac.parser.MSScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClass("com.sun.tools.javac.parser.MSScannerFactory", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+        Class<?> OOScannerClass = reloadClass("com.sun.tools.javac.parser.ZrScanner", pcl, classLoader);
+        Class<?> OOScannerFactoryClass = reloadClass("com.sun.tools.javac.parser.ZrScannerFactory", pcl, classLoader);
 
         ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
         ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
