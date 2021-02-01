@@ -1,6 +1,5 @@
 package test;
 
-import com.by122006.jsf.Magic;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -9,7 +8,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.by122006.jsf.Magic.$;
+import static com.by122006.zircon.Magic.$;
+
 
 public class TextStringFormat {
 

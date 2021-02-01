@@ -1,5 +1,6 @@
-# MagicJavaString 
-通过对Javac的改写，提供Java对动态字符串的支持
+# Zircon 
+
+支持在Java语言中使用动态字符串
 
     实现类似于kotlin、Groovy等语言中格式化字符串
     
@@ -10,7 +11,7 @@
     代码内容支持idea补全提示（需自行配置）
     
     
- ![avatar](https://github.com/122006/MagicJavaString/blob/master/others/input.png)
+ ![example](https://github.com/122006/Zircon/blob/master/others/input.png)
 
 
  
@@ -36,7 +37,7 @@
 		    //如果编译安卓项目，加入以下代码
 		    gradle.projectsEvaluated {
                 tasks.withType(JavaCompile) {
-                     options.compilerArgs << "-Xplugin:MagicString"
+                     options.compilerArgs << "-Xplugin:ZrString"
                 }
             }
 	    }
@@ -45,15 +46,15 @@
 
 	    dependencies {
 	        ...
-	        annotationProcessor 'com.by122006.jsf.MagicJavaString:code:版本号'
-            compile 'com.by122006.jsf.MagicJavaString:impl:版本号'
+	        annotationProcessor 'com.github.122006.Zircon:code:版本号'
+            compile 'com.github.122006.Zircon:impl:版本号'
 	    }
 
-    当前版本号：[![](https://jitpack.io/v/122006/MagicJavaString.svg)](https://jitpack.io/#122006/ASM_SmartRunPluginImp)
+    当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 	    
 	    //如果编译标准java项目(非安卓项目)，加入以下代码
 	    compileJava {
-            options.compilerArgs  << "-Xplugin:MagicString"
+            options.compilerArgs  << "-Xplugin:ZrString"
         }
         
     **使用Maven构建项目**
@@ -61,14 +62,14 @@
     Step 1. 增加依赖
 
 	    <dependency>
-            <groupId>com.github.122006.MagicJavaString</groupId>
-            <artifactId>code</artifactId>
-            <version>0.3</version>
+            <groupId>com.github.122006.Zircon</groupId>
+            <artifactId>plugin</artifactId>
+            <version>版本号</version>
         </dependency>
         <dependency>
-            <groupId>com.github.122006.MagicJavaString</groupId>
+            <groupId>com.github.122006.Zircon</groupId>
             <artifactId>impl</artifactId>
-            <version>0.3</version>
+            <version>版本号</version>
         </dependency>
         
     Step 2. 配置jitpack仓库
@@ -79,9 +80,9 @@
         	    <url>https://jitpack.io</url>
         	</repository>
         </repositories>
-    当前版本号：[![](https://jitpack.io/v/122006/MagicJavaString.svg)](https://jitpack.io/#122006/ASM_SmartRunPluginImp)
+    当前版本号：[![](https://jitpack.io/v/122006/ZrString.svg)](https://jitpack.io/#122006/ZrString)
 	    
-    Step 2. 配置javac参数("-Xplugin:MagicString")
+    Step 2. 配置javac参数("-Xplugin:ZrString")
     
     
         <plugin>
@@ -89,7 +90,7 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
             <compilerArgs>
-              <arg>-Xplugin:MagicString</arg>
+              <arg>-Xplugin:ZrString</arg>
             </compilerArgs>
           </configuration>
         </plugin>
@@ -105,5 +106,5 @@
    
    * idea代码补全配置 
    
-   ![avatar](https://github.com/122006/MagicJavaString/blob/master/others/languageinjection.png)
+   ![languageinjection](https://github.com/122006/ZrString/blob/master/others/languageinjection.png)
    

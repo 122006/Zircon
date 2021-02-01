@@ -1,4 +1,4 @@
-package com.by122006.jsf;
+package com.by122006.zircon;
 
 
 public class Magic {

@@ -19,7 +19,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.by122006.jsf;
+package com.by122006.zircon;
 
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.util.*;
@@ -34,9 +34,9 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-public class MagicStringPlugin extends TreeScanner<Void, Void> implements Plugin {
+public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugin {
 
-    public static final String NAME = "MagicString";
+    public static final String NAME = "ZrString";
 
     @Override
     public String getName() {
@@ -55,7 +55,7 @@ public class MagicStringPlugin extends TreeScanner<Void, Void> implements Plugin
                     return;
                 }
                 try {
-                    startTask(context, MagicStringPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                    startTask(context, ZirconStringPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                 } catch (Exception exception) {
                     exception.printStackTrace();
                 }
@@ -67,7 +67,7 @@ public class MagicStringPlugin extends TreeScanner<Void, Void> implements Plugin
                 if (e.getKind() != TaskEvent.Kind.PARSE) {
                     return;
                 }
-                e.getCompilationUnit().accept(MagicStringPlugin.this, null);
+                e.getCompilationUnit().accept(ZirconStringPlugin.this, null);
             }
         });
     }

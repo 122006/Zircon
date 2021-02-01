@@ -11,8 +11,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/code" />
             <option value="$PROJECT_DIR$/impl" />
+            <option value="$PROJECT_DIR$/javac" />
             <option value="$PROJECT_DIR$/test" />
           </set>
         </option>

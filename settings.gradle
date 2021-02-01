@@ -1,5 +1,5 @@
-rootProject.name = 'JavaStringFormat'
+rootProject.name = 'Zircon'
 include 'test'
-include 'code'
+include 'javac'
 include 'impl'
 
