@@ -74,6 +74,18 @@ public class TextStringFormat {
         assertEquals($("${}"), "");
         assertEquals($(), "");
         assertEquals($("(${1})"+"(${2})","(${3})"),"(1)(2)(3)");
+        assertEquals($("${')'}"), ")");
+        assertEquals($("${'('}"), "(");
+        assertEquals($(
+                "(${1})"+"(${2})","(${3})"),"(1)(2)(3)");
+        assertEquals(
+                $("(${1})"+"(${2})","(${3})"),"(1)(2)(3)");
+        assertEquals(
+                $("(${1})"
+                        +"(${2})"
+                        ,
+                        "(${3})"
+                ),"(1)(2)(3)");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");

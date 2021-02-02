@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    static boolean debug = false;
+    static boolean debug = true;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -43,13 +43,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (thisGroup == null && isTargetString()) {
             try {
                 formatGroup();
-//                for (Item item : thisGroup.items) {
-//                    if (item.token != null) {
-//                        System.out.println("    token:" + item.token.kind);
-//                    } else {
-//                        System.out.println("    token:" + null);
-//                    }
-//                }
+                log(thisGroup.output());
             } catch (Exception e) {
                 wain("[" + subChars(reader.bp, reader.bp + 20) + "] " + e.getMessage());
             }
@@ -85,13 +79,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         Tokens.Token token = super.readToken();
         if (thisGroup != null) {
             int nextCharIndex = reader.bp;
-            while (charAt(nextCharIndex) == ' ') {
+            while (isBlankChar(charAt(nextCharIndex))) {
                 nextCharIndex++;
             }
             for (int i = 0; i < thisGroup.items.size(); i++) {
                 Item item = thisGroup.items.get(i);
                 if (!item.isParseOut && nextCharIndex >= item.mappingEndIndex) {
                     item.isParseOut = true;
+                    reIndex(nextCharIndex);
                     break;
                 }
             }
@@ -101,18 +96,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         return token;
     }
 
+    public boolean isBlankChar(char ch) {
+        if (ch == '\t' || ch == '\f' || ch == ' ' || ch == '\n' || ch == '\r') return true;
+        return false;
+    }
+
     private boolean isTargetString() {
         int index = reader.bp;
-        switch (charAt(index)) {
-            case '\t':
-            case '\f':
-            case ' ':
-                do {
-                    do {
-                        index++;
-                    } while (charAt(index) == ' ');
-                } while (charAt(index) == '\t' || charAt(index) == '\f');
-                break;
+        while (isBlankChar(charAt(index))) {
+            index++;
         }
         return charAt(index) == '$' && charAt(index - 1) != '\\' && nextChar(index) == '(';
     }
@@ -143,8 +135,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         boolean isChar = false;
         while ((++searchIndex) < group.mappingEndIndex - 1) {
             char ch = charAt(searchIndex);
-            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch+(isChar?" isChar":"")+(normalCode?" normalCode":""));
-            if (ch == ' ') continue;
+            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch + " (" + ((int) ch) + ") " + (isChar ? " isChar" : "") + (normalCode ? " normalCode" : ""));
+            if (isBlankChar(ch)) continue;
             if (ch == '\'' && normalCode) {
                 isChar = !isChar;
                 if (isChar) log("is char");
@@ -152,7 +144,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             if (isChar) continue;
             if (thisItemFirstIndex == -1) {
-                if ((ch == '$' && charAt(searchIndex + 1) == '{' || ch == '"' || ch == '}')
+                if (((ch == '$' && charAt(searchIndex + 1) == '{') || ch == '"' || ch == '}')
                         && charAt(searchIndex - 1) != '\\') {
                     normalCode = false;
                     thisItemFirstChar = ch;
@@ -193,7 +185,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                         if (pCount == 0) {
                             //'$'{xxxxx~'}'
                             String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replace("\\\"", "\"").replace("\\\\", "\\");
+                            String toStr = str.replace("\\\"", "\"")
+                                    .replace("\\\\", "\\");
                             int replaceCount = str.length() - toStr.length();
                             if (replaceCount != 0) {
                                 log("替代后续文本 ${" + str + "}->${" + toStr + "}");
@@ -220,7 +213,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
 
         }
-        group.items.add(new Item(thisItemFirstIndex==-1? group.mappingEndIndex-1:thisItemFirstIndex, group.mappingEndIndex - 1, null));
+        group.items.add(new Item(thisItemFirstIndex == -1 ? group.mappingEndIndex - 1 : thisItemFirstIndex, group.mappingEndIndex - 1, null));
         {
             group.items.add(new Item(group.mappingEndIndex - 1, group.mappingEndIndex, null));
         }
@@ -241,14 +234,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
          */
         public void searchEnd() {
             int leftBracket2 = 0;
-            int find = mappingStartIndex-1;
+            int find = mappingStartIndex - 1;
             boolean isChar = false;
             boolean isString = false;
             while (true) {
                 find++;
                 if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
                 char ch = charAt(find);
-                if (charAt(find - 1) == '\\'){
+                if (charAt(find - 1) == '\\') {
                     continue;
                 }
                 if (ch == '\'') {
@@ -260,13 +253,13 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     continue;
                 }
                 if (isChar || isString) continue;
-                if (ch == '(' ) {
+                if (ch == '(') {
                     leftBracket2++;
                 }
-                if (ch == ')' ) {
+                if (ch == ')') {
                     leftBracket2--;
                     if (leftBracket2 == 0) {
-                        mappingEndIndex = find+1;
+                        mappingEndIndex = find + 1;
                         return;
                     }
                 }
@@ -296,6 +289,26 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             Tokens.TokenKind tk = Tokens.TokenKind.COMMA;
             Tokens.Token stringToken = new Tokens.Token(tk, startIndex, endIndex, var3);
             items.add(new Item(startIndex, endIndex, stringToken));
+        }
+
+        public String output() {
+            String str = "";
+            for (int i = 0; i < items.size(); i++) {
+                Item item = items.get(i);
+                if (item.token == null
+                        && subChars(item.mappingStartIndex, item.mappingEndIndex).trim().length() == 0)
+                    continue;
+                if (item.token != null) {
+                    if (item.token instanceof Tokens.StringToken) {
+                        str += ("\"" + ((Tokens.StringToken) item.token).stringVal + "\"");
+                    } else {
+                        str += (item.token.kind.name);
+                    }
+                } else {
+                    str += (subChars(item.mappingStartIndex, item.mappingEndIndex));
+                }
+            }
+            return str;
         }
     }
 
@@ -329,7 +342,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         char findChar;
         while (true) {
             if (targetBp >= reader.buflen) return ' ';
-            if ((findChar = charAt(targetBp)) == ' ') {
+            if (isBlankChar(findChar = charAt(targetBp))) {
                 targetBp++;
                 continue;
             }
@@ -342,7 +355,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         while (true) {
             targetBp++;
             if (targetBp >= reader.buflen) return ' ';
-            if ((findChar = charAt(targetBp)) == ' ') continue;
+            if (isBlankChar(findChar = charAt(targetBp))) continue;
             return findChar;
         }
     }
@@ -352,7 +365,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         while (true) {
             targetBp--;
             if (targetBp <= 0) return ' ';
-            if ((findChar = charAt(targetBp)) == ' ') continue;
+            if (isBlankChar(findChar = charAt(targetBp))) continue;
             return findChar;
         }
     }

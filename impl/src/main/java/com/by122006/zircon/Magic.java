@@ -43,7 +43,6 @@ public class Magic {
      * @deprecated 当前版本请避免使用该方法，<br>请使用单参数方法{@link com.by122006.zircon.Magic#$(java.lang.String)  $(String)}
      * @return 格式化后字符串
      */
-    @Deprecated
     public static String $(Object... s) {
         if (s.length == 0) return "";
         if (s.length == 1) return String.valueOf(s[0]);
