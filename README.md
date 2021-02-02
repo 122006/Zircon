@@ -45,7 +45,7 @@
 	    dependencies {
 	        ...
 	        annotationProcessor 'com.github.122006.Zircon:javac:版本号'
-            compile 'com.github.122006.Zircon:impl:版本号'
+            implementation 'com.github.122006.Zircon:impl:版本号'
 	    }
 
     当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
@@ -96,13 +96,11 @@
         
 * 其他注意事项
 
-   * $()中参数只允许纯字符串或纯代码，混合模式暂时无法解析 
-            
-        eg: $(~~"${123}"+123~~,"123"+"123")
+   * $()方法中任何字符串都会被检测是否含有'${}'标识，请注意'${}'内容代码的正确性
         
    * 暂时不支持 `$变量名最长匹配` 解析。期望在后续版本中进行支持
    
-   * idea代码补全配置 
+   * idea代码补全配置 (请勾选所有方法)
    
    ![languageinjection](https://github.com/122006/Zircon/blob/master/others/languageinjections.png)
    

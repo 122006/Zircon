@@ -1,6 +1,7 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
+import jdk.nashorn.internal.ir.IfNode;
 
 import java.nio.CharBuffer;
 import java.util.ArrayList;
@@ -8,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    static boolean debug=false;
+    static boolean debug = false;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -35,6 +36,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         fac.log.printRawLines(Log.WriterKind.ERROR, str);
     }
 
+    boolean isTarget = false;
+
     public Tokens.Token readToken() {
 //        System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
         if (thisGroup == null && isTargetString()) {
@@ -55,6 +58,9 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             int useIndex = -1;
             for (int i = 0; i < thisGroup.items.size(); i++) {
                 Item item = thisGroup.items.get(i);
+                if (item.token == null
+                        && subChars(item.mappingStartIndex, item.mappingEndIndex).trim().length() == 0)
+                    continue;
                 if (item.isParseOut) continue;
                 useIndex = i;
                 break;
@@ -108,7 +114,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 } while (charAt(index) == '\t' || charAt(index) == '\f');
                 break;
         }
-        return charAt(index) == '$' && nextChar(index) == '(';
+        return charAt(index) == '$' && charAt(index - 1) != '\\' && nextChar(index) == '(';
     }
 
     public void throwError(int post, String error) {
@@ -133,116 +139,44 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         char thisItemFirstChar = ' ';
         int thisItemFirstIndex = -1;
         int pCount = 0;
-        boolean findComma = false;
+        boolean normalCode = true;
+        boolean isChar = false;
         while ((++searchIndex) < group.mappingEndIndex - 1) {
             char ch = charAt(searchIndex);
-//            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch);
+            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch+(isChar?" isChar":"")+(normalCode?" normalCode":""));
             if (ch == ' ') continue;
-            if (findComma) {
-                if (lastChar(searchIndex) == '\\') continue;
-                switch (ch) {
-                    case '(':
-                        switch (thisItemFirstChar){
-                            case '{':
-                                break;
-                            case '(':
-                                pCount++;
-                                break;
-                            case ' ':
-                                pCount=1;
-                                thisItemFirstChar='(';
-                                break;
-                            default:
-                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
-                                break;
-                        }
-                        break;
-                    case '{':
-                        switch (thisItemFirstChar){
-                            case '{':
-                                pCount++;
-                                break;
-                            case '(':
-                                break;
-                            case ' ':
-                                pCount=1;
-                                thisItemFirstChar='{';
-                                break;
-                            default:
-                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
-                                break;
-                        }
-                        break;
-                    case ')':
-                        switch (thisItemFirstChar){
-                            case '(':
-                                pCount--;
-                                break;
-                            case '{':
-                                break;
-                            default:
-                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
-                                break;
-                        }
-                        break;
-                    case '}':
-                        switch (thisItemFirstChar){
-                            case '(':
-                                break;
-                            case '{':
-                                pCount--;
-                                break;
-                            default:
-                                throwError(searchIndex,"Code模式异常开始符:"+thisItemFirstChar);
-                                break;
-                        }
-                        break;
-                    case ',':
-                        if (pCount==0){
-                            group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
-                            group.items.add(new Item(searchIndex, searchIndex + 1, null));
-                            findComma=false;
-                        }
-                        break;
-                    default:
-                        if (searchIndex==group.mappingEndIndex - 1){
-                            if (pCount!=0){
-                                throwError(searchIndex,"未完整的Code模式");
-                            }else {
-                                group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
-                                findComma=false;
-                            }
-                        }
-                        continue;
-                }
+            if (ch == '\'' && normalCode) {
+                isChar = !isChar;
+                if (isChar) log("is char");
+                continue;
             }
+            if (isChar) continue;
             if (thisItemFirstIndex == -1) {
-                if (ch == ',') {
-                    group.items.add(new Item(searchIndex, searchIndex + 1, null));
-                } else if ((ch == '$' && charAt(searchIndex - 1) != '\\' && charAt(searchIndex + 1) == '{')
-                        || ch == '"') {
-                    thisItemFirstChar = ch;
-                    thisItemFirstIndex = searchIndex;
-                } else if (ch == '}') {
+                if ((ch == '$' && charAt(searchIndex + 1) == '{' || ch == '"' || ch == '}')
+                        && charAt(searchIndex - 1) != '\\') {
+                    normalCode = false;
                     thisItemFirstChar = ch;
                     thisItemFirstIndex = searchIndex;
                 } else {
-                    findComma = true;
+                    normalCode = true;
                     thisItemFirstChar = ' ';
                     thisItemFirstIndex = searchIndex;
 //                    error(thisItemFirstIndex, "格式化字符串格式起始错误：" + ch);
                 }
-
             } else {
+                if (normalCode && ch == '"' && charAt(searchIndex - 1) != '\\') {
+                    group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
+                    normalCode = false;
+                    thisItemFirstIndex = -1;
+                    searchIndex--;
+                    continue;
+                }
                 if (ch == '"' && charAt(searchIndex - 1) != '\\') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "${}表达式还未结束");
                     //   '"'xxxxx~'"'
                     String str = subChars(thisItemFirstIndex + 1, searchIndex);
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
-                    char nc = nextChar(searchIndex);
-                    if (nc != ',' && nc != ')')
-                        group.loadCommaToken(searchIndex, searchIndex + 1);
                 } else if (ch == '$' && charAt(searchIndex - 1) != '\\' && charAt(searchIndex + 1) == '{') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "不支持${}表达式嵌套");
                     //   '"'xxxxx~'$'{
@@ -286,8 +220,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
 
         }
-
-
+        group.items.add(new Item(thisItemFirstIndex==-1? group.mappingEndIndex-1:thisItemFirstIndex, group.mappingEndIndex - 1, null));
         {
             group.items.add(new Item(group.mappingEndIndex - 1, group.mappingEndIndex, null));
         }
@@ -307,21 +240,37 @@ public class ZrJavaTokenizer extends JavaTokenizer {
          * 匹配结束点：')'
          */
         public void searchEnd() {
-            int leftBracket2 = -1;
-            int find = mappingStartIndex;
+            int leftBracket2 = 0;
+            int find = mappingStartIndex-1;
+            boolean isChar = false;
+            boolean isString = false;
             while (true) {
-                if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
-                if (charAt(find) == '(' && charAt(find - 1) != '\\') {
-                    leftBracket2 = (leftBracket2 == -1) ? 1 : (leftBracket2 + 1);
-                }
-                if (charAt(find) == ')' && charAt(find - 1) != '\\') {
-                    leftBracket2--;
-                }
                 find++;
-                if (leftBracket2 == 0) {
-                    mappingEndIndex = find;
-                    return;
+                if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
+                char ch = charAt(find);
+                if (charAt(find - 1) == '\\'){
+                    continue;
                 }
+                if (ch == '\'') {
+                    isChar = !isChar;
+                    continue;
+                }
+                if (ch == '\"') {
+                    isString = !isString;
+                    continue;
+                }
+                if (isChar || isString) continue;
+                if (ch == '(' ) {
+                    leftBracket2++;
+                }
+                if (ch == ')' ) {
+                    leftBracket2--;
+                    if (leftBracket2 == 0) {
+                        mappingEndIndex = find+1;
+                        return;
+                    }
+                }
+
             }
         }
 

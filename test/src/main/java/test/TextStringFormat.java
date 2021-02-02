@@ -52,7 +52,7 @@ public class TextStringFormat {
             String will = $("test ", "inStr");
             assertEquals(test, will);
         }
-
+        String test="test";
         assertEquals($("test (${1+2})"), "test (3)");
         assertEquals($("test (${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
         assertEquals($("test ","(${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
@@ -60,9 +60,20 @@ public class TextStringFormat {
         assertEquals($("test (${\"te\\nst\"})"), "test (te\nst)");
         assertEquals($("test (${\"te\\\\\\\"st\"})"), "test (te\\\"st)");
         assertEquals($("(${\"test\"})"), "(test)");
+        assertEquals($("({${test}})"), "({test})");
+        assertEquals($(test+"("), "test(");
+        assertEquals($(test+")"), "test)");
+        assertEquals($(test+'('), "test(");
+        assertEquals($(test+')'), "test)");
+        assertEquals($(test+'{'), "test{");
+        assertEquals($(test+'}'), "test}");
+        assertEquals($(test+"(}${test}(}"+')'), "test(}test(}"+')');
+        assertEquals($(test+')'+"}${test})}"+')'), "test)}test)}"+')');
+        assertEquals($(test+"(}"), "test(}");
         assertEquals($("(${})"), "()");
         assertEquals($("${}"), "");
         assertEquals($(), "");
+        assertEquals($("(${1})"+"(${2})","(${3})"),"(1)(2)(3)");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");
