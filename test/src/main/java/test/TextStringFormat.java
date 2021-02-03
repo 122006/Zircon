@@ -58,7 +58,8 @@ public class TextStringFormat {
         assertEquals($("test ","(${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
         assertEquals($("${\"Test,mode\".substring(0,6)}"," end"), "Test,mode".substring(0,6)+" end");
         assertEquals($("test (${\"te\\nst\"})"), "test (te\nst)");
-        assertEquals($("test (${\"te\\\\\\\"st\"})"), "test (te\\\"st)");
+        assertEquals($("test\\n (${\"te\\nst\"})"), "test\n (te\nst)");
+        assertEquals($("test (${\"te\\\"st\"})"), "test (te\"st)");
         assertEquals($("(${\"test\"})"), "(test)");
         assertEquals($("({${test}})"), "({test})");
         assertEquals($(test+"("), "test(");
@@ -86,6 +87,7 @@ public class TextStringFormat {
                         ,
                         "(${3})"
                 ),"(1)(2)(3)");
+        assertEquals($("${\"\\\\\'\\\'\"}"), "\\\'\\'");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");

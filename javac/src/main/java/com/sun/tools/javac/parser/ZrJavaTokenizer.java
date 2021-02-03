@@ -3,13 +3,14 @@ package com.sun.tools.javac.parser;
 import com.sun.tools.javac.util.Log;
 import jdk.nashorn.internal.ir.IfNode;
 
+import java.lang.annotation.ElementType;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    static boolean debug = true;
+    public static boolean debug = false;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -76,7 +77,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 thisGroup = null;
             }
         }
-        Tokens.Token token = super.readToken();
+        Tokens.Token token = null;
+        try {
+            token = super.readToken();
+            if (thisGroup != null&&(tk!=null&&tk == Tokens.TokenKind.ERROR)) error("Tokens: " + thisGroup.output());
+        } catch (Throwable e) {
+            if (thisGroup != null) error("Tokens: " + thisGroup.output());
+            throw e;
+        }
         if (thisGroup != null) {
             int nextCharIndex = reader.bp;
             while (isBlankChar(charAt(nextCharIndex))) {
@@ -114,6 +122,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     Group thisGroup;
+
 
     private void formatGroup() {
         if (nowChar(reader.bp) != '$') throwError(reader.bp, "错误");
@@ -166,13 +175,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 if (ch == '"' && charAt(searchIndex - 1) != '\\') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "${}表达式还未结束");
                     //   '"'xxxxx~'"'
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                    String str = subChars(thisItemFirstIndex + 1, searchIndex)
+                            .replace("\\\\n","\n");
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
                 } else if (ch == '$' && charAt(searchIndex - 1) != '\\' && charAt(searchIndex + 1) == '{') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "不支持${}表达式嵌套");
                     //   '"'xxxxx~'$'{
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                    String str = subChars(thisItemFirstIndex + 1, searchIndex)
+                            .replace("\\\\n","\n");
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
                     group.loadCommaToken(searchIndex, searchIndex + 1);
@@ -185,8 +196,9 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                         if (pCount == 0) {
                             //'$'{xxxxx~'}'
                             String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replace("\\\"", "\"")
-                                    .replace("\\\\", "\\");
+                            String toStr = str.replace("\\\\", "\\")
+                                    .replace("\\\"","\"")
+                                    .replace("\\\n","\n");
                             int replaceCount = str.length() - toStr.length();
                             if (replaceCount != 0) {
                                 log("替代后续文本 ${" + str + "}->${" + toStr + "}");
@@ -335,7 +347,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (startIndex > endIndex) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
-        return new String(chars);
+        String s = new String(chars);
+        return s;
     }
 
     public char nowChar(int targetBp) {

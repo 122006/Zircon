@@ -2,7 +2,7 @@
 
 支持在Java语言中使用动态字符串
 
-    实现类似于kotlin、Groovy等语言中格式化字符串
+    实现类似于kotlin、Groovy等语言中内插字符串
     
     支持android、java等所有使用javac的项目
     
@@ -104,3 +104,4 @@
    
    ![languageinjection](https://github.com/122006/Zircon/blob/master/others/languageinjections.png)
    
+   * 由于使用groovy进行代码补全，'${}'内字符串'\n'会进行转义导致后续idea报错（即使运行结果不会报错）。请使用'\\n'以替代（会转义为('\n')）
