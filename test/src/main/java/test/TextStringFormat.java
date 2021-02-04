@@ -12,6 +12,7 @@ import static com.by122006.zircon.Magic.$;
 
 
 public class TextStringFormat {
+    static String test="532";
 
 
     public static void main(String[] str) {
@@ -38,7 +39,7 @@ public class TextStringFormat {
         }
         {
             String add = "test2";
-            String test = $("test ${add} test3");
+            String test = $("test $add test3");
             String will = "test test2 test3";
             assertEquals(test, will);
         }
@@ -53,12 +54,15 @@ public class TextStringFormat {
             assertEquals(test, will);
         }
         String test="test";
+        assertEquals($("do ($test)"), "do (test)");
+        assertEquals($("do ($test)"), "do (test)");
+        assertEquals($("do ($TextStringFormat.test)"), "do ("+TextStringFormat.test+")");
         assertEquals($("test (${1+2})"), "test (3)");
         assertEquals($("test (${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
         assertEquals($("test ","(${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
         assertEquals($("${\"Test,mode\".substring(0,6)}"," end"), "Test,mode".substring(0,6)+" end");
         assertEquals($("test (${\"te\\nst\"})"), "test (te\nst)");
-        assertEquals($("test\\n (${\"te\\nst\"})"), "test\n (te\nst)");
+        assertEquals($("test\n (${\"te\\nst\"})"), "test\n (te\nst)");
         assertEquals($("test (${\"te\\\"st\"})"), "test (te\"st)");
         assertEquals($("(${\"test\"})"), "(test)");
         assertEquals($("({${test}})"), "({test})");
@@ -87,7 +91,7 @@ public class TextStringFormat {
                         ,
                         "(${3})"
                 ),"(1)(2)(3)");
-        assertEquals($("${\"\\\\\'\\\'\"}"), "\\\'\\'");
+        assertEquals($("${\"\\\\'\\'\"}"), "\\''");
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");

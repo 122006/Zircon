@@ -1,0 +1,14 @@
+<LanguageInjectionConfiguration>
+  <injection language="Groovy" injector-id="java">
+    <display-name>Magic (com.by122006.zircon)</display-name>
+    <prefix>&quot;&quot;&quot;</prefix>
+    <suffix>&quot;&quot;&quot;</suffix>
+    <place disabled="true"><![CDATA[psiMethod().withName("$").withParameters("java.lang.Object...").definedInClass("com.by122006.jsf.Magic")]]></place>
+    <place><![CDATA[psiMethod().withName("$").withParameters("java.lang.Object...").definedInClass("com.by122006.zircon.Magic")]]></place>
+    <place><![CDATA[psiMethod().withName("$").withParameters("java.lang.String").definedInClass("com.by122006.zircon.Magic")]]></place>
+    <place><![CDATA[psiMethod().withName("$").withParameters("java.lang.String...").definedInClass("com.by122006.zircon.Magic")]]></place>
+    <place disabled="true"><![CDATA[psiParameter().ofMethod(0, psiMethod().withName("$").withParameters("java.lang.String").definedInClass("com.by122006.jsf.Magic"))]]></place>
+    <place><![CDATA[psiParameter().ofMethod(0, psiMethod().withName("$").withParameters("java.lang.String").definedInClass("com.by122006.zircon.Magic"))]]></place>
+    <place><![CDATA[psiParameter().ofMethod(0, psiMethod().withName("$").withParameters("java.lang.String...").definedInClass("com.by122006.zircon.Magic"))]]></place>
+  </injection>
+</LanguageInjectionConfiguration>

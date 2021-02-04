@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = false;
+    public static boolean debug = true;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -80,7 +80,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         Tokens.Token token = null;
         try {
             token = super.readToken();
-            if (thisGroup != null&&(tk!=null&&tk == Tokens.TokenKind.ERROR)) error("Tokens: " + thisGroup.output());
+            if (thisGroup != null && (tk != null && tk == Tokens.TokenKind.ERROR))
+                error("Tokens: " + thisGroup.output());
         } catch (Throwable e) {
             if (thisGroup != null) error("Tokens: " + thisGroup.output());
             throw e;
@@ -123,6 +124,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     Group thisGroup;
 
+    public static void main(String[] args) {
+        System.out.println("test (${String.format(\"str:[%s]\",\"format\")})".replace("\\\\", "\\").replaceAll("\\\\([a-z]{1})", "$1"));
+    }
+
 
     private void formatGroup() {
         if (nowChar(reader.bp) != '$') throwError(reader.bp, "错误");
@@ -145,7 +150,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         while ((++searchIndex) < group.mappingEndIndex - 1) {
             char ch = charAt(searchIndex);
             log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch + " (" + ((int) ch) + ") " + (isChar ? " isChar" : "") + (normalCode ? " normalCode" : ""));
-            if (isBlankChar(ch)) continue;
+            if (isBlankChar(ch) && thisItemFirstChar != '$') continue;
             if (ch == '\'' && normalCode) {
                 isChar = !isChar;
                 if (isChar) log("is char");
@@ -153,7 +158,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             if (isChar) continue;
             if (thisItemFirstIndex == -1) {
-                if (((ch == '$' && charAt(searchIndex + 1) == '{') || ch == '"' || ch == '}')
+                if ((ch == '$' || ch == '"' || ch == '}')
                         && charAt(searchIndex - 1) != '\\') {
                     normalCode = false;
                     thisItemFirstChar = ch;
@@ -175,49 +180,56 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 if (ch == '"' && charAt(searchIndex - 1) != '\\') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "${}表达式还未结束");
                     //   '"'xxxxx~'"'
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex)
-                            .replace("\\\\n","\n");
+                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
-                } else if (ch == '$' && charAt(searchIndex - 1) != '\\' && charAt(searchIndex + 1) == '{') {
-                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "不支持${}表达式嵌套");
+                } else if (ch == '$' && charAt(searchIndex - 1) != '\\') {
+                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "$表达式错误");
                     //   '"'xxxxx~'$'{
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex)
-                            .replace("\\\\n","\n");
+                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
                     group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                     thisItemFirstIndex = -1;
                     group.loadCommaToken(searchIndex, searchIndex + 1);
                     searchIndex--;
                 } else if (thisItemFirstChar == '$') {
-                    if (ch == '{' && charAt(searchIndex - 1) != '\\') {
-                        pCount++;
-                    } else if (ch == '}' && charAt(searchIndex - 1) != '\\') {
-                        pCount--;
-                        if (pCount == 0) {
-                            //'$'{xxxxx~'}'
-                            String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replace("\\\\", "\\")
-                                    .replace("\\\"","\"")
-                                    .replace("\\\n","\n");
-                            int replaceCount = str.length() - toStr.length();
-                            if (replaceCount != 0) {
-                                log("替代后续文本 ${" + str + "}->${" + toStr + "}");
-                                System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
-                                char[] array = new char[replaceCount];
-                                Arrays.fill(array, ' ');
-                                System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
-
-                            }
-                            if (searchIndex - (thisItemFirstIndex + 2) == 0) {
-                                group.loadStringToken(searchIndex, searchIndex, "");
-                            } else {
-                                group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
-                            }
-
+                    if (charAt(thisItemFirstIndex + 1) != '{') {
+                        if (!String.valueOf(ch).matches("[A-Za-z0-9_\\u4e00-\\u9fa5.]+")) {
+                            //'$'xxxxx~' '
+                            group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
                             group.loadCommaToken(searchIndex, searchIndex + 1);
+                            thisItemFirstIndex = searchIndex - 1;
+                            thisItemFirstChar = '}';
                             searchIndex--;
-                            thisItemFirstIndex = -1;
-                            thisItemFirstChar = ' ';
+                        }
+                    } else {
+                        if (ch == '{' && charAt(searchIndex - 1) != '\\') {
+                            pCount++;
+                        } else if (ch == '}' && charAt(searchIndex - 1) != '\\') {
+                            pCount--;
+                            if (pCount == 0) {
+                                //'$'{xxxxx~'}'
+                                String str = subChars(thisItemFirstIndex + 2, searchIndex);
+                                String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\","\\");
+                                int replaceCount = str.length() - toStr.length();
+                                if (replaceCount != 0) {
+                                    log("替代后续文本 ${" + str + "}->${" + toStr + "}");
+                                    System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
+                                    char[] array = new char[replaceCount];
+                                    Arrays.fill(array, ' ');
+                                    System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
+
+                                }
+                                if (searchIndex - (thisItemFirstIndex + 2) == 0) {
+                                    group.loadStringToken(searchIndex, searchIndex, "");
+                                } else {
+                                    group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
+                                }
+
+                                group.loadCommaToken(searchIndex, searchIndex + 1);
+                                searchIndex--;
+                                thisItemFirstIndex = -1;
+                                thisItemFirstChar = ' ';
+                            }
                         }
                     }
                 }
@@ -290,6 +302,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
 
         private void loadStringToken(int startIndex, int endIndex, String chars) {
+            chars = toLitChar(chars);
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
             Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
             Tokens.StringToken stringToken = new Tokens.StringToken(tk, startIndex, endIndex, chars, var3);
@@ -404,5 +417,78 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         return reader.buf[index];
     }
 
+    private String toLitChar(String textChars) {
+        String str = "";
+        int index = -1;
+        while (++index < textChars.length()) {
+            if (textChars.charAt(index) == '\\') {
+                index++;
+                if (index == textChars.length()) break;
+                if (textChars.charAt(index) == '\\') {
+                    str += ('\\');
+                } else {
+                    switch (textChars.charAt(index)) {
+                        case '"':
+                            str += ('"');
+                            break;
+                        case '\'':
+                            str += ('\'');
+                            break;
+                        case '0':
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7':
+                            int var3 = textChars.charAt(index) - '0';
+                            if (index + 1 != textChars.length()) {
+                                int v0=textChars.charAt(index+1) - '0';
+                                if (0 <= v0&&v0 <= 7){
+                                    index++;
+                                    var3 = var3*8 +v0;
+                                    if (index + 1 != textChars.length()) {
+                                        int v1=textChars.charAt(index+1) - '0';
+                                        if (v0<3&&1 <= v0&&v1 <= 7){
+                                            index++;
+                                            var3 = var3*8 +v1;
+
+                                        }
+
+                                    }
+                                }
+
+                            }
+                            str += (char) var3;
+                            break;
+                        case 'b':
+                            str += ('\b');
+                            break;
+                        case 'f':
+                            str += ('\f');
+                            break;
+                        case 'n':
+                            str += ('\n');
+                            break;
+                        case 'r':
+                            str += ('\r');
+                            break;
+                        case 't':
+                            str += ('\t');
+                            break;
+                        default:
+                            str += textChars.charAt(index);
+                    }
+                }
+            } else {
+                str += textChars.charAt(index);
+            }
+
+        }
+        return str;
+
+
+    }
 
 }

@@ -11,13 +11,13 @@
     代码内容支持idea补全提示（需自行配置）
     
     
- ![example](https://github.com/122006/Zircon/blob/master/others/input.png)
+ ![example](others/input.png)
  
 
 * 使用示例
          
       String add = "test2";
-      assertEquals($("test1 ${add}"), "test1 test2");
+      assertEquals($("test1 $add"), "test1 test2");
       
       assertEquals($("test1 ${"Test,mode".substring(0,6)}${1+2}"), "test1 Test,m3");
           
@@ -93,15 +93,34 @@
           </configuration>
         </plugin>
         
+* 配置IDEA自动补全参数（使用IDEA内置`IntelliLang`插件）
+
+   ![languageinjection](others/languageinjections.png)
+           
+   Step 1: Setting->->Editor->Language Injection
         
+   Step 2: 点击右侧'+'按钮 选择'`Java Parameter`'
+   
+   (可选择导入配置文件以省略以下参数配置)![配置文件](others/ZrLanguageInjection.xml)
+   
+   Step 3: 手动配置参数：
+   
+   
+        Lauguage: Groovy
+        Prefix: """    (3个双引号)
+        Suffix: """    (3个双引号)
+        Class Methods: com.by122006.jsf.Magic 并勾选所有方法
+
 * 其他注意事项
 
    * $()方法中任何字符串都会被检测是否含有'${}'标识，请注意'${}'内容代码的正确性
+   
+* 代码注入说明
         
-   * 暂时不支持 `$变量名最长匹配` 解析。期望在后续版本中进行支持
+   1. 由于使用Groovy作为代码补全注入语言，会附带Groovy的语言特性，请不要使用这些特性
+            
+            
+         注：由于LanguageInjection的限制，使用JAVA作为注入语言时会出现无法换行等问题，如果有解决方案请指教
    
-   * idea代码补全配置 (请勾选所有方法)
-   
-   ![languageinjection](https://github.com/122006/Zircon/blob/master/others/languageinjections.png)
-   
-   * 由于使用groovy进行代码补全，'${}'内字符串'\n'会进行转义导致后续idea报错（即使运行结果不会报错）。请使用'\\\n'以替代（会转义为('\n')）
+   2. 注入时检查报错可能不会导致编译报错
+        

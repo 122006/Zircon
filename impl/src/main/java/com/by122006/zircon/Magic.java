@@ -17,7 +17,7 @@ public class Magic {
      * <br>
      * FAQ:<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:如何让idea自动补全？<br>
-     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:<a href="https://github.com/122006/Zircon">参考README.md文件</a>，在idea中配置Language Injection <br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:<a href="https://github.com/122006/Zircon">参考README.md文件</a>，在idea中配置Language Injection<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:我的字符串为什么没有变化？<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:该功能实现需要配合插件使用，请<a href="https://github.com/122006/Zircon">参考README.md文件</a>确认您的配置正确性 <br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:我怎么确认我的字符串替换成功？<br>
@@ -34,13 +34,13 @@ public class Magic {
      * <a href="https://github.com/122006/Zircon">Zircon</a>
      * <p>
      * 如果你在代码中调用该方法：<br>
-     * &nbsp;&nbsp;&nbsp;&nbsp;会对字符串参数进行格式化（<b>不推荐</b>）<br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;会对内部字符串参数进行格式化<br>
      * <p>
      * 如果你在生成class中发现该方法：<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;该方法为字符串参数合并的实现<br>
+     * 单参数方法{@link com.by122006.zircon.Magic#$(java.lang.String)  $(String)}
      *
      * @param s 需要拼接的参数
-     * @deprecated 当前版本请避免使用该方法，<br>请使用单参数方法{@link com.by122006.zircon.Magic#$(java.lang.String)  $(String)}
      * @return 格式化后字符串
      */
     public static String $(Object... s) {
