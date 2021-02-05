@@ -1,6 +1,6 @@
 # Zircon 
 
-支持在Java语言中使用动态字符串
+支持在Java语言中使用内插字符串
 
     实现类似于kotlin、Groovy等语言中内插字符串
     
@@ -19,7 +19,7 @@
       String add = "test2";
       assertEquals($("test1 $add"), "test1 test2");
       
-      assertEquals($("test1 ${"Test,mode".substring(0,6)}${1+2}"), "test1 Test,m3");
+      assertEquals($("test1 ${\"Test,mode\".substring(0,6)}${1+2}"), "test1 Test,m3");
           
 * 插件引入
 
@@ -123,4 +123,10 @@
          注：由于LanguageInjection的限制，使用JAVA作为注入语言时会出现无法换行等问题，如果有解决方案请指教
    
    2. 注入时检查报错可能不会导致编译报错
+   
+* 更新计划
+
+    1. 使用$"" 以替代$("") 形式实现
+    
+    2. 更多特殊语法
         
