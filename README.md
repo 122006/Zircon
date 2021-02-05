@@ -109,7 +109,7 @@
         Lauguage: Groovy
         Prefix: """    (3个双引号)
         Suffix: """    (3个双引号)
-        Class Methods: com.by122006.jsf.Magic 并勾选所有方法
+        Class Methods: com.by122006.zircon.Magic 并勾选所有方法
 
 * 其他注意事项
 
