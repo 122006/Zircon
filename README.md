@@ -101,9 +101,12 @@
         
    Step 2: 点击右侧'+'按钮 选择'`Java Parameter`'
    
+   Step 3: Build项目来下载依赖，以使`IntelliLang`插件检测到`$()`方法
+   
+   
    >(可选择导入配置文件以省略以下参数配置)[配置文件][others/ZrLanguageInjection.xml]
    
-   Step 3: 手动配置参数：
+   Step 4: 手动配置参数：
    
    
         Lauguage: Groovy
