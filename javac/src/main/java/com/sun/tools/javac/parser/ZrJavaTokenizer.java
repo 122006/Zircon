@@ -1,16 +1,14 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
-import jdk.nashorn.internal.ir.IfNode;
 
-import java.lang.annotation.ElementType;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = false;
+    public static boolean debug = true;
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -158,7 +156,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             if (isChar) continue;
             if (thisItemFirstIndex == -1) {
-                if ((ch == '$' || ch == '"' || ch == '}')
+                if (((ch == '$' && charAt(searchIndex - 2) != '\\') || ch == '"' || ch == '}')
                         && charAt(searchIndex - 1) != '\\') {
                     normalCode = false;
                     thisItemFirstChar = ch;
@@ -209,7 +207,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                             if (pCount == 0) {
                                 //'$'{xxxxx~'}'
                                 String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                                String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\","\\");
+                                String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\", "\\");
                                 int replaceCount = str.length() - toStr.length();
                                 if (replaceCount != 0) {
                                     log("替代后续文本 ${" + str + "}->${" + toStr + "}");
@@ -244,6 +242,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         thisGroup = group;
     }
 
+
     public class Group {
         int mappingStartIndex = -1;//  '$'(
         int mappingEndIndex = -1;//    ')'+1
@@ -265,7 +264,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 find++;
                 if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
                 char ch = charAt(find);
-                if (charAt(find - 1) == '\\') {
+                if (ch=='\\'){
+                    find++;
                     continue;
                 }
                 if (ch == '\'') {
@@ -277,6 +277,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     continue;
                 }
                 if (isChar || isString) continue;
+
                 if (ch == '(') {
                     leftBracket2++;
                 }
@@ -302,7 +303,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
 
         private void loadStringToken(int startIndex, int endIndex, String chars) {
-            chars = toLitChar(chars);
+            chars=chars.replaceAll("\\\\$","$");
+            chars = toLitChar(startIndex, chars);
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
             Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
             Tokens.StringToken stringToken = new Tokens.StringToken(tk, startIndex, endIndex, chars, var3);
@@ -417,15 +419,23 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         return reader.buf[index];
     }
 
-    private String toLitChar(String textChars) {
+    private String toLitChar(int startIndex, String textChars) {
         String str = "";
         int index = -1;
         while (++index < textChars.length()) {
             if (textChars.charAt(index) == '\\') {
                 index++;
-                if (index == textChars.length()) break;
+                if (index == textChars.length()) {
+                    throwError(startIndex, "非法字符");
+                    break;
+                }
+                ;
                 if (textChars.charAt(index) == '\\') {
-                    str += ('\\');
+                    if (index + 1 != textChars.length() && textChars.charAt(index + 1) == '$') {
+                        index++;
+                        str += ('$');
+                    } else
+                        str += ('\\');
                 } else {
                     switch (textChars.charAt(index)) {
                         case '"':
@@ -444,15 +454,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                         case '7':
                             int var3 = textChars.charAt(index) - '0';
                             if (index + 1 != textChars.length()) {
-                                int v0=textChars.charAt(index+1) - '0';
-                                if (0 <= v0&&v0 <= 7){
+                                int v0 = textChars.charAt(index + 1) - '0';
+                                if (0 <= v0 && v0 <= 7) {
                                     index++;
-                                    var3 = var3*8 +v0;
+                                    var3 = var3 * 8 + v0;
                                     if (index + 1 != textChars.length()) {
-                                        int v1=textChars.charAt(index+1) - '0';
-                                        if (v0<3&&1 <= v0&&v1 <= 7){
+                                        int v1 = textChars.charAt(index + 1) - '0';
+                                        if (v0 < 3 && 1 <= v0 && v1 <= 7) {
                                             index++;
-                                            var3 = var3*8 +v1;
+                                            var3 = var3 * 8 + v1;
 
                                         }
 

@@ -53,9 +53,9 @@ public class TextStringFormat {
             String will = $("test ", "inStr");
             assertEquals(test, will);
         }
-        String test="test";
-        assertEquals($("do ($test)"), "do (test)");
-        assertEquals($("do ($test)"), "do (test)");
+        String add="test";
+        assertEquals($("do ($add)"), "do (test)");
+        assertEquals($("do ($add)"), "do (test)");
         assertEquals($("do ($TextStringFormat.test)"), "do ("+TextStringFormat.test+")");
         assertEquals($("test (${1+2})"), "test (3)");
         assertEquals($("test (${String.format(\"str:[%s]\",\"format\")})"), "test ("+String.format("str:[%s]","format")+")");
@@ -65,16 +65,16 @@ public class TextStringFormat {
         assertEquals($("test\n (${\"te\\nst\"})"), "test\n (te\nst)");
         assertEquals($("test (${\"te\\\"st\"})"), "test (te\"st)");
         assertEquals($("(${\"test\"})"), "(test)");
-        assertEquals($("({${test}})"), "({test})");
-        assertEquals($(test+"("), "test(");
-        assertEquals($(test+")"), "test)");
-        assertEquals($(test+'('), "test(");
-        assertEquals($(test+')'), "test)");
-        assertEquals($(test+'{'), "test{");
-        assertEquals($(test+'}'), "test}");
-        assertEquals($(test+"(}${test}(}"+')'), "test(}test(}"+')');
-        assertEquals($(test+')'+"}${test})}"+')'), "test)}test)}"+')');
-        assertEquals($(test+"(}"), "test(}");
+        assertEquals($("({${add}})"), "({test})");
+        assertEquals($(add+"("), "test(");
+        assertEquals($(add+")"), "test)");
+        assertEquals($(add+'('), "test(");
+        assertEquals($(add+')'), "test)");
+        assertEquals($(add+'{'), "test{");
+        assertEquals($(add+'}'), "test}");
+        assertEquals($(add+"(}${add}(}"+')'), "test(}test(}"+')');
+        assertEquals($(add+')'+"}${add})}"+')'), "test)}test)}"+')');
+        assertEquals($(add+"(}"), "test(}");
         assertEquals($("(${})"), "()");
         assertEquals($("${}"), "");
         assertEquals($(), "");
@@ -92,6 +92,18 @@ public class TextStringFormat {
                         "(${3})"
                 ),"(1)(2)(3)");
         assertEquals($("${\"\\\\'\\'\"}"), "\\''");
+        assertEquals($("normal \\$char"), "normal $char");
+        assertEquals($("normal \\"), "normal \\");
+        assertEquals($("normal \\$"), "normal $");
+//        assertEquals($("normal \\\\$"), "normal \\$");
+        assertEquals($("$add@"), "test@");
+        assertEquals($("\r"), "\r");
+        assertEquals($("\\normal"), "\\normal");
+        assertEquals($("\normal"), "\normal");
+        assertEquals($("\n\\$normal"), "\n$normal");
+        assertEquals($("\\"), "\\");
+        assertEquals($("\\"), "\\");
+
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");
 //            String will = $("test ", "in  \"Str");
