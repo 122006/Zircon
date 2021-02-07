@@ -11,7 +11,7 @@
     代码内容支持idea补全提示（需自行配置）
     
     
- ![example](others/input.png)
+ ![example](https://ae01.alicdn.com/kf/U99d3e32cf6824b1d8e5bedf2248b94f5x.jpg)
  
 
 * 使用示例
@@ -95,7 +95,7 @@
         
 * 配置IDEA自动补全参数（使用IDEA内置`IntelliLang`插件）
 
-   ![languageinjection](others/languageinjections.png)
+   ![languageinjection](https://ae01.alicdn.com/kf/Uf7d3c8dc65854b09a5023e948e406943c.jpg)
            
    Step 1: Setting->->Editor->Language Injection
         
