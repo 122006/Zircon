@@ -97,22 +97,19 @@
 
    ![languageinjection](https://ae01.alicdn.com/kf/Uf7d3c8dc65854b09a5023e948e406943c.jpg)
            
-   Step 1: Setting->->Editor->Language Injection
+   Step 1: Build项目来下载依赖，以使`IntelliLang`插件检测到`$()`方法
+   
+   Step 2: Setting->->Editor->Language Injection
         
-   Step 2: 点击右侧'+'按钮 选择'`Java Parameter`'
-   
-   Step 3: Build项目来下载依赖，以使`IntelliLang`插件检测到`$()`方法
-   
+   Step 3: 点击右侧'+'按钮 选择'`Java Parameter`'
    
    >(可选择导入配置文件以省略以下参数配置)[配置文件][others/ZrLanguageInjection.xml]
    
    Step 4: 手动配置参数：
-   
-   
-        Lauguage: Groovy
-        Prefix: """    (3个双引号)
-        Suffix: """    (3个双引号)
-        Class Methods: com.by122006.zircon.Magic 并勾选所有方法
+   > `Lauguage`: `Groovy`<br>
+   > `Prefix`: `"""`    (3个双引号)<br>
+   > `Suffix`: `"""`    (3个双引号)<br>
+   > `Class Methods`: `com.by122006.zircon.Magic` 并勾选所有方法
 
 * 其他注意事项
 
@@ -122,7 +119,14 @@
         
    1. 由于使用Groovy作为代码补全注入语言，会附带Groovy的语言特性，请不要使用这些特性
             
-        > 注：由于LanguageInjection的限制，使用JAVA作为注入语言时会出现无法换行等问题，如果有解决方案请指教
+        > 注：你也可以配置以下参数，使用Java作为注入语言，以避免错误语言特性<br>
+        >(由于`LanguageInjection`的限制，无法使用换行或加号拼接，遇到这种情况可使用逗号分隔多个字符串)<br>
+        > Java注入语言配置配置：<br>
+        > 	`Lauguage`: `JAVA`<br>
+        > 	`Prefix`: `class V{Object a=`<br>
+        > 	`Suffix`: `;}`<br>
+        > 	`Class Methods`: `com.by122006.zircon.Magic` 并勾选所有方法<br>
+        >	`Value pattern`: `\$\{(.*?)\}|\$([A-Za-z_\u4e00-\u9fa5.][A-Za-z0-9_\u4e00-\u9fa5.]*)`  不勾选Single file<br>
    
    2. 注入时检查在极端情况下可能报错，但不会导致编译运行报错，可忽略
    
@@ -135,4 +139,5 @@
     2. 使用$"" 以替代$("") 形式实现
     
     3. 更多特殊语法
+        
         
