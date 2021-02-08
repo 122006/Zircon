@@ -103,6 +103,11 @@ public class TextStringFormat {
         assertEquals($("\n\\$normal"), "\n$normal");
         assertEquals($("\\"), "\\");
         assertEquals($("\\"), "\\");
+        assertEquals($("\n${add}"), "\ntest");
+        assertEquals($("\\${add}"), "${add}");
+        assertEquals($("\\n${add}"), "\\ntest");
+        assertEquals($(
+                "\\n${add}"), "\\ntest");
 
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");

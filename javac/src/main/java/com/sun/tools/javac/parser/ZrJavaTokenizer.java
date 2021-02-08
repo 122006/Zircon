@@ -145,6 +145,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         int pCount = 0;
         boolean normalCode = true;
         boolean isChar = false;
+        boolean isUnicode = false;
         while ((++searchIndex) < group.mappingEndIndex - 1) {
             char ch = charAt(searchIndex);
             log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch + " (" + ((int) ch) + ") " + (isChar ? " isChar" : "") + (normalCode ? " normalCode" : ""));
@@ -155,13 +156,22 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 continue;
             }
             if (isChar) continue;
+            if (ch == '\\' && !normalCode && !isUnicode) {
+                isUnicode = true;
+                continue;
+            }
+            if (isUnicode) {
+                if (ch == '\\' && charAt(searchIndex + 1) == '$') searchIndex++;
+                isUnicode = false;
+                continue;
+            }
             if (thisItemFirstIndex == -1) {
-                if (((ch == '$' && charAt(searchIndex - 2) != '\\') || ch == '"' || ch == '}')
+                if ((ch == '$' || ch == '"' || ch == '}')
                         && charAt(searchIndex - 1) != '\\') {
                     normalCode = false;
                     thisItemFirstChar = ch;
                     thisItemFirstIndex = searchIndex;
-                } else {
+                } else{
                     normalCode = true;
                     thisItemFirstChar = ' ';
                     thisItemFirstIndex = searchIndex;
@@ -264,7 +274,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 find++;
                 if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
                 char ch = charAt(find);
-                if (ch=='\\'){
+                if (ch == '\\') {
                     find++;
                     continue;
                 }
@@ -303,7 +313,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
 
         private void loadStringToken(int startIndex, int endIndex, String chars) {
-            chars=chars.replaceAll("\\\\$","$");
+            chars = chars.replaceAll("\\\\$", "$");
             chars = toLitChar(startIndex, chars);
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
             Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
