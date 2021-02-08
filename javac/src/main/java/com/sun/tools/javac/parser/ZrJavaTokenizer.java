@@ -2,13 +2,14 @@ package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
 
+import java.lang.annotation.ElementType;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = false;
+    public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -143,7 +144,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         char thisItemFirstChar = ' ';
         int thisItemFirstIndex = -1;
         int pCount = 0;
-        boolean normalCode = true;
+        boolean normalCode = true;//格式代码
         boolean isChar = false;
         boolean isUnicode = false;
         while ((++searchIndex) < group.mappingEndIndex - 1) {
@@ -171,7 +172,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     normalCode = false;
                     thisItemFirstChar = ch;
                     thisItemFirstIndex = searchIndex;
-                } else{
+                } else {
                     normalCode = true;
                     thisItemFirstChar = ' ';
                     thisItemFirstIndex = searchIndex;
@@ -186,11 +187,27 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     continue;
                 }
                 if (ch == '"' && charAt(searchIndex - 1) != '\\') {
-                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "${}表达式还未结束");
                     //   '"'xxxxx~'"'
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                    group.loadStringToken(thisItemFirstIndex, searchIndex, str);
+                    if (thisItemFirstChar == '$') {
+                        //   '"'xxxxx~'"'
+                        if (charAt(thisItemFirstIndex + 1) == '{') {
+                            throwError(thisItemFirstIndex, "${}表达式还未结束");
+                        } else {
+                            //'$'xxxxx~'"'
+                            group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
+                            group.loadCommaToken(searchIndex, searchIndex + 1);
+                            thisItemFirstIndex = searchIndex - 1;
+                            thisItemFirstChar = '}';
+                            searchIndex--;
+                            continue;
+                        }
+                    } else {
+                        String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                        group.loadStringToken(thisItemFirstIndex, searchIndex, str);
+                    }
                     thisItemFirstIndex = -1;
+                    normalCode = true;
+
                 } else if (ch == '$' && charAt(searchIndex - 1) != '\\') {
                     if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "$表达式错误");
                     //   '"'xxxxx~'$'{
