@@ -112,6 +112,7 @@ public class TextStringFormat {
 
         assertEquals($("审批${0==0?\"通过\":\"驳回\"} [${add}]\n $add"), "审批通过 [test]\n test");
         assertEquals($("$add"+(2+3)+"$add"+1+"$add"), "test5test1test");
+        assertEquals($("$add ${add}"), "test test");
 
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");

@@ -2,11 +2,11 @@ package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
 
-import java.lang.annotation.ElementType;
 import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
@@ -38,14 +38,40 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     boolean isTarget = false;
 
+    String strPrint = null;
+
     public Tokens.Token readToken() {
-//        System.out.println("    readToken:" + subChars(reader.bp, reader.bp + 20));
+        Tokens.Token analyse = analyse();
+        if (!debug) return analyse;
+        if (thisGroup != null) {
+            if (strPrint == null) {
+                log("模拟输出: " + thisGroup.output());
+                strPrint = "";
+            }
+            if (analyse instanceof Tokens.NamedToken) {
+                strPrint += ((Tokens.NamedToken) analyse).name;
+            } else if (analyse instanceof Tokens.NumericToken) {
+                strPrint += ((Tokens.NumericToken) analyse).stringVal;
+            } else if (analyse instanceof Tokens.StringToken) {
+                strPrint += ("\"" + ((Tokens.StringToken) analyse).stringVal + "\"");
+            } else {
+                strPrint += (analyse.kind.name);
+            }
+        } else if (strPrint != null) {
+            log("实际输出: " + strPrint);
+            strPrint = null;
+        }
+        return analyse;
+    }
+
+    private Tokens.Token analyse() {
         if (thisGroup == null && isTargetString()) {
             try {
                 formatGroup();
-                log(thisGroup.output());
             } catch (Exception e) {
-                wain("[" + subChars(reader.bp, reader.bp + 20) + "] " + e.getMessage());
+                if (debug)
+                    e.printStackTrace();
+                wain("[" + subChars(reader.bp, reader.bp + 20) + "] error:" + e.getMessage());
             }
         }
         if (thisGroup != null) {
@@ -80,9 +106,9 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         try {
             token = super.readToken();
             if (thisGroup != null && (tk != null && tk == Tokens.TokenKind.ERROR))
-                error("Tokens: " + thisGroup.output());
+                error("[错误]  Tokens: " + thisGroup.output());
         } catch (Throwable e) {
-            if (thisGroup != null) error("Tokens: " + thisGroup.output());
+            if (thisGroup != null) error("[错误]  Tokens: " + thisGroup.output());
             throw e;
         }
         if (thisGroup != null) {
@@ -94,13 +120,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 Item item = thisGroup.items.get(i);
                 if (!item.isParseOut && nextCharIndex >= item.mappingEndIndex) {
                     item.isParseOut = true;
-                    reIndex(nextCharIndex);
+                    if (i == thisGroup.items.size() - 1) {
+                        reIndex(nextCharIndex);
+                    } else {
+                        reIndex(thisGroup.items.get(i + 1).mappingStartIndex);
+                    }
                     break;
                 }
             }
         }
-
-//        System.out.println("Token: name["+token.stringVal()+"]   kind["+token.kind+"]   pos["+token.pos+"]");
         return token;
     }
 
@@ -167,105 +195,160 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 continue;
             }
             if (thisItemFirstIndex == -1) {
-                if ((ch == '$' || ch == '"' || ch == '}')
+                if ((ch == '$' || ch == '"')
                         && charAt(searchIndex - 1) != '\\') {
-                    normalCode = false;
+                    normalCode = ch == '$';
                     thisItemFirstChar = ch;
                     thisItemFirstIndex = searchIndex;
                 } else {
                     normalCode = true;
                     thisItemFirstChar = ' ';
                     thisItemFirstIndex = searchIndex;
-//                    error(thisItemFirstIndex, "格式化字符串格式起始错误：" + ch);
                 }
             } else {
-                if (normalCode && ch == '"' && charAt(searchIndex - 1) != '\\') {
-                    group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
-                    normalCode = false;
-                    thisItemFirstIndex = -1;
-                    searchIndex--;
-                    continue;
-                }
-                if (ch == '"' && charAt(searchIndex - 1) != '\\') {
-                    //   '"'xxxxx~'"'
-                    if (thisItemFirstChar == '$') {
-                        //   '"'xxxxx~'"'
-                        if (charAt(thisItemFirstIndex + 1) == '{') {
-                            throwError(thisItemFirstIndex, "${}表达式还未结束");
-                        } else {
-                            //'$'xxxxx~'"'
-                            group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
+                if (thisItemFirstChar == '$' && charAt(thisItemFirstIndex + 1) != '{') {
+                    if (ch == '"') {
+                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
+                        thisItemFirstIndex = searchIndex + 1;
+                        thisItemFirstChar = ' ';
+                        normalCode = true;
+                        continue;
+                    }
+//                    if (ch == '$') {
+//                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
+//                        group.loadCommaToken(searchIndex, searchIndex + 1);
+//                        thisItemFirstIndex = searchIndex;
+//                        thisItemFirstChar = '$';
+//                        normalCode = true;
+//                        continue;
+//                    }
+                    if (!String.valueOf(ch).matches("[A-Za-z0-9_\\u4e00-\\u9fa5.$]+")) {
+                        //'$'xxxxx~' '
+                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
+                        group.loadCommaToken(searchIndex, searchIndex + 1);
+                        thisItemFirstIndex = searchIndex - 1;
+                        thisItemFirstChar = '}';
+                        searchIndex--;
+                        normalCode = false;
+                        continue;
+                    }
+                } else if (thisItemFirstChar == '$' && charAt(thisItemFirstIndex + 1) == '{') {
+                    if (ch == '{' && charAt(searchIndex - 1) != '\\') {
+                        pCount++;
+                    } else if (ch == '}' && charAt(searchIndex - 1) != '\\') {
+                        pCount--;
+                        if (pCount == 0) {
+                            //'$'{xxxxx~'}'
+                            String str = subChars(thisItemFirstIndex + 2, searchIndex);
+                            String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\", "\\");
+                            int replaceCount = str.length() - toStr.length();
+                            if (replaceCount != 0) {
+                                log("替代后续文本 ${" + str + "}->${" + toStr + "}");
+                                System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
+                                char[] array = new char[replaceCount];
+                                Arrays.fill(array, ' ');
+                                System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
+
+                            }
+                            if (searchIndex - (thisItemFirstIndex + 2) == 0) {
+                                group.loadStringToken(searchIndex, searchIndex, "");
+                            } else {
+                                group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
+                            }
+                            ch = charAt(searchIndex + 1);
+                            if (ch == '$') {
+                                group.loadCommaToken(searchIndex, searchIndex + 1);
+                                thisItemFirstIndex = searchIndex + 1;
+                                thisItemFirstChar = '$';
+                                normalCode = true;
+                                searchIndex++;
+                                continue;
+                            } else if (ch == '"') {
+                                thisItemFirstIndex = searchIndex + 2;
+                                thisItemFirstChar = ' ';
+                                normalCode = true;
+                                searchIndex++;
+                                continue;
+                            } else {
+                                group.loadCommaToken(searchIndex, searchIndex);
+                                thisItemFirstIndex = searchIndex;
+                                thisItemFirstChar = '}';
+                                normalCode = false;
+                                continue;
+                            }
+
+
+                        }
+                    }
+                } else if (thisItemFirstChar == '"') {
+                    if (ch == '$') {
+                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
+                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                            group.loadStringToken(thisItemFirstIndex, searchIndex, str);
                             group.loadCommaToken(searchIndex, searchIndex + 1);
-                            thisItemFirstIndex = searchIndex - 1;
-                            thisItemFirstChar = '}';
-                            searchIndex--;
+                        }
+                        thisItemFirstIndex = searchIndex;
+                        thisItemFirstChar = '$';
+                        normalCode = true;
+                        continue;
+                    } else if (ch == '"') {
+                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
+                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                            group.loadStringToken(thisItemFirstIndex, searchIndex, str);
+                        }
+                        thisItemFirstIndex = searchIndex + 1;
+                        thisItemFirstChar = ' ';
+                        normalCode = true;
+                        continue;
+                    }
+                } else if (thisItemFirstChar == '}') {
+                    if (ch == '$') {
+                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
+                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                            group.loadStringToken(thisItemFirstIndex + 1, searchIndex, str);
+                            group.loadCommaToken(searchIndex, searchIndex + 1);
+                        }
+                        thisItemFirstIndex = searchIndex;
+                        thisItemFirstChar = '$';
+                        normalCode = true;
+                        continue;
+                    } else if (ch == '"') {
+                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
+                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
+                            group.loadStringToken(thisItemFirstIndex + 1, searchIndex, str);
+                        }
+                        thisItemFirstIndex = searchIndex + 1;
+                        thisItemFirstChar = ' ';
+                        normalCode = true;
+                        continue;
+                    }
+                } else if (thisItemFirstChar == ' ' && normalCode) {
+                    if (ch == '"' && charAt(thisItemFirstIndex - 1) != '\\') {
+                        if (searchIndex - thisItemFirstChar > 0) {
+                            group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
+                        }
+                        if (charAt(searchIndex + 1) == '$') {
+                            thisItemFirstIndex = searchIndex + 1;
+                            thisItemFirstChar = '$';
+                            normalCode = true;
+                            searchIndex++;
+                            continue;
+                        } else {
+                            thisItemFirstIndex = searchIndex;
+                            thisItemFirstChar = '"';
+                            normalCode = false;
                             continue;
                         }
-                    } else {
-                        String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                        group.loadStringToken(thisItemFirstIndex, searchIndex, str);
-                    }
-                    thisItemFirstIndex = -1;
-                    normalCode = true;
 
-                } else if (ch == '$' && charAt(searchIndex - 1) != '\\') {
-                    if (thisItemFirstChar == '$') throwError(thisItemFirstIndex, "$表达式错误");
-                    //   '"'xxxxx~'$'{
-                    String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                    group.loadStringToken(thisItemFirstIndex, searchIndex, str);
-                    thisItemFirstIndex = -1;
-                    group.loadCommaToken(searchIndex, searchIndex + 1);
-                    searchIndex--;
-                } else if (thisItemFirstChar == '$') {
-                    if (charAt(thisItemFirstIndex + 1) != '{') {
-                        if (!String.valueOf(ch).matches("[A-Za-z0-9_\\u4e00-\\u9fa5.]+")) {
-                            //'$'xxxxx~' '
-                            group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
-                            group.loadCommaToken(searchIndex, searchIndex + 1);
-                            thisItemFirstIndex = searchIndex - 1;
-                            thisItemFirstChar = '}';
-                            searchIndex--;
-                        }
-                    } else {
-                        if (ch == '{' && charAt(searchIndex - 1) != '\\') {
-                            pCount++;
-                        } else if (ch == '}' && charAt(searchIndex - 1) != '\\') {
-                            pCount--;
-                            if (pCount == 0) {
-                                //'$'{xxxxx~'}'
-                                String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                                String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\", "\\");
-                                int replaceCount = str.length() - toStr.length();
-                                if (replaceCount != 0) {
-                                    log("替代后续文本 ${" + str + "}->${" + toStr + "}");
-                                    System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
-                                    char[] array = new char[replaceCount];
-                                    Arrays.fill(array, ' ');
-                                    System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
-
-                                }
-                                if (searchIndex - (thisItemFirstIndex + 2) == 0) {
-                                    group.loadStringToken(searchIndex, searchIndex, "");
-                                } else {
-                                    group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
-                                }
-
-                                group.loadCommaToken(searchIndex, searchIndex + 1);
-                                searchIndex--;
-                                thisItemFirstIndex = -1;
-                                thisItemFirstChar = ' ';
-                            }
-                        }
                     }
                 }
-
             }
 
         }
-        group.items.add(new Item(thisItemFirstIndex == -1 ? group.mappingEndIndex - 1 : thisItemFirstIndex, group.mappingEndIndex - 1, null));
-        {
-            group.items.add(new Item(group.mappingEndIndex - 1, group.mappingEndIndex, null));
+        if (group.items.size() > 0 && group.items.get(group.items.size() - 1).token != null && group.items.get(group.items.size() - 1).token.kind == Tokens.TokenKind.COMMA) {
+            group.items.remove(group.items.size() - 1);
         }
+        group.items.add(new Item(thisItemFirstIndex == -1 ? group.mappingEndIndex - 1 : thisItemFirstIndex, group.mappingEndIndex, null));
         thisGroup = group;
     }
 
@@ -330,7 +413,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
 
         private void loadStringToken(int startIndex, int endIndex, String chars) {
-            chars = chars.replaceAll("\\\\$", "$");
+            chars = chars.replaceAll(Matcher.quoteReplacement("\\$"), Matcher.quoteReplacement("$"));
             chars = toLitChar(startIndex, chars);
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
             Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
