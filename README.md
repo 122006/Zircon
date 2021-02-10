@@ -61,7 +61,7 @@
 
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
-            <artifactId>plugin</artifactId>
+            <artifactId>javac</artifactId>
             <version>版本号</version>
         </dependency>
         <dependency>
