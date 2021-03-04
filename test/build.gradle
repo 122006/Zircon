@@ -18,6 +18,7 @@ dependencies {
         implementation 'com.by122006.zircon:impl:0.1'
     }
 }
+
 compileJava {
     if (System.getProperty("user.dir").contains(":\\")) {
         options.compilerArgs << "-Xplugin:ZrString"

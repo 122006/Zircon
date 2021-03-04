@@ -9,9 +9,11 @@ repositories {
 dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 }
+
 compileJava {
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
+
 uploadArchives {
     repositories {
         mavenDeployer{

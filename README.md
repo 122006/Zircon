@@ -19,7 +19,7 @@
       String add = "test2";
       assertEquals($("test1 $add"), "test1 test2");
       
-      assertEquals($("test1 ${\"Test,mode\".substring(0,6)}${1+2}"), "test1 Test,m3");
+      assertEquals($("test1 ${‘Test,mode’.substring(0,6)}${1+2}"), "test1 Test,m3");
           
 * 插件引入
 
@@ -114,6 +114,8 @@
 * 其他注意事项
 
    * $()方法中任何字符串都会被检测是否含有'${}'标识，请注意'${}'内容代码的正确性
+   
+   * 特殊语法：在${}代码块中，为了较少转义符的使用，你可以用单引号`'String'`来修饰字符串。如果需要使用单引号以声明`char`类型，你需要使用`\'C\'`进行转义
    
 * 代码注入说明
         

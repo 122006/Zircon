@@ -91,7 +91,7 @@ public class TextStringFormat {
                         ,
                         "(${3})"
                 ),"(1)(2)(3)");
-        assertEquals($("${\"\\\\'\\'\"}"), "\\''");
+        assertEquals($("${\"\\\\n\\n\"}"), "\\n\n");
         assertEquals($("normal \\$char"), "normal $char");
         assertEquals($("normal \\"), "normal \\");
         assertEquals($("normal \\$"), "normal $");
@@ -108,11 +108,14 @@ public class TextStringFormat {
         assertEquals($("\\n${add}"), "\\ntest");
         assertEquals($(
                 "\\n${add}"), "\\ntest");
-        assertEquals($("${1==1?\"通过\":\"驳回\"}"), "通过");
+        assertEquals($("${1==1?'通过':\"驳回\"}"), "通过");
 
-        assertEquals($("审批${0==0?\"通过\":\"驳回\"} [${add}]\n $add"), "审批通过 [test]\n test");
+        assertEquals($("审批${0==0?\"通过\":'驳回'} [${add}]\n $add"), "审批通过 [test]\n test");
         assertEquals($("$add"+(2+3)+"$add"+1+"$add"), "test5test1test");
         assertEquals($("$add ${add}"), "test test");
+        assertEquals($("${String.valueOf('testString')}"), "testString");
+        assertEquals($("${'testString'}"), "testString");
+        assertEquals($("${(int)\'s\'}"), ""+(int)'s');
 
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");

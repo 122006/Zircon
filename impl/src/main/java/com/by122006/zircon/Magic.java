@@ -22,6 +22,8 @@ public class Magic {
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:该功能实现需要配合插件使用，请<a href="https://github.com/122006/Zircon">参考README.md文件</a>确认您的配置正确性 <br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:我怎么确认我的字符串替换成功？<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:观察程序编译时控制台输出，是否提示加载该插件<br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:字符串替换出错了？<br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:${}中需要使用正确的java代码。其中'string'会被替换为"string",如果还需要使用char，使用转义\'c\'<br>
      *
      * @param o 接受一个字符串字段，你可以在其中增加${}代码标识，以格式化特殊字符串
      * @return 格式化后的字符串
@@ -72,6 +74,8 @@ public class Magic {
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:该功能实现需要配合插件使用，请<a href="https://github.com/122006/Zircon">参考README.md文件</a>确认您的配置正确性 <br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:我怎么确认我的字符串替换成功？<br>
      * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:观察程序编译时控制台输出，是否提示加载该插件<br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;F:字符串替换出错了？<br>
+     * &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Q:${}中需要使用正确的java代码。其中'string'会被替换为"string",如果还需要使用char，使用转义\'c\'<br>
      *
      * @param s 接受一个字符串字段，你可以在其中增加${}代码标识，以格式化特殊字符串
      * @return 格式化后的字符串

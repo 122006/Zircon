@@ -6,6 +6,7 @@ import java.nio.CharBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
@@ -240,9 +241,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                         if (pCount == 0) {
                             //'$'{xxxxx~'}'
                             String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replaceAll("\\\\{0,1}([a-z0-9\"]{1})", "$1").replace("\\\\", "\\");
+                            String toStr = str.replaceAll("(^|[^\\\\])'(.+?[^\\\\])'", "$1\"$2\"")
+                                    .replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
+                                    .replace("\\\\", "\\");
                             int replaceCount = str.length() - toStr.length();
-                            if (replaceCount != 0) {
+                            if (!Objects.equals(str,toStr)) {
                                 log("替代后续文本 ${" + str + "}->${" + toStr + "}");
                                 System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
                                 char[] array = new char[replaceCount];
