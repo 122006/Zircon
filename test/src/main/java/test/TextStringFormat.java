@@ -116,6 +116,7 @@ public class TextStringFormat {
         assertEquals($("${String.valueOf('testString')}"), "testString");
         assertEquals($("${'testString'}"), "testString");
         assertEquals($("${(int)\'s\'}"), ""+(int)'s');
+        assertEquals($("${''+'123'+String.valueOf(\'C\')+''}"), "123C");
 
 //        {
 //            String test = $("test ${\"in\\\"Str\"}");

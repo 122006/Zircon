@@ -241,7 +241,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                         if (pCount == 0) {
                             //'$'{xxxxx~'}'
                             String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replaceAll("(^|[^\\\\])'(.+?[^\\\\])'", "$1\"$2\"")
+                            String toStr = str.replaceAll("(^|[^\\\\])'([^']+?[^\\\\'])?'", "$1\"$2\"")
                                     .replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
                                     .replace("\\\\", "\\");
                             int replaceCount = str.length() - toStr.length();
