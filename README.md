@@ -19,7 +19,7 @@
       String add = "test2";
       assertEquals($("test1 $add"), "test1 test2");
       
-      assertEquals($("test1 ${‘Test,mode’.substring(0,6)}${1+2}"), "test1 Test,m3");
+      assertEquals($("test1 ${'Test,mode'.substring(0,6)}${1+2}"), "test1 Test,m3");
           
 * 插件引入
 
