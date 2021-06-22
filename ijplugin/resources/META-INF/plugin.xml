@@ -1,0 +1,27 @@
+<idea-plugin>
+  <id>com.your.company.unique.plugin.id</id>
+  <name>ZirconString</name>
+  <version>1.0</version>
+  <vendor email="1109108466@qq.com" url="https://github.com/122006/Zircon">122006</vendor>
+
+  <!-- please see https://plugins.jetbrains.com/docs/intellij/build-number-ranges.html for description -->
+  <idea-version since-build="202.6397.94"/>
+
+  <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
+       on how to target different products -->
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.java</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+    <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
+  </extensions>
+  <actions>
+  </actions>
+  <extensions defaultExtensionNs="com.intellij">
+    <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
+    <lang.parserDefinition language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition" order="first"/>
+    <lang.syntaxHighlighter language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter" order="first"/>
+    <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory" serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl" overrides="true"/>
+  </extensions>
+</idea-plugin>

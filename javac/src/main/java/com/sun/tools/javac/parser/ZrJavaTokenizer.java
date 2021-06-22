@@ -1,6 +1,7 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.Name;
 
 import java.nio.CharBuffer;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 strPrint = "";
             }
             if (analyse instanceof Tokens.NamedToken) {
-                strPrint += ((Tokens.NamedToken) analyse).name;
+                strPrint += ((Tokens.NamedToken) analyse).name.toString();
             } else if (analyse instanceof Tokens.NumericToken) {
                 strPrint += ((Tokens.NumericToken) analyse).stringVal;
             } else if (analyse instanceof Tokens.StringToken) {
@@ -140,10 +141,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     private boolean isTargetString() {
         int index = reader.bp;
+        if (index == 0) return false;
         while (isBlankChar(charAt(index))) {
             index++;
         }
-        return charAt(index) == '$' && charAt(index - 1) != '\\' && nextChar(index) == '(';
+        return (charAt(index) == '$' || charAt(index) == 'f') && nextChar(index) == '"';
     }
 
     public void throwError(int post, String error) {
@@ -158,221 +160,65 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
 
     private void formatGroup() {
-        if (nowChar(reader.bp) != '$') throwError(reader.bp, "错误");
+        if (nowChar(reader.bp) != '$' && nowChar(reader.bp) != 'f' && nowChar(reader.bp + 1) != '"') {
+            throwError(reader.bp, "unknow group start with :" + subChars(reader.bp, reader.bp + 20));
+        }
         Group group = new Group(reader.bp);
         group.searchEnd();
-        log("匹配到字符串: " + subChars(group.mappingStartIndex, group.mappingEndIndex));
+        String searchStr = subChars(group.mappingStartIndex, group.mappingEndIndex);
+        log("匹配到字符串: " + searchStr);
         int searchIndex = group.mappingStartIndex;
-        {
-            group.items.add(new Item(searchIndex, searchIndex + 1, null));
-        }
-        {
-            searchIndex = group.indexOf(reader.bp, '(');
-            group.items.add(new Item(searchIndex, searchIndex + 1, null));
-        }
-        char thisItemFirstChar = ' ';
-        int thisItemFirstIndex = -1;
-        int pCount = 0;
-        boolean normalCode = true;//格式代码
-        boolean isChar = false;
-        boolean isUnicode = false;
-        while ((++searchIndex) < group.mappingEndIndex - 1) {
-            char ch = charAt(searchIndex);
-            log("当前起始char:[" + thisItemFirstChar + "]  搜索到字符：" + ch + " (" + ((int) ch) + ") " + (isChar ? " isChar" : "") + (normalCode ? " normalCode" : ""));
-            if (isBlankChar(ch) && thisItemFirstChar != '$') continue;
-            if (ch == '\'' && normalCode) {
-                isChar = !isChar;
-                if (isChar) log("is char");
-                continue;
-            }
-            if (isChar) continue;
-            if (ch == '\\' && !normalCode && !isUnicode) {
-                isUnicode = true;
-                continue;
-            }
-            if (isUnicode) {
-                if (ch == '\\' && charAt(searchIndex + 1) == '$') searchIndex++;
-                isUnicode = false;
-                continue;
-            }
-            if (thisItemFirstIndex == -1) {
-                if ((ch == '$' || ch == '"')
-                        && charAt(searchIndex - 1) != '\\') {
-                    normalCode = ch == '$';
-                    thisItemFirstChar = ch;
-                    thisItemFirstIndex = searchIndex;
-                } else {
-                    normalCode = true;
-                    thisItemFirstChar = ' ';
-                    thisItemFirstIndex = searchIndex;
+        group.loadIdentifierToken(searchIndex, searchIndex + 1, "com");
+        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
+        group.loadIdentifierToken(searchIndex, searchIndex + 1, "by122006");
+        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
+        group.loadIdentifierToken(searchIndex, searchIndex + 1, "zircon");
+        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
+        group.loadIdentifierToken(searchIndex, searchIndex + 1, "Magic");
+        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
+        group.loadIdentifierToken(searchIndex, searchIndex + 1, "$");
+        group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex + 1, searchIndex + 1);
+        List<GroupStringRange.StringRange> build = GroupStringRange.build(searchStr);
+        for (int i = 0; i < build.size(); i++) {
+            GroupStringRange.StringRange a = build.get(i);
+            if (a.isJavaCode) {
+                String str = subChars(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
+                String toStr = str.replaceAll("(^|[^\\\\])'([^']+?[^\\\\'])?'", "$1\"$2\"")
+                        .replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
+                        .replace("\\\\", "\\");
+                int replaceCount = str.length() - toStr.length();
+                if (!Objects.equals(str,toStr)) {
+                    log("替代后续文本 ${" + str + "}->${" + toStr + "}");
+                    System.arraycopy(toStr.toCharArray(), 0, reader.buf, a.startIndex + group.mappingStartIndex, toStr.length());
+                    char[] array = new char[replaceCount];
+                    Arrays.fill(array, ' ');
+                    System.arraycopy(array, 0, reader.buf, a.startIndex + group.mappingStartIndex + toStr.length(), replaceCount);
                 }
+                group.items.add(new Item(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, null));
             } else {
-                if (thisItemFirstChar == '$' && charAt(thisItemFirstIndex + 1) != '{') {
-                    if (ch == '"') {
-                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
-                        thisItemFirstIndex = searchIndex + 1;
-                        thisItemFirstChar = ' ';
-                        normalCode = true;
-                        continue;
-                    }
-//                    if (ch == '$') {
-//                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
-//                        group.loadCommaToken(searchIndex, searchIndex + 1);
-//                        thisItemFirstIndex = searchIndex;
-//                        thisItemFirstChar = '$';
-//                        normalCode = true;
-//                        continue;
-//                    }
-                    if (!String.valueOf(ch).matches("[A-Za-z0-9_\\u4e00-\\u9fa5.$]+")) {
-                        //'$'xxxxx~' '
-                        group.items.add(new Item(thisItemFirstIndex + 1, searchIndex, null));
-                        group.loadCommaToken(searchIndex, searchIndex + 1);
-                        thisItemFirstIndex = searchIndex - 1;
-                        thisItemFirstChar = '}';
-                        searchIndex--;
-                        normalCode = false;
-                        continue;
-                    }
-                } else if (thisItemFirstChar == '$' && charAt(thisItemFirstIndex + 1) == '{') {
-                    if (ch == '{' && charAt(searchIndex - 1) != '\\') {
-                        pCount++;
-                    } else if (ch == '}' && charAt(searchIndex - 1) != '\\') {
-                        pCount--;
-                        if (pCount == 0) {
-                            //'$'{xxxxx~'}'
-                            String str = subChars(thisItemFirstIndex + 2, searchIndex);
-                            String toStr = str.replaceAll("(^|[^\\\\])'([^']+?[^\\\\'])?'", "$1\"$2\"")
-                                    .replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
-                                    .replace("\\\\", "\\");
-                            int replaceCount = str.length() - toStr.length();
-                            if (!Objects.equals(str,toStr)) {
-                                log("替代后续文本 ${" + str + "}->${" + toStr + "}");
-                                System.arraycopy(toStr.toCharArray(), 0, reader.buf, thisItemFirstIndex + 2, toStr.length());
-                                char[] array = new char[replaceCount];
-                                Arrays.fill(array, ' ');
-                                System.arraycopy(array, 0, reader.buf, thisItemFirstIndex + 2 + toStr.length(), replaceCount);
-
-                            }
-                            if (searchIndex - (thisItemFirstIndex + 2) == 0) {
-                                group.loadStringToken(searchIndex, searchIndex, "");
-                            } else {
-                                group.items.add(new Item(thisItemFirstIndex + 2, searchIndex, null));
-                            }
-                            ch = charAt(searchIndex + 1);
-                            if (ch == '$') {
-                                group.loadCommaToken(searchIndex, searchIndex + 1);
-                                thisItemFirstIndex = searchIndex + 1;
-                                thisItemFirstChar = '$';
-                                normalCode = true;
-                                searchIndex++;
-                                continue;
-                            } else if (ch == '"') {
-                                thisItemFirstIndex = searchIndex + 2;
-                                thisItemFirstChar = ' ';
-                                normalCode = true;
-                                searchIndex++;
-                                continue;
-                            } else {
-                                group.loadCommaToken(searchIndex, searchIndex);
-                                thisItemFirstIndex = searchIndex;
-                                thisItemFirstChar = '}';
-                                normalCode = false;
-                                continue;
-                            }
-
-
-                        }
-                    }
-                } else if (thisItemFirstChar == '"') {
-                    if (ch == '$') {
-                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
-                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                            group.loadStringToken(thisItemFirstIndex, searchIndex, str);
-                            group.loadCommaToken(searchIndex, searchIndex + 1);
-                        }
-                        thisItemFirstIndex = searchIndex;
-                        thisItemFirstChar = '$';
-                        normalCode = true;
-                        continue;
-                    } else if (ch == '"') {
-                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
-                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                            group.loadStringToken(thisItemFirstIndex, searchIndex, str);
-                        }
-                        thisItemFirstIndex = searchIndex + 1;
-                        thisItemFirstChar = ' ';
-                        normalCode = true;
-                        continue;
-                    }
-                } else if (thisItemFirstChar == '}') {
-                    if (ch == '$') {
-                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
-                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                            group.loadStringToken(thisItemFirstIndex + 1, searchIndex, str);
-                            group.loadCommaToken(searchIndex, searchIndex + 1);
-                        }
-                        thisItemFirstIndex = searchIndex;
-                        thisItemFirstChar = '$';
-                        normalCode = true;
-                        continue;
-                    } else if (ch == '"') {
-                        if (searchIndex - (thisItemFirstChar + 1) > 0) {
-                            String str = subChars(thisItemFirstIndex + 1, searchIndex);
-                            group.loadStringToken(thisItemFirstIndex + 1, searchIndex, str);
-                        }
-                        thisItemFirstIndex = searchIndex + 1;
-                        thisItemFirstChar = ' ';
-                        normalCode = true;
-                        continue;
-                    }
-                } else if (thisItemFirstChar == ' ' && normalCode) {
-                    if (ch == '"' && charAt(thisItemFirstIndex - 1) != '\\') {
-                        if (searchIndex - thisItemFirstChar > 0) {
-                            group.items.add(new Item(thisItemFirstIndex, searchIndex, null));
-                        }
-                        if (charAt(searchIndex + 1) == '$') {
-                            thisItemFirstIndex = searchIndex + 1;
-                            thisItemFirstChar = '$';
-                            normalCode = true;
-                            searchIndex++;
-                            continue;
-                        } else {
-                            thisItemFirstIndex = searchIndex;
-                            thisItemFirstChar = '"';
-                            normalCode = false;
-                            continue;
-                        }
-
-                    }
-                }
+                group.loadStringToken(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, searchStr.substring(a.startIndex, a.endIndex));
             }
-
+            if (i != build.size() - 1)
+                group.loadCommaToken(Tokens.TokenKind.COMMA, a.endIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
         }
-        if (group.items.size() > 0 && group.items.get(group.items.size() - 1).token != null && group.items.get(group.items.size() - 1).token.kind == Tokens.TokenKind.COMMA) {
-            group.items.remove(group.items.size() - 1);
-        }
-        group.items.add(new Item(thisItemFirstIndex == -1 ? group.mappingEndIndex - 1 : thisItemFirstIndex, group.mappingEndIndex, null));
+        group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
         thisGroup = group;
     }
 
-
     public class Group {
-        int mappingStartIndex = -1;//  '$'(
-        int mappingEndIndex = -1;//    ')'+1
+        int mappingStartIndex = -1;//  '$|f'"
+        int mappingEndIndex = -1;//    '"'+1
         List<Item> items = new ArrayList<>();
 
         private Group(int mappingStartIndex) {
-            this.mappingStartIndex = indexOf(mappingStartIndex, '$');
+            this.mappingStartIndex = indexOf(mappingStartIndex, '"')-1;
         }
 
         /**
-         * 匹配结束点：')'
+         * 匹配结束点：'"'
          */
         public void searchEnd() {
-            int leftBracket2 = 0;
-            int find = mappingStartIndex - 1;
-            boolean isChar = false;
-            boolean isString = false;
+            int find = mappingStartIndex + 1;
             while (true) {
                 find++;
                 if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
@@ -381,27 +227,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     find++;
                     continue;
                 }
-                if (ch == '\'') {
-                    isChar = !isChar;
-                    continue;
+                if (ch == '"') {
+                    mappingEndIndex = find + 1;
+                    break;
                 }
-                if (ch == '\"') {
-                    isString = !isString;
-                    continue;
-                }
-                if (isChar || isString) continue;
-
-                if (ch == '(') {
-                    leftBracket2++;
-                }
-                if (ch == ')') {
-                    leftBracket2--;
-                    if (leftBracket2 == 0) {
-                        mappingEndIndex = find + 1;
-                        return;
-                    }
-                }
-
             }
         }
 
@@ -424,10 +253,17 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             items.add(new Item(startIndex, endIndex, stringToken));
         }
 
-        private void loadCommaToken(int startIndex, int endIndex) {
+        private void loadCommaToken(Tokens.TokenKind tk, int startIndex, int endIndex) {
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
-            Tokens.TokenKind tk = Tokens.TokenKind.COMMA;
             Tokens.Token stringToken = new Tokens.Token(tk, startIndex, endIndex, var3);
+            items.add(new Item(startIndex, endIndex, stringToken));
+        }
+
+        private void loadIdentifierToken(int startIndex, int endIndex, String identifier) {
+            com.sun.tools.javac.util.List<Tokens.NamedToken> var3 = null;
+            Name name = reader.names.fromString(identifier);
+            Tokens.TokenKind tk = fac.tokens.lookupKind(name);
+            Tokens.NamedToken stringToken = new Tokens.NamedToken(tk, startIndex, endIndex, name, null);
             items.add(new Item(startIndex, endIndex, stringToken));
         }
 
@@ -441,6 +277,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 if (item.token != null) {
                     if (item.token instanceof Tokens.StringToken) {
                         str += ("\"" + ((Tokens.StringToken) item.token).stringVal + "\"");
+                    } else if (item.token instanceof Tokens.NamedToken) {
+                        str += ((Tokens.NamedToken) item.token).name.toString();
                     } else {
                         str += (item.token.kind.name);
                     }
@@ -539,7 +377,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             if (textChars.charAt(index) == '\\') {
                 index++;
                 if (index == textChars.length()) {
-                    throwError(startIndex, "非法字符");
+                    throwError(startIndex, "非法字符 in "+textChars);
                     break;
                 }
                 ;

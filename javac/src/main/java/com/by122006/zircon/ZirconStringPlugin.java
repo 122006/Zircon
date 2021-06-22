@@ -45,7 +45,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 
     @Override
     public void init(JavacTask task, String... args) {
-        System.out.println("start [动态字符串插件]");
+        System.out.println("inject [动态字符串插件]");
         BasicJavacTask javacTask = (BasicJavacTask) task;
         Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
@@ -80,6 +80,8 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            e.printStackTrace();
             return;
         }
+        reloadClass("com.sun.tools.javac.parser.GroupStringRange", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.GroupStringRange$StringRange", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Group", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Item", pcl, classLoader);

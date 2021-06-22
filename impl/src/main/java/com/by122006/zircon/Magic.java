@@ -52,6 +52,7 @@ public class Magic {
         for (Object o : s) {
             stringBuilder.append(o);
         }
+        com.by122006.zircon.Magic.$(123);
         return stringBuilder.toString();
     }
     /**
