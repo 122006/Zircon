@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
+    public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -47,7 +47,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (!debug) return analyse;
         if (thisGroup != null) {
             if (strPrint == null) {
-                log("模拟输出: " + thisGroup.output());
+                log( "模拟输出: " + thisGroup.output());
                 strPrint = "";
             }
             if (analyse instanceof Tokens.NamedToken) {
@@ -55,12 +55,12 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             } else if (analyse instanceof Tokens.NumericToken) {
                 strPrint += ((Tokens.NumericToken) analyse).stringVal;
             } else if (analyse instanceof Tokens.StringToken) {
-                strPrint += ("\"" + ((Tokens.StringToken) analyse).stringVal + "\"");
+                strPrint += ( "\"" + ((Tokens.StringToken) analyse).stringVal + "\"");
             } else {
                 strPrint += (analyse.kind.name);
             }
         } else if (strPrint != null) {
-            log("实际输出: " + strPrint);
+            log( "实际输出: " + strPrint);
             strPrint = null;
         }
         return analyse;
@@ -73,7 +73,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             } catch (Exception e) {
                 if (debug)
                     e.printStackTrace();
-                wain("[" + subChars(reader.bp, reader.bp + 20) + "] error:" + e.getMessage());
+                wain( "[" + subChars(reader.bp, reader.bp + 20) + "] error:" + e.getMessage());
             }
         }
         if (thisGroup != null) {
@@ -108,9 +108,9 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         try {
             token = super.readToken();
             if (thisGroup != null && (tk != null && tk == Tokens.TokenKind.ERROR))
-                error("[错误]  Tokens: " + thisGroup.output());
+                error( "[错误]  Tokens: " + thisGroup.output());
         } catch (Throwable e) {
-            if (thisGroup != null) error("[错误]  Tokens: " + thisGroup.output());
+            if (thisGroup != null) error( "[错误]  Tokens: " + thisGroup.output());
             throw e;
         }
         if (thisGroup != null) {
@@ -149,13 +149,13 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     public void throwError(int post, String error) {
-        throw new RuntimeException("index[" + post + "]发生错误: " + error);
+        throw new RuntimeException( "index[" + post + "]发生错误: " + error);
     }
 
     Group thisGroup;
 
     public static void main(String[] args) {
-        System.out.println("test (${String.format(\"str:[%s]\",\"format\")})".replace("\\\\", "\\").replaceAll("\\\\([a-z]{1})", "$1"));
+        System.out.println( "test (${String.format(\"str:[%s]\",\"format\")})".replace( "\\\\" , "\\").replaceAll( "\\\\([a-z]{1})" , "$1"));
     }
 
 
@@ -166,42 +166,75 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         Group group = new Group(reader.bp);
         group.searchEnd();
         String searchStr = subChars(group.mappingStartIndex, group.mappingEndIndex);
-        log("匹配到字符串: " + searchStr);
+        log( "匹配到字符串: " + searchStr);
         int searchIndex = group.mappingStartIndex;
-        group.loadIdentifierToken(searchIndex, searchIndex + 1, "com");
-        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
-        group.loadIdentifierToken(searchIndex, searchIndex + 1, "by122006");
-        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
-        group.loadIdentifierToken(searchIndex, searchIndex + 1, "zircon");
-        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
-        group.loadIdentifierToken(searchIndex, searchIndex + 1, "Magic");
-        group.loadCommaToken(Tokens.TokenKind.DOT,searchIndex, searchIndex + 1);
-        group.loadIdentifierToken(searchIndex, searchIndex + 1, "$");
-        group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex + 1, searchIndex + 1);
         List<GroupStringRange.StringRange> build = GroupStringRange.build(searchStr);
-        for (int i = 0; i < build.size(); i++) {
-            GroupStringRange.StringRange a = build.get(i);
-            if (a.isJavaCode) {
-                String str = subChars(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
-                String toStr = str.replaceAll("(^|[^\\\\])'([^']+?[^\\\\'])?'", "$1\"$2\"")
-                        .replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
-                        .replace("\\\\", "\\");
-                int replaceCount = str.length() - toStr.length();
-                if (!Objects.equals(str,toStr)) {
-                    log("替代后续文本 ${" + str + "}->${" + toStr + "}");
-                    System.arraycopy(toStr.toCharArray(), 0, reader.buf, a.startIndex + group.mappingStartIndex, toStr.length());
-                    char[] array = new char[replaceCount];
-                    Arrays.fill(array, ' ');
-                    System.arraycopy(array, 0, reader.buf, a.startIndex + group.mappingStartIndex + toStr.length(), replaceCount);
+        if (searchStr.startsWith("f")){
+            group.loadIdentifierToken(searchIndex, searchIndex + 1, "String");
+            group.loadCommaToken(Tokens.TokenKind.DOT, searchIndex+ 1, searchIndex + 1);
+            group.loadIdentifierToken(searchIndex+ 1, searchIndex + 1, "format");
+            group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex + 1, searchIndex + 1);
+            group.loadStringToken(searchIndex + 1, searchIndex + 1, GroupStringRange.map2FormatString(searchStr, build));
+            for (int i = 0; i < build.size(); i++) {
+                GroupStringRange.StringRange a = build.get(i);
+                if (a.codeStyle != 0 && a.codeStyle != 1) continue;
+                if (a.codeStyle==1) {
+                    group.loadCommaToken(Tokens.TokenKind.COMMA, a.endIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
+                    String str = subChars(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
+                    String toStr = str.replaceAll( "(^|[^\\\\])'([^']+?[^\\\\'])?'" , "$1\"$2\"")
+                            .replaceAll( "\\\\?([a-z0-9\"']{1})" , "$1")
+                            .replace( "\\\\" , "\\");
+                    int replaceCount = str.length() - toStr.length();
+                    if (!Objects.equals(str, toStr)) {
+                        log( "替代后续文本 ${" + str + "}->${" + toStr + "}");
+                        System.arraycopy(toStr.toCharArray(), 0, reader.buf, a.startIndex + group.mappingStartIndex, toStr.length());
+                        char[] array = new char[replaceCount];
+                        Arrays.fill(array, ' ');
+                        System.arraycopy(array, 0, reader.buf, a.startIndex + group.mappingStartIndex + toStr.length(), replaceCount);
+                    }
+                    group.items.add(new Item(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, null));
                 }
-                group.items.add(new Item(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, null));
-            } else {
-                group.loadStringToken(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, searchStr.substring(a.startIndex, a.endIndex));
             }
-            if (i != build.size() - 1)
-                group.loadCommaToken(Tokens.TokenKind.COMMA, a.endIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
+            group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
+        }else {
+            group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex, searchIndex + 1);
+            if (build.size()>0){
+                GroupStringRange.StringRange stringRange = build.get(0);
+                int startIndex = stringRange.startIndex + group.mappingStartIndex;
+                int endIndex = stringRange.endIndex + group.mappingStartIndex;
+                if (stringRange.codeStyle == 1) {
+                    group.loadIdentifierToken(startIndex, startIndex, "String");
+                    group.loadCommaToken(Tokens.TokenKind.DOT, startIndex,startIndex);
+                    group.loadIdentifierToken(startIndex, startIndex, "valueOf");
+                    group.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex, startIndex);
+                    group.items.add(new Item(startIndex, endIndex, null));
+                    group.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex);
+                } else if (stringRange.codeStyle == 0) {
+                    group.loadStringToken(startIndex, endIndex,searchStr.substring(stringRange.startIndex, stringRange.endIndex));
+                } else {
+                    throwError(startIndex,"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
+                }
+                for (int i = 1; i < build.size(); i++) {
+                    stringRange = build.get(i);
+                    startIndex = stringRange.startIndex + group.mappingStartIndex;
+                    endIndex = stringRange.endIndex + group.mappingStartIndex;
+                    group.loadCommaToken(Tokens.TokenKind.PLUS, startIndex,startIndex);
+                    if (stringRange.codeStyle == 1) {
+                        group.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex,startIndex);
+                        group.items.add(new Item(startIndex,endIndex, null));
+                        group.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex);
+                    } else if (stringRange.codeStyle == 0) {
+                        group.loadStringToken(startIndex, endIndex
+                                ,searchStr.substring(stringRange.startIndex, stringRange.endIndex));
+                    }else {
+                        throwError(startIndex,"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
+                    }
+                }
+            }
+            group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
         }
-        group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
+
+
         thisGroup = group;
     }
 
@@ -211,7 +244,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         List<Item> items = new ArrayList<>();
 
         private Group(int mappingStartIndex) {
-            this.mappingStartIndex = indexOf(mappingStartIndex, '"')-1;
+            this.mappingStartIndex = indexOf(mappingStartIndex, '"') - 1;
         }
 
         /**
@@ -245,7 +278,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
 
         private void loadStringToken(int startIndex, int endIndex, String chars) {
-            chars = chars.replaceAll(Matcher.quoteReplacement("\\$"), Matcher.quoteReplacement("$"));
+            chars = chars.replaceAll(Matcher.quoteReplacement( "\\$"), Matcher.quoteReplacement( "$"));
             chars = toLitChar(startIndex, chars);
             com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
             Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
@@ -276,7 +309,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     continue;
                 if (item.token != null) {
                     if (item.token instanceof Tokens.StringToken) {
-                        str += ("\"" + ((Tokens.StringToken) item.token).stringVal + "\"");
+                        str += ( "\"" + ((Tokens.StringToken) item.token).stringVal + "\"");
                     } else if (item.token instanceof Tokens.NamedToken) {
                         str += ((Tokens.NamedToken) item.token).name.toString();
                     } else {
@@ -310,7 +343,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
         int length = endIndex - startIndex;
         if (length == 0) return "";
-        if (startIndex > endIndex) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
+        if (startIndex > endIndex) throw new RuntimeException( "截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
         String s = new String(chars);
@@ -377,7 +410,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             if (textChars.charAt(index) == '\\') {
                 index++;
                 if (index == textChars.length()) {
-                    throwError(startIndex, "非法字符 in "+textChars);
+                    throwError(startIndex, "非法字符 in " + textChars);
                     break;
                 }
                 ;

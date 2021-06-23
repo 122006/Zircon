@@ -65,6 +65,7 @@ public class TextStringFormat {
         assertEquals( f"test (${\"te\\\"st\"})" , "test (te\"st)");
         assertEquals( f"(${\"test\"})" , "(test)");
         assertEquals( f"({${add}})" , "({test})");
+        assertEquals( f"({${%03d:12}})" , "({012})");
         assertEquals( f"(${})" , "()");
         assertEquals( f"${}" , "");
         assertEquals( f"" , "");
@@ -92,7 +93,7 @@ public class TextStringFormat {
         assertEquals( f"\r" , "\r");
         assertEquals( f"\\normal" , "\\normal");
         assertEquals( f"\normal" , "\normal");
-        assertEquals( f"\n\\$normal" , "\n$normal");
+        assertEquals( $"\n\\$normal" , "\n$normal");
         assertEquals( f"\\" , "\\");
         assertEquals( f"\\" , "\\");
         assertEquals( f"\n${add}" , "\ntest");
@@ -113,7 +114,7 @@ public class TextStringFormat {
 
         String text=f" this is F-$String.class.getSimpleName() ";
 
-        assert Objects.equals($"Zircon: [ ${text.trim} ]","Zircon: [ "+text.trim()+" ]");
+        assert Objects.equals($"Zircon: [ ${text.trim()} ]","Zircon: [ "+text.trim()+" ]");
 
 
 
