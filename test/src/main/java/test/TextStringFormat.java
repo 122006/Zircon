@@ -108,6 +108,14 @@ public class TextStringFormat {
         assertEquals( f"${'testString'}" , "testString");
         assertEquals( f"${(int)\'s\'}" , "" + (int) 's');
         assertEquals( f"${''+'123'+String.valueOf(\'C\')+''}" , "123C");
+        assertEquals( f"${add}(${add})" , "test(test)");
+
+
+        String text=f" this is F-$String.class.getSimpleName() ";
+
+        assert Objects.equals($"Zircon: [ ${text.trim} ]","Zircon: [ "+text.trim()+" ]");
+
+
 
 //        {
 //            String test = f"test ${\"in\\\"Str\"}";
