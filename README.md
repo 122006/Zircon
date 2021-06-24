@@ -127,11 +127,11 @@ Step 2. 配置jitpack仓库
         	    <url>https://jitpack.io</url>
         	</repository>
         </repositories>
+
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 	    
 Step 2. 配置javac参数`("-Xplugin:ZrString")`
-    
-    
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
