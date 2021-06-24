@@ -1,4 +1,4 @@
-# Zircon 
+# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
 -----------------
 
@@ -87,12 +87,7 @@ Step 1. 在你的根目录项目`build.gradle`文件中进行如下操作
 		    	...
 		    	maven { url 'https://jitpack.io' }
 		    }
-		    //如果编译安卓项目，加入以下代码，以配置javac参数
-		    gradle.projectsEvaluated {
-                tasks.withType(JavaCompile) {
-                     options.compilerArgs << "-Xplugin:ZrString"
-                }
-            }
+
 	    }
 
 Step 2. 在需要使用插件的module的`build.gradle`文件中进行如下操作
@@ -102,12 +97,20 @@ Step 2. 在需要使用插件的module的`build.gradle`文件中进行如下操�
 	        annotationProcessor 'com.github.122006.Zircon:javac:版本号'
 	    }
 
-    当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
-	    
-	    //如果编译标准java项目(非安卓项目)，以配置javac参数
+
+当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+
+如果编译安卓项目，module的`build.gradle`文件中加入以下代码，以配置javac参数
+
+		tasks.withType(JavaCompile) {
+               options.compilerArgs  << "-Xplugin:ZrString"
+           }
+
+如果编译标准java项目(非安卓项目)，以配置javac参数
+
 	    compileJava {
-            options.compilerArgs  << "-Xplugin:ZrString"
-        }
+               options.compilerArgs  << "-Xplugin:ZrString"
+           }
         
 **使用Maven构建项目**
     
