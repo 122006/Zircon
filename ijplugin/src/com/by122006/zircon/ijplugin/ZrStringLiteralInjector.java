@@ -48,7 +48,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
             if (build.size() > 0) {
                 stringBuilder.append( "(");
                 if (build.get(0).codeStyle == 1) {
-                    stringBuilder.append( "String.valueOf(\"");
+                    stringBuilder.append( "String.valueOf(");
                     stringBuilder.append(text.substring(build.get(0).startIndex, build.get(0).endIndex));
                     stringBuilder.append( ")");
                 } else if (build.get(0).codeStyle == 0) {
