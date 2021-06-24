@@ -13,7 +13,7 @@
 
 ### 如何使用内插字符串
 
-若要将字符串标识为内插字符串，可在该字符串前面加上 $或f 符号。 可嵌入任何会在内插字符串中返回值的有效 JAVA 表达式。
+若要将字符串标识为内插字符串，可在该字符串前面加上 `$`或`f` 符号。 可嵌入任何会在内插字符串中返回值的有效 JAVA 表达式。
 
 对某个表达式执行计算后，其结果立即转换为一个字符串并包含到结果字符串中：
 
@@ -24,6 +24,9 @@
 2. 几乎不会增加额外编译时间
     
 3. 代码内容支持idea补全提示（需安装idea插件） 
+
+4. 更多内插字符串语法糖支持
+
 
 ###    效果图
 
@@ -40,6 +43,35 @@
 
 ----------------  
 
+### 高级语法糖
+
+1. 根据字符串前的前缀不同，拥有不同的字符串内插逻辑，请注意区别使用
+
+    #### 1. $前缀字符串(`$-string`):
+
+    直接使用加号进行字符串的拼接，拥有最快的运行
+
+   1. JDK1.6的情况，javac遇到加号(+)链接的字符串会自动转化成StringBuilder.append()，不存在加号连接字符串额外的对象开销
+
+   2. 如果首个子部分为非硬编码字符串，会自动包裹String.valueOf()以防止拼接异常
+
+    #### 2. f前缀字符串(`f-string`):
+      
+      使用String.format函数进行拼接，速度相比`$-string`较慢
+
+    1. 如果是使用大括号包裹的`${}`代码块，你可以指定的每个内插代码块的显示格式：
+       在代码块的前部，增加一个以`%`号开始的`String.format`格式化标识，并且使用`:`与后续代码块进行分隔 。形如：`${%03d:12}`会输出`012`的格式化结果
+
+
+2. 未被大括号`{}`包裹的简易代码块，拥有java特性自动识别代码范围的功能
+
+    1. 请不要完全依赖该功能，只能简单判断括号匹配及后续引用，复杂语句请使用`${}`
+  
+    2. 如果要使用该功能，请注意根据插件提示的java代码注入范围来判断是否使用错误
+  
+
+
+---------------
 ### 插件引入
 
 **使用Gradle构建项目**
@@ -64,7 +96,6 @@ Step 2. 在需要使用插件的module的`build.gradle`文件中进行如下操�
 	    dependencies {
 	        ...
 	        annotationProcessor 'com.github.122006.Zircon:javac:版本号'
-            implementation 'com.github.122006.Zircon:impl:版本号'
 	    }
 
     当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
@@ -83,11 +114,6 @@ Step 1. 增加依赖
             <artifactId>javac</artifactId>
             <version>版本号</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.122006.Zircon</groupId>
-            <artifactId>impl</artifactId>
-            <version>版本号</version>
-        </dependency>
         
 Step 2. 配置jitpack仓库
 
@@ -99,7 +125,7 @@ Step 2. 配置jitpack仓库
         </repositories>
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 	    
-Step 2. 配置javac参数("-Xplugin:ZrString")
+Step 2. 配置javac参数`("-Xplugin:ZrString")`
     
     
         <plugin>
@@ -122,7 +148,7 @@ Step 2. 配置javac参数("-Xplugin:ZrString")
 
 ### 其他注意事项
 
-1. 特殊语法：在${}代码块中，为了减少转义符的使用，你可以用单引号`'String'`来修饰字符串。如果需要使用单引号以声明`char`类型，你需要使用`\'C\'`进行转义
+1. 特殊语法：在`${}`代码块中，为了减少转义符的使用，你可以用单引号`'String'`来修饰字符串。如果需要使用单引号以声明`char`类型，你需要使用`\'C\'`进行转义
 
 --------------
 
