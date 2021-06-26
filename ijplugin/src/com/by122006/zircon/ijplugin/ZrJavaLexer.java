@@ -17,38 +17,19 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
-
-import static com.intellij.psi.PsiKeyword.*;
 
 public final class ZrJavaLexer extends LexerBase {
     private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
-    private static final Set<String> KEYWORDS = new HashSet<>(Arrays.asList(
-            ABSTRACT, BOOLEAN, BREAK, BYTE, CASE, CATCH, CHAR, CLASS, CONST, CONTINUE, DEFAULT, DO, DOUBLE, ELSE, EXTENDS, FINAL, FINALLY,
-            FLOAT, FOR, GOTO, IF, IMPLEMENTS, IMPORT, INSTANCEOF, INT, INTERFACE, LONG, NATIVE, NEW, PACKAGE, PRIVATE, PROTECTED, PUBLIC,
-            RETURN, SHORT, STATIC, STRICTFP, SUPER, SWITCH, SYNCHRONIZED, THIS, THROW, THROWS, TRANSIENT, TRY, VOID, VOLATILE, WHILE,
-            TRUE, FALSE, NULL, NON_SEALED));
 
     private static final Set<CharSequence> JAVA9_KEYWORDS = new THashSet(Arrays.asList("open", "module", "requires", "exports", "opens", "uses", "provides", "transitive", "to", "with"), CharSequenceHashingStrategy.CASE_SENSITIVE);
 
     public static boolean isKeyword(String id, @NotNull LanguageLevel level) {
-        return KEYWORDS.contains(id) ||
-                level.isAtLeast(LanguageLevel.JDK_1_4) && ASSERT.equals(id) ||
-                level.isAtLeast(LanguageLevel.JDK_1_5) && ENUM.equals(id);
+        return JavaLexer.isKeyword(id,level);
     }
 
     public static boolean isSoftKeyword(CharSequence id, @NotNull LanguageLevel level) {
-        return id != null &&
-                (level.isAtLeast(LanguageLevel.JDK_1_9) && JAVA9_KEYWORDS.contains(id) ||
-                        level.isAtLeast(LanguageLevel.JDK_10) && VAR.contentEquals(id) ||
-                        level.isAtLeast(LanguageLevel.JDK_15_PREVIEW) && RECORD.contentEquals(id) ||
-                        level.isAtLeast(LanguageLevel.JDK_14) && YIELD.contentEquals(id) ||
-                        (isSealedAvailable(level) && (SEALED.contentEquals(id) || PERMITS.contentEquals(id))));
-    }
-
-    public static boolean isSealedAvailable(@NotNull LanguageLevel level) {
-        return level.isAtLeast(LanguageLevel.JDK_15_PREVIEW) && (level.isPreview());
+        return JavaLexer.isSoftKeyword(id,level);
     }
 
     private Object myFlexLexer;

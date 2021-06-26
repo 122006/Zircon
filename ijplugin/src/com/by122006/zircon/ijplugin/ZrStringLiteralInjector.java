@@ -8,7 +8,6 @@ import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.LanguageInjector;
 import com.intellij.psi.PsiLanguageInjectionHost;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
-import com.sun.tools.javac.parser.Tokens;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
