@@ -2,4 +2,5 @@ rootProject.name = 'Zircon'
 include 'test'
 include 'javac'
 include 'impl'
+include 'base'
 

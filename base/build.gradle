@@ -1,0 +1,13 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+}
+
+dependencies {
+    implementation project (':ijplugin')
+    implementation project (':javac')
+}
+

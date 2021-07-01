@@ -9,5 +9,7 @@
     </content>
     <orderEntry type="jdk" jdkName="IntelliJ IDEA Community Edition IC-202.7319.50" jdkType="IDEA JDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="base" />
+    <orderEntry type="module" module-name="Zircon.base.main" />
   </component>
 </module>

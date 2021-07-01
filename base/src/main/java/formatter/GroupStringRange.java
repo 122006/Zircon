@@ -1,4 +1,4 @@
-package com.by122006.zircon.ijplugin;
+package formatter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,7 +102,7 @@ public class GroupStringRange {
     }
 
     public static class StringRange {
-        static StringRange of(int codeStyle, int startIndex, int endIndex) {
+        public static StringRange of(int codeStyle, int startIndex, int endIndex) {
             StringRange stringRange = new StringRange();
             stringRange.endIndex = endIndex;
             stringRange.codeStyle = codeStyle;
@@ -116,9 +116,9 @@ public class GroupStringRange {
          * 1 java code<br>
          * 2 format info
          */
-        int codeStyle = -1;
-        int startIndex;
-        int endIndex;
+        public int codeStyle = -1;
+        public int startIndex;
+        public int endIndex;
     }
 }
 

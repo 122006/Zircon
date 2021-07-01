@@ -8,12 +8,11 @@ import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.LanguageInjector;
 import com.intellij.psi.PsiLanguageInjectionHost;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
-import com.sun.tools.javac.parser.Tokens;
+import formatter.Formatter;
+import formatter.GroupStringRange;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 public class ZrStringLiteralInjector implements LanguageInjector {
     private static final Logger LOG = Logger.getInstance(ZrStringLiteralInjector.class.getName());
@@ -25,64 +24,29 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         PsiLiteralExpressionImpl impl = (PsiLiteralExpressionImpl) host;
         if (!(impl.getLiteralElementType() == JavaTokenType.STRING_LITERAL)) return;
         String text = impl.getCanonicalText();
-        if (!(text.startsWith( "f") || text.startsWith( "$"))) return;
-        List<GroupStringRange.StringRange> build = GroupStringRange.build(text);
-        StringBuilder stringBuilder = new StringBuilder();
-        if (text.startsWith( "f")) {
-            stringBuilder.append( "String.format(\"");
-            stringBuilder.append(GroupStringRange.map2FormatString(text, build));
-            stringBuilder.append( "\"");
-            for (GroupStringRange.StringRange a : build) {
-                if (a.codeStyle != 0 && a.codeStyle != 1) continue;
-                String str = text.substring(a.startIndex, a.endIndex);
-                if (a.codeStyle == 1) {
-                    stringBuilder.append( ",");
-                    String toStr = str.replaceAll( "(^|[^\\\\])'([^']+?[^\\\\'])?'" , "$1\"$2\"")
-                            .replaceAll( "\\\\?([a-z0-9\"']{1})" , "$1")
-                            .replace( "\\\\" , "\\");
-                    stringBuilder.append(toStr);
-                }
-            }
-            stringBuilder.append( ")");
-        } else {
-            if (build.size() > 0) {
-                stringBuilder.append( "(");
-                if (build.get(0).codeStyle == 1) {
-                    stringBuilder.append( "String.valueOf(");
-                    stringBuilder.append(text.substring(build.get(0).startIndex, build.get(0).endIndex));
-                    stringBuilder.append( ")");
-                } else if (build.get(0).codeStyle == 0) {
-                    stringBuilder.append( "\"");
-                    stringBuilder.append(text.substring(build.get(0).startIndex, build.get(0).endIndex));
-                    stringBuilder.append( "\"");
-                } else {
-                    stringBuilder.append("[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
-                }
-                for (int i = 1; i < build.size(); i++) {
-                    stringBuilder.append( "+");
-                    GroupStringRange.StringRange stringRange = build.get(i);
-                    if (stringRange.codeStyle == 1) {
-                        stringBuilder.append( "(");
-                        stringBuilder.append(text.substring(stringRange.startIndex, stringRange.endIndex));
-                        stringBuilder.append( ")");
-                    } else if (stringRange.codeStyle == 0) {
-                        stringBuilder.append( "\"");
-                        stringBuilder.append(text.substring(stringRange.startIndex, stringRange.endIndex));
-                        stringBuilder.append( "\"");
-                    }else {
-                        stringBuilder.append("[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
-                    }
-                }
-                stringBuilder.append( ")");
-            }
+        if (text.startsWith( "\"" )) return;
+        List<Formatter> allFormatters = Formatter.getAllFormatters();
+        int endIndex = text.indexOf( "\"" );
+        if (endIndex == -1) {
+            LOG.error( "字符串前缀无法识别" );
+            return;
         }
-
+        String prefix = text.substring(0, endIndex);
+        Formatter formatter = allFormatters.stream()
+                .filter(a -> a.prefix().test(prefix)).findFirst().orElse(null);
+        if (formatter == null) {
+            LOG.error( "未识别的字符串前缀" );
+            return;
+        }
+        List<GroupStringRange.StringRange> build = GroupStringRange.build(text);
+        String printOut = formatter.printOut(build, text);
+        if (printOut == null) return;
         build.stream().filter(a -> a.codeStyle == 1)
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
 //                    LOG.warn(text.substring(a.startIndex, a.endIndex));
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
-                    places.addPlace(JavaLanguage.INSTANCE, textRange, "class __ZRStringObj {\n  // " + stringBuilder + "\n  Object _str = " , ";\n}\n");
+                    places.addPlace(JavaLanguage.INSTANCE, textRange, "class __ZRStringObj {\n  // " + printOut + "\n  Object _str = ", ";\n}\n" );
                 });
     }
 

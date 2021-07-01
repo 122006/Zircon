@@ -1,14 +1,13 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
-import com.sun.tools.javac.util.Name;
+import formatter.Formatter;
+import formatter.Group;
+import formatter.GroupStringRange;
+import formatter.Item;
 
 import java.nio.CharBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.regex.Matcher;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
@@ -160,180 +159,28 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
 
     private void formatGroup() {
-        if (nowChar(reader.bp) != '$' && nowChar(reader.bp) != 'f' && nowChar(reader.bp + 1) != '"') {
-            throwError(reader.bp, "unknow group start with :" + subChars(reader.bp, reader.bp + 20));
-        }
-        Group group = new Group(reader.bp);
+        Group group = new Group(this, reader.bp);
         group.searchEnd();
         String searchStr = subChars(group.mappingStartIndex, group.mappingEndIndex);
         log( "匹配到字符串: " + searchStr);
         int searchIndex = group.mappingStartIndex;
+        if (searchStr.startsWith( "\"" )) return;
+        int endIndex = searchStr.indexOf( "\"" );
+        if (endIndex == -1) {
+            log( "字符串前缀无法识别" );
+            return;
+        }
+        String prefix = searchStr.substring(0, endIndex);
+        List<Formatter> allFormatters=Formatter.getAllFormatters();
+        Formatter formatter = allFormatters.stream()
+                .filter(a -> a.prefix().test(prefix)).findFirst().orElse(null);
+        if (formatter == null) {
+            log( "未识别的字符串前缀" );
+            return;
+        }
         List<GroupStringRange.StringRange> build = GroupStringRange.build(searchStr);
-        if (searchStr.startsWith("f")){
-            group.loadIdentifierToken(searchIndex, searchIndex + 1, "String");
-            group.loadCommaToken(Tokens.TokenKind.DOT, searchIndex+ 1, searchIndex + 1);
-            group.loadIdentifierToken(searchIndex+ 1, searchIndex + 1, "format");
-            group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex + 1, searchIndex + 1);
-            group.loadStringToken(searchIndex + 1, searchIndex + 1, GroupStringRange.map2FormatString(searchStr, build));
-            for (int i = 0; i < build.size(); i++) {
-                GroupStringRange.StringRange a = build.get(i);
-                if (a.codeStyle != 0 && a.codeStyle != 1) continue;
-                if (a.codeStyle==1) {
-                    group.loadCommaToken(Tokens.TokenKind.COMMA, a.endIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
-                    String str = subChars(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex);
-                    String toStr = str.replaceAll( "(^|[^\\\\])'([^']+?[^\\\\'])?'" , "$1\"$2\"")
-                            .replaceAll( "\\\\?([a-z0-9\"']{1})" , "$1")
-                            .replace( "\\\\" , "\\");
-                    int replaceCount = str.length() - toStr.length();
-                    if (!Objects.equals(str, toStr)) {
-                        log( "替代后续文本 ${" + str + "}->${" + toStr + "}");
-                        System.arraycopy(toStr.toCharArray(), 0, reader.buf, a.startIndex + group.mappingStartIndex, toStr.length());
-                        char[] array = new char[replaceCount];
-                        Arrays.fill(array, ' ');
-                        System.arraycopy(array, 0, reader.buf, a.startIndex + group.mappingStartIndex + toStr.length(), replaceCount);
-                    }
-                    group.items.add(new Item(a.startIndex + group.mappingStartIndex, a.endIndex + group.mappingStartIndex, null));
-                }
-            }
-            group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
-        }else {
-            group.loadCommaToken(Tokens.TokenKind.LPAREN, searchIndex, searchIndex + 1);
-            if (build.size()>0){
-                GroupStringRange.StringRange stringRange = build.get(0);
-                int startIndex = stringRange.startIndex + group.mappingStartIndex;
-                int endIndex = stringRange.endIndex + group.mappingStartIndex;
-                if (stringRange.codeStyle == 1) {
-                    group.loadIdentifierToken(startIndex, startIndex, "String");
-                    group.loadCommaToken(Tokens.TokenKind.DOT, startIndex,startIndex);
-                    group.loadIdentifierToken(startIndex, startIndex, "valueOf");
-                    group.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex, startIndex);
-                    group.items.add(new Item(startIndex, endIndex, null));
-                    group.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex);
-                } else if (stringRange.codeStyle == 0) {
-                    group.loadStringToken(startIndex, endIndex,searchStr.substring(stringRange.startIndex, stringRange.endIndex));
-                } else {
-                    throwError(startIndex,"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
-                }
-                for (int i = 1; i < build.size(); i++) {
-                    stringRange = build.get(i);
-                    startIndex = stringRange.startIndex + group.mappingStartIndex;
-                    endIndex = stringRange.endIndex + group.mappingStartIndex;
-                    group.loadCommaToken(Tokens.TokenKind.PLUS, startIndex,startIndex);
-                    if (stringRange.codeStyle == 1) {
-                        group.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex,startIndex);
-                        group.items.add(new Item(startIndex,endIndex, null));
-                        group.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex);
-                    } else if (stringRange.codeStyle == 0) {
-                        group.loadStringToken(startIndex, endIndex
-                                ,searchStr.substring(stringRange.startIndex, stringRange.endIndex));
-                    }else {
-                        throwError(startIndex,"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
-                    }
-                }
-            }
-            group.loadCommaToken(Tokens.TokenKind.RPAREN, group.mappingEndIndex, group.mappingEndIndex);
-        }
-
-
+        formatter.code2Tokens(this,group, searchStr);
         thisGroup = group;
-    }
-
-    public class Group {
-        int mappingStartIndex = -1;//  '$|f'"
-        int mappingEndIndex = -1;//    '"'+1
-        List<Item> items = new ArrayList<>();
-
-        private Group(int mappingStartIndex) {
-            this.mappingStartIndex = indexOf(mappingStartIndex, '"') - 1;
-        }
-
-        /**
-         * 匹配结束点：'"'
-         */
-        public void searchEnd() {
-            int find = mappingStartIndex + 1;
-            while (true) {
-                find++;
-                if (find >= reader.buflen) throwError(mappingStartIndex, "未找到匹配结束点");
-                char ch = charAt(find);
-                if (ch == '\\') {
-                    find++;
-                    continue;
-                }
-                if (ch == '"') {
-                    mappingEndIndex = find + 1;
-                    break;
-                }
-            }
-        }
-
-        private int indexOf(int startIndex, char ch) {
-            while (startIndex < reader.buflen && (mappingEndIndex == -1 || startIndex < mappingEndIndex + 1)) {
-                if (charAt(startIndex) == ch && charAt(startIndex - 1) != '\\') {
-                    return startIndex;
-                }
-                startIndex++;
-            }
-            return -1;
-        }
-
-        private void loadStringToken(int startIndex, int endIndex, String chars) {
-            chars = chars.replaceAll(Matcher.quoteReplacement( "\\$"), Matcher.quoteReplacement( "$"));
-            chars = toLitChar(startIndex, chars);
-            com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
-            Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
-            Tokens.StringToken stringToken = new Tokens.StringToken(tk, startIndex, endIndex, chars, var3);
-            items.add(new Item(startIndex, endIndex, stringToken));
-        }
-
-        private void loadCommaToken(Tokens.TokenKind tk, int startIndex, int endIndex) {
-            com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
-            Tokens.Token stringToken = new Tokens.Token(tk, startIndex, endIndex, var3);
-            items.add(new Item(startIndex, endIndex, stringToken));
-        }
-
-        private void loadIdentifierToken(int startIndex, int endIndex, String identifier) {
-            com.sun.tools.javac.util.List<Tokens.NamedToken> var3 = null;
-            Name name = reader.names.fromString(identifier);
-            Tokens.TokenKind tk = fac.tokens.lookupKind(name);
-            Tokens.NamedToken stringToken = new Tokens.NamedToken(tk, startIndex, endIndex, name, null);
-            items.add(new Item(startIndex, endIndex, stringToken));
-        }
-
-        public String output() {
-            String str = "";
-            for (int i = 0; i < items.size(); i++) {
-                Item item = items.get(i);
-                if (item.token == null
-                        && subChars(item.mappingStartIndex, item.mappingEndIndex).trim().length() == 0)
-                    continue;
-                if (item.token != null) {
-                    if (item.token instanceof Tokens.StringToken) {
-                        str += ( "\"" + ((Tokens.StringToken) item.token).stringVal + "\"");
-                    } else if (item.token instanceof Tokens.NamedToken) {
-                        str += ((Tokens.NamedToken) item.token).name.toString();
-                    } else {
-                        str += (item.token.kind.name);
-                    }
-                } else {
-                    str += (subChars(item.mappingStartIndex, item.mappingEndIndex));
-                }
-            }
-            return str;
-        }
-    }
-
-    public class Item {
-        int mappingStartIndex = -1;
-        int mappingEndIndex = -1;
-        Tokens.Token token;
-        boolean isParseOut = false;
-
-        public Item(int mappingStartIndex, int mappingEndIndex, Tokens.Token token) {
-            this.mappingStartIndex = mappingStartIndex;
-            this.mappingEndIndex = mappingEndIndex;
-            this.token = token;
-        }
     }
 
 
