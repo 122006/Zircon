@@ -9,13 +9,11 @@ import java.util.List;
 import java.util.regex.Matcher;
 
 public class Group {
-    private final JavaTokenizer tokenizer;
     public int mappingStartIndex = -1;//  '$|f'"
     public int mappingEndIndex = -1;//    '"'+1
     public List<Item> items = new ArrayList<>();
 
-    public Group(JavaTokenizer tokenizer, int mappingStartIndex) {
-        this.tokenizer = tokenizer;
+    public Group( int mappingStartIndex) {
         this.mappingStartIndex = indexOf(mappingStartIndex, '"') - 1;
     }
 

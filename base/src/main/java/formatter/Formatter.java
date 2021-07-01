@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 public interface Formatter {
     List<Formatter> FORMATTERS = new ArrayList<>();
+    List<String> PREFIXES=new ArrayList<>();
 
     static List<Formatter> getAllFormatters() {
         if (!FORMATTERS.isEmpty()) {
@@ -29,10 +30,16 @@ public interface Formatter {
         FORMATTERS.addAll(collect);
         return collect;
     }
+    static List<String> getPrefixes(){
+        if (!PREFIXES.isEmpty()) {
+            return PREFIXES;
+        }
+        return getAllFormatters().stream().map(Formatter::prefix).collect(Collectors.toList());
+    }
 
-    public Predicate<String> prefix();
+    public String prefix();
 
-    public void code2Tokens(ZrJavaTokenizer tokenizer,Group group, String searchStr) throws Exception;
+    public void code2Tokens(char[] buf,Group group, String searchStr) throws Exception;
 
     public String printOut(List<GroupStringRange.StringRange> build,String text);
 

@@ -33,12 +33,12 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         }
         String prefix = text.substring(0, endIndex);
         Formatter formatter = allFormatters.stream()
-                .filter(a -> a.prefix().test(prefix)).findFirst().orElse(null);
+                .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
         if (formatter == null) {
             LOG.error( "未识别的字符串前缀" );
             return;
         }
-        List<GroupStringRange.StringRange> build = GroupStringRange.build(text);
+        List<GroupStringRange.StringRange> build = GroupStringRange.build(text,formatter);
         String printOut = formatter.printOut(build, text);
         if (printOut == null) return;
         build.stream().filter(a -> a.codeStyle == 1)

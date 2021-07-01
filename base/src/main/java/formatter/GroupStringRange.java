@@ -4,12 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GroupStringRange {
-    public static List<StringRange> build(String text) {
+    public static List<StringRange> build(String text,Formatter formatter) {
         List<StringRange> list = new ArrayList<>();
-        int startI = 2;
+        int startI = formatter.prefix().length()+1;
         int selectModel = -1;
         int pCount = 0;
-        for (int thisIndex = 2; thisIndex < text.length() - 1; thisIndex++) {
+        for (int thisIndex = startI; thisIndex < text.length() - 1; thisIndex++) {
             char ch = text.charAt(thisIndex);
             if (text.charAt(thisIndex - 1) == '\\' && text.charAt(thisIndex - 2) != '\\') {
                 continue;
@@ -32,8 +32,6 @@ public class GroupStringRange {
                             } else {
                                 list.add(StringRange.of(1, startI, thisIndex));
                             }
-
-
                         }
                         startI = thisIndex + 1;
                         selectModel = -1;

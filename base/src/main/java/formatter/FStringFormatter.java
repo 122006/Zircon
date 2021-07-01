@@ -12,15 +12,14 @@ import java.util.function.Predicate;
 
 public class FStringFormatter implements Formatter{
     @Override
-    public Predicate<String> prefix() {
-        return s -> Objects.equals("f",s);
+    public String prefix() {
+        return "f";
     }
 
-    public void code2Tokens(ZrJavaTokenizer tokenizer,Group group, String searchStr)throws Exception{
+    public void code2Tokens(char[] buf,Group group, String searchStr)throws Exception{
         List<GroupStringRange.StringRange> build = GroupStringRange.build(searchStr);
         int searchIndex = group.mappingStartIndex;
-        UnicodeReader reader= (UnicodeReader) ReflectionUtil.getDeclaredField(tokenizer,JavaTokenizer.class,"reader");
-        char[] buf= (char[]) ReflectionUtil.getDeclaredField(reader,UnicodeReader.class,"buf");
+
         group.loadIdentifierToken(searchIndex, searchIndex + 1, "String");
         group.loadCommaToken(Tokens.TokenKind.DOT, searchIndex+ 1, searchIndex + 1);
         group.loadIdentifierToken(searchIndex+ 1, searchIndex + 1, "format");

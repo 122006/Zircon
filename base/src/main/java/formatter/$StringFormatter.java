@@ -11,8 +11,8 @@ import java.util.function.Predicate;
 
 public class $StringFormatter implements Formatter{
     @Override
-    public Predicate<String> prefix() {
-        return s -> Objects.equals("$",s);
+    public String prefix() {
+        return "$";
     }
 
     @Override

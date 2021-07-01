@@ -10,11 +10,9 @@
         <processorPath useClasspath="false">
           <entry name="$PROJECT_DIR$/../repo/com/by122006/zircon/javac/0.1/javac-0.1.jar" />
         </processorPath>
-        <module name="Zircon.test.main" />
+        <module name="test_main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8">
-      <module name="base" target="8" />
-    </bytecodeTargetLevel>
+    <bytecodeTargetLevel target="1.8" />
   </component>
 </project>

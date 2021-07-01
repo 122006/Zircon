@@ -1,16 +1,15 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Log;
-import formatter.Formatter;
-import formatter.Group;
-import formatter.GroupStringRange;
-import formatter.Item;
+import formatter.*;
 
 import java.nio.CharBuffer;
+import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
+    public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -41,148 +40,79 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     String strPrint = null;
 
+    int groupStartIndex, groupEndIndex;
+    Formatter groupFormatter;
     public Tokens.Token readToken() {
-        Tokens.Token analyse = analyse();
-        if (!debug) return analyse;
-        if (thisGroup != null) {
-            if (strPrint == null) {
-                log( "模拟输出: " + thisGroup.output());
-                strPrint = "";
+        try {
+            if (group == null||!groupIterator.hasNext()) {
+                int startIndex = reader.bp;
+                while (isBlankChar(charAt(startIndex))) {
+                    startIndex++;
+                }
+                String usePrefix = null;
+                for (String prefix : Formatter.getPrefixes()) {
+                    int endIndex = startIndex + prefix.length();
+                    if (charAt(endIndex) == '"' && subChars(startIndex, endIndex).equals(prefix)) {
+                        usePrefix = prefix;
+                    }
+                }
+                if (usePrefix == null) return super.readToken();
+                Formatter formatter = null;
+                for (Formatter f : Formatter.getAllFormatters()) {
+                    if (f.prefix().equals(usePrefix))
+                        formatter = f;
+                }
+                int endIndex = startIndex+usePrefix.length();
+                while (true) {
+                    endIndex++;
+                    if (endIndex >= reader.buflen) throw new RuntimeException(startIndex,"未找到匹配结束点" );
+                    char ch = charAt(endIndex);
+                    if (ch == '\\') {
+                        endIndex++;
+                        continue;
+                    }
+                    if (ch == '"') {
+                        endIndex++;
+                        break;
+                    }
+                }
+                String searchText = subChars(startIndex, endIndex);
+                group = GroupStringRange.build(searchText,formatter);
+                groupStartIndex=startIndex;
+                groupEndIndex=endIndex;
+                groupIterator=group.iterator();
             }
-            if (analyse instanceof Tokens.NamedToken) {
-                strPrint += ((Tokens.NamedToken) analyse).name.toString();
-            } else if (analyse instanceof Tokens.NumericToken) {
-                strPrint += ((Tokens.NumericToken) analyse).stringVal;
-            } else if (analyse instanceof Tokens.StringToken) {
-                strPrint += ( "\"" + ((Tokens.StringToken) analyse).stringVal + "\"");
-            } else {
-                strPrint += (analyse.kind.name);
+            if (reader.bp<groupIterator.next().endIndex){
+                return super.readToken();
             }
-        } else if (strPrint != null) {
-            log( "实际输出: " + strPrint);
-            strPrint = null;
+            GroupStringRange.StringRange range = groupIterator.next();
+            int rangeStartIndex = groupStartIndex + range.startIndex;
+            int rangeEndIndex = groupStartIndex + range.endIndex;
+            String subChars = subChars(rangeStartIndex, rangeEndIndex);
+            switch (range.codeStyle){
+                case 0:
+                    subChars = subChars.replaceAll(Matcher.quoteReplacement( "\\$" ), Matcher.quoteReplacement( "$" ));
+                    subChars = toLitChar( subChars);
+                    com.sun.tools.javac.util.List<Tokens.Comment> var3 = null;
+                    Tokens.TokenKind tk = Tokens.TokenKind.STRINGLITERAL;
+                    Tokens.StringToken stringToken = new Tokens.StringToken(tk, rangeStartIndex, rangeEndIndex, subChars, var3);
+                    return stringToken;
+                case 1:
+                    reIndex(rangeStartIndex);
+                    return
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return analyse;
     }
 
-    private Tokens.Token analyse() {
-        if (thisGroup == null && isTargetString()) {
-            try {
-                formatGroup();
-            } catch (Exception e) {
-                if (debug)
-                    e.printStackTrace();
-                wain( "[" + subChars(reader.bp, reader.bp + 20) + "] error:" + e.getMessage());
-            }
-        }
-        if (thisGroup != null) {
-            int useIndex = -1;
-            for (int i = 0; i < thisGroup.items.size(); i++) {
-                Item item = thisGroup.items.get(i);
-                if (item.token == null
-                        && subChars(item.mappingStartIndex, item.mappingEndIndex).trim().length() == 0)
-                    continue;
-                if (item.isParseOut) continue;
-                useIndex = i;
-                break;
-            }
-            if (useIndex != -1) {
-                Item item = thisGroup.items.get(useIndex);
-                if (item.token != null) {
-                    item.isParseOut = true;
-                    if (useIndex == thisGroup.items.size() - 1) {
-                        reIndex(thisGroup.mappingEndIndex);
-                        thisGroup = null;
-                    } else {
-                        Item nextItem = thisGroup.items.get(useIndex + 1);
-                        reIndex(nextItem.mappingStartIndex);
-                    }
-                    return item.token;
-                }
-            } else {
-                thisGroup = null;
-            }
-        }
-        Tokens.Token token = null;
-        try {
-            token = super.readToken();
-            if (thisGroup != null && (tk != null && tk == Tokens.TokenKind.ERROR))
-                error( "[错误]  Tokens: " + thisGroup.output());
-        } catch (Throwable e) {
-            if (thisGroup != null) error( "[错误]  Tokens: " + thisGroup.output());
-            throw e;
-        }
-        if (thisGroup != null) {
-            int nextCharIndex = reader.bp;
-            while (isBlankChar(charAt(nextCharIndex))) {
-                nextCharIndex++;
-            }
-            for (int i = 0; i < thisGroup.items.size(); i++) {
-                Item item = thisGroup.items.get(i);
-                if (!item.isParseOut && nextCharIndex >= item.mappingEndIndex) {
-                    item.isParseOut = true;
-                    if (i == thisGroup.items.size() - 1) {
-                        reIndex(nextCharIndex);
-                    } else {
-                        reIndex(thisGroup.items.get(i + 1).mappingStartIndex);
-                    }
-                    break;
-                }
-            }
-        }
-        return token;
-    }
+    List<GroupStringRange.StringRange> group;
+    Iterator<GroupStringRange.StringRange> groupIterator;
 
     public boolean isBlankChar(char ch) {
         if (ch == '\t' || ch == '\f' || ch == ' ' || ch == '\n' || ch == '\r') return true;
         return false;
     }
-
-    private boolean isTargetString() {
-        int index = reader.bp;
-        if (index == 0) return false;
-        while (isBlankChar(charAt(index))) {
-            index++;
-        }
-        return (charAt(index) == '$' || charAt(index) == 'f') && nextChar(index) == '"';
-    }
-
-    public void throwError(int post, String error) {
-        throw new RuntimeException( "index[" + post + "]发生错误: " + error);
-    }
-
-    Group thisGroup;
-
-    public static void main(String[] args) {
-        System.out.println( "test (${String.format(\"str:[%s]\",\"format\")})".replace( "\\\\" , "\\").replaceAll( "\\\\([a-z]{1})" , "$1"));
-    }
-
-
-    private void formatGroup() {
-        Group group = new Group(this, reader.bp);
-        group.searchEnd();
-        String searchStr = subChars(group.mappingStartIndex, group.mappingEndIndex);
-        log( "匹配到字符串: " + searchStr);
-        int searchIndex = group.mappingStartIndex;
-        if (searchStr.startsWith( "\"" )) return;
-        int endIndex = searchStr.indexOf( "\"" );
-        if (endIndex == -1) {
-            log( "字符串前缀无法识别" );
-            return;
-        }
-        String prefix = searchStr.substring(0, endIndex);
-        List<Formatter> allFormatters=Formatter.getAllFormatters();
-        Formatter formatter = allFormatters.stream()
-                .filter(a -> a.prefix().test(prefix)).findFirst().orElse(null);
-        if (formatter == null) {
-            log( "未识别的字符串前缀" );
-            return;
-        }
-        List<GroupStringRange.StringRange> build = GroupStringRange.build(searchStr);
-        formatter.code2Tokens(this,group, searchStr);
-        thisGroup = group;
-    }
-
 
     private String subChars(int startIndex, int endIndex) {
         if (endIndex > reader.buflen) {
@@ -190,53 +120,12 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
         int length = endIndex - startIndex;
         if (length == 0) return "";
-        if (startIndex > endIndex) throw new RuntimeException( "截取字符串错误： " + startIndex + "~" + endIndex);
+        if (startIndex > endIndex) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
         String s = new String(chars);
         return s;
     }
-
-    public char nowChar(int targetBp) {
-        char findChar;
-        while (true) {
-            if (targetBp >= reader.buflen) return ' ';
-            if (isBlankChar(findChar = charAt(targetBp))) {
-                targetBp++;
-                continue;
-            }
-            return findChar;
-        }
-    }
-
-    public char nextChar(int targetBp) {
-        char findChar;
-        while (true) {
-            targetBp++;
-            if (targetBp >= reader.buflen) return ' ';
-            if (isBlankChar(findChar = charAt(targetBp))) continue;
-            return findChar;
-        }
-    }
-
-    public char lastChar(int targetBp) {
-        char findChar;
-        while (true) {
-            targetBp--;
-            if (targetBp <= 0) return ' ';
-            if (isBlankChar(findChar = charAt(targetBp))) continue;
-            return findChar;
-        }
-    }
-
-    public boolean isNext(int targetBp, char nextChar) {
-        return nextChar(targetBp) == nextChar;
-    }
-
-    public boolean isLast(int targetBp, char nextChar) {
-        return lastChar(targetBp) == nextChar;
-    }
-
 
     /**
      * 重定向index
@@ -245,35 +134,32 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         this.reader.bp = index;
         reader.ch = reader.buf[reader.bp];
     }
-
     private char charAt(int index) {
         return reader.buf[index];
     }
 
-    private String toLitChar(int startIndex, String textChars) {
-        String str = "";
+    private static String toLitChar(String textChars) throws Exception {
+        StringBuilder str = new StringBuilder();
         int index = -1;
         while (++index < textChars.length()) {
             if (textChars.charAt(index) == '\\') {
                 index++;
                 if (index == textChars.length()) {
-                    throwError(startIndex, "非法字符 in " + textChars);
-                    break;
+                    throw new RuntimeException("非法字符 in " + textChars);
                 }
-                ;
                 if (textChars.charAt(index) == '\\') {
                     if (index + 1 != textChars.length() && textChars.charAt(index + 1) == '$') {
                         index++;
-                        str += ('$');
+                        str.append('$');
                     } else
-                        str += ('\\');
+                        str.append('\\');
                 } else {
                     switch (textChars.charAt(index)) {
                         case '"':
-                            str += ('"');
+                            str.append('"');
                             break;
                         case '\'':
-                            str += ('\'');
+                            str.append('\'');
                             break;
                         case '0':
                         case '1':
@@ -301,33 +187,33 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                                 }
 
                             }
-                            str += (char) var3;
+                            str.append((char) var3);
                             break;
                         case 'b':
-                            str += ('\b');
+                            str.append('\b');
                             break;
                         case 'f':
-                            str += ('\f');
+                            str.append('\f');
                             break;
                         case 'n':
-                            str += ('\n');
+                            str.append('\n');
                             break;
                         case 'r':
-                            str += ('\r');
+                            str.append('\r');
                             break;
                         case 't':
-                            str += ('\t');
+                            str.append('\t');
                             break;
                         default:
-                            str += textChars.charAt(index);
+                            str.append(textChars.charAt(index));
                     }
                 }
             } else {
-                str += textChars.charAt(index);
+                str.append(textChars.charAt(index));
             }
 
         }
-        return str;
+        return str.toString();
 
 
     }

@@ -7,7 +7,5 @@ repositories {
 }
 
 dependencies {
-    implementation project (':ijplugin')
-    implementation project (':javac')
 }
 
