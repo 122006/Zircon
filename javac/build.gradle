@@ -4,10 +4,14 @@ apply plugin: 'maven'
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
 }
 
 dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
+    implementation "com.by122006.zircon:base:0.1"
 }
 
 compileJava {

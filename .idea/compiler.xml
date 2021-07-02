@@ -5,13 +5,6 @@
       <profile default="true" name="Default" enabled="true">
         <outputRelativeToContentRoot value="true" />
       </profile>
-      <profile name="Gradle Imported" enabled="true">
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$PROJECT_DIR$/../repo/com/by122006/zircon/javac/0.1/javac-0.1.jar" />
-        </processorPath>
-        <module name="test_main" />
-      </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="1.8" />
   </component>

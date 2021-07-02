@@ -1,13 +1,14 @@
 package formatter;
 
 
-import com.sun.tools.javac.parser.ZrJavaTokenizer;
+
+import com.sun.tools.javac.parser.Item;
+import com.sun.tools.javac.parser.JavaTokenizer;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public interface Formatter {
@@ -18,7 +19,7 @@ public interface Formatter {
         if (!FORMATTERS.isEmpty()) {
             return FORMATTERS;
         }
-        List<Class<? extends Formatter>> classes = Arrays.asList($StringFormatter.class, FStringFormatter.class);
+        List<Class<? extends Formatter>> classes = Arrays.asList(SStringFormatter.class, FStringFormatter.class);
         List<Formatter> collect = classes.stream().map(a -> {
             try {
                 return a.newInstance();
@@ -39,12 +40,8 @@ public interface Formatter {
 
     public String prefix();
 
-    public void code2Tokens(char[] buf,Group group, String searchStr) throws Exception;
 
     public String printOut(List<GroupStringRange.StringRange> build,String text);
 
-
-
-
-
+    public List<Item> stringRange2Group(JavaTokenizer javaTokenizer, char[] buf, List<GroupStringRange.StringRange> build, String text, int groupStartIndex) throws Exception;
 }

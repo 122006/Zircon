@@ -5,7 +5,18 @@ repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
 }
-
 dependencies {
+    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 }
 
+uploadArchives {
+    repositories {
+        mavenDeployer{
+            // 配置本地仓库路径，项目根目录下的repository目录中
+            repository(url: uri('../../repo'))
+            pom.groupId = "com.by122006.zircon"// 唯一标识（通常为模块包名，也可以任意）
+            pom.artifactId = "base" // 项目名称（通常为类库模块名称，也可以任意）
+            pom.version = "0.1" // 版本号
+        }
+    }
+}

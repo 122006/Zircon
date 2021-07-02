@@ -80,13 +80,19 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            e.printStackTrace();
             return;
         }
-        reloadClass("com.sun.tools.javac.parser.GroupStringRange", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.GroupStringRange$StringRange", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
+        reloadClass("formatter.ReflectionUtil", pcl, classLoader);
+        reloadClass("formatter.Formatter", pcl, classLoader);
+        reloadClass("formatter.SStringFormatter", pcl, classLoader);
+        reloadClass("formatter.FStringFormatter", pcl, classLoader);
+        reloadClass("formatter.GroupStringRange", pcl, classLoader);
+        reloadClass("formatter.GroupStringRange$StringRange", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Group", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Item", pcl, classLoader);
-
         reloadClass("com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+
         Class<?> OOScannerClass = reloadClass("com.sun.tools.javac.parser.ZrScanner", pcl, classLoader);
         Class<?> OOScannerFactoryClass = reloadClass("com.sun.tools.javac.parser.ZrScannerFactory", pcl, classLoader);
 
