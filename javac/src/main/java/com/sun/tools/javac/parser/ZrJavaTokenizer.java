@@ -1,5 +1,6 @@
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.util.Position;
 import formatter.*;
 
 import java.nio.CharBuffer;
@@ -26,10 +27,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     public Tokens.Token readToken() {
         try {
             int bp = reader.bp;
-            boolean outLog=items == null;
+            boolean outLog = items == null;
             Tokens.Token handler = handler();
             if (debug && items != null) {
-                if (outLog) System.out.println("[" + bp + "]" );
+                if (outLog) {
+                    System.out.println();
+                    Position.LineMap lineMap = getLineMap();
+                    System.out.print( "[" + lineMap.getLineNumber(reader.bp) + "," + lineMap.getColumnNumber(reader.bp) + "]");
+                }
                 String s1 = "";
                 if (handler instanceof Tokens.StringToken) {
                     s1 = "\"" + handler.stringVal() + "\"";
@@ -63,10 +68,12 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     private Tokens.Token handler() throws Exception {
         if (items == null || itemsIndex >= items.size()) {
+            items = null;
             int startIndex = reader.bp;
-            while (isBlankChar(charAt(startIndex))) {
+            while (isBlankChar(charAt(startIndex)) && startIndex < reader.buflen) {
                 startIndex++;
             }
+            if (startIndex >= reader.buflen - 1) return super.readToken();
             String usePrefix = null;
             for (String prefix : Formatter.getPrefixes()) {
                 int endIndex = startIndex + prefix.length();
@@ -143,7 +150,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     int itemsIndex = 0;
 
     public boolean isBlankChar(char ch) {
-        return ch == '\t' || ch == '\f' || ch == ' ' || ch == '\n' || ch == '\r';
+        return ch == '\t' || ch == '\f' || ch == ' ' || ch == '\r' || ch == '\n';
     }
 
     private String subChars(int startIndex, int endIndex) {
