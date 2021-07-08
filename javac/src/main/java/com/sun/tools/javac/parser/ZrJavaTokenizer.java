@@ -1,10 +1,10 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.util.Log;
 import formatter.*;
 
 import java.nio.CharBuffer;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug" ));
@@ -20,41 +20,24 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
         super(scannerFactory, unicodeReader);
     }
-
-    public void log(String str) {
-        if (!debug) return;
-        fac.log.printRawLines(Log.WriterKind.NOTICE, str);
-    }
-
-    public void wain(String str) {
-        fac.log.printRawLines(Log.WriterKind.WARNING, str);
-    }
-
-    public void error(String str) {
-        fac.log.printRawLines(Log.WriterKind.ERROR, str);
-    }
-
-    boolean isTarget = false;
-
-    String strPrint = null;
-
     int groupStartIndex, groupEndIndex;
-    Formatter groupFormatter;
 
     public Tokens.Token readToken() {
         try {
             int bp = reader.bp;
             Tokens.Token handler = handler();
-            String s1 = "";
-            if (handler instanceof Tokens.StringToken){
-                s1= "\""+handler.stringVal()+"\"";
-            }else if (handler instanceof Tokens.NamedToken){
-                s1= String.valueOf(((Tokens.NamedToken) handler).name);
-            }else if (handler != null){
-                s1= handler.kind.name();
+            if (debug) {
+                String s1 = "";
+                if (handler instanceof Tokens.StringToken) {
+                    s1 = "\"" + handler.stringVal() + "\"";
+                } else if (handler instanceof Tokens.NamedToken) {
+                    s1 = String.valueOf(((Tokens.NamedToken) handler).name);
+                } else if (handler != null) {
+                    s1 = handler.kind.name();
+                }
+                String s = "[" + bp + "->" + reader.bp + "]" + s1;
+                System.out.println(s1);
             }
-            String s = "["+bp+"->" + reader.bp + "]" + s1;
-            wain(s);
             return handler;
         } catch (JavaCException e) {
             throw new RuntimeException( "index[" + e.errorIndex + "]发生错误: " + e.getMessage());
@@ -77,7 +60,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     private Tokens.Token handler() throws Exception {
-        if (items == null || itemsIndex>=items.size()) {
+        if (items == null || itemsIndex >= items.size()) {
             int startIndex = reader.bp;
             while (isBlankChar(charAt(startIndex))) {
                 startIndex++;
@@ -98,6 +81,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 }
             }
             if (formatter == null) throwError(startIndex, "没有找到符合的插值器" );
+            assert formatter!=null;
             int endIndex = startIndex + usePrefix.length();
             while (true) {
                 endIndex++;
@@ -113,35 +97,51 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 }
             }
             String searchText = subChars(startIndex, endIndex);
-            List<GroupStringRange.StringRange> group= GroupStringRange.build(searchText, formatter);
+            List<StringRange> group = formatter.build(searchText);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;
-            items=formatter.stringRange2Group(this, reader.buf,group,searchText,groupStartIndex);
-            itemsIndex=0;
+            items = formatter.stringRange2Group(this, reader.buf, group, searchText, groupStartIndex);
+            itemsIndex = 0;
+        }
+        if (items.size() == 0) {
+            reIndex(groupEndIndex);
+            return handler();
         }
         Item nowItem = items.get(itemsIndex);
-        if (nowItem.token==null) {
-            Tokens.Token token = super.readToken();
-            if (reader.bp >= nowItem.mappingEndIndex){
-                itemsIndex++;
-                reIndex(groupEndIndex);
+        if (nowItem.token == null) {
+            while (isBlankChar(reader.ch)) {
+                reIndex(++reader.bp);
             }
-            return token;
+            if (reader.bp >= nowItem.mappingEndIndex + groupStartIndex) {
+                itemsIndex++;
+                if (itemsIndex >= items.size()) {
+                    reIndex(groupEndIndex);
+                } else {
+                    nowItem = items.get(itemsIndex);
+                    reIndex(nowItem.mappingStartIndex + groupStartIndex);
+                }
+                return handler();
+            } else {
+                return super.readToken();
+            }
         }
-        Tokens.Token token=nowItem.token;
+        Tokens.Token token = nowItem.token;
         itemsIndex++;
-        reIndex(nowItem.mappingEndIndex+groupStartIndex);
+        if (itemsIndex >= items.size()) {
+            reIndex(groupEndIndex);
+        } else {
+            nowItem = items.get(itemsIndex);
+            reIndex(nowItem.mappingStartIndex + groupStartIndex);
+        }
         return token;
     }
 
 
-
     List<Item> items;
-    int itemsIndex=0;
+    int itemsIndex = 0;
 
     public boolean isBlankChar(char ch) {
-        if (ch == '\t' || ch == '\f' || ch == ' ' || ch == '\n' || ch == '\r') return true;
-        return false;
+        return ch == '\t' || ch == '\f' || ch == ' ' || ch == '\n' || ch == '\r';
     }
 
     private String subChars(int startIndex, int endIndex) {
@@ -153,8 +153,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (startIndex > endIndex) throw new RuntimeException( "截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
-        String s = new String(chars);
-        return s;
+        return new String(chars);
     }
 
     /**
@@ -168,7 +167,6 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     private char charAt(int index) {
         return reader.buf[index];
     }
-
 
 
 }

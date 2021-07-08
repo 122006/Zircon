@@ -1,16 +1,15 @@
 <idea-plugin>
-  <id>com.your.company.unique.plugin.id</id>
+  <id>com.by122006.zircon.ijplugin</id>
   <name>ZirconString</name>
-  <version>1.0</version>
+  <version>1.1</version>
   <vendor email="1109108466@qq.com" url="https://github.com/122006/Zircon">122006</vendor>
 
+  <description>一款Java语言的内插字符串插件。允许你在java中使用内插字符串语法。请前往主页获得详细信息\n https://github.com/122006/Zircon</description>
   <!-- please see https://plugins.jetbrains.com/docs/intellij/build-number-ranges.html for description -->
-  <idea-version since-build="202.6397.94"/>
-
   <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
        on how to target different products -->
   <depends>com.intellij.modules.platform</depends>
-  <depends>com.intellij.modules.java</depends>
+  <depends>com.intellij.java</depends>
 
   <extensions defaultExtensionNs="com.intellij">
     <!-- Add your extensions here -->

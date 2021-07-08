@@ -8,13 +8,13 @@ repositories {
         url uri('../../repo')
     }
 }
-
 dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation "com.by122006.zircon:base:0.1"
 }
-
 compileJava {
+    sourceCompatibility =JavaVersion.VERSION_1_8
+    targetCompatibility =JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
 

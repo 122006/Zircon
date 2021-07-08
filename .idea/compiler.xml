@@ -5,7 +5,18 @@
       <profile default="true" name="Default" enabled="true">
         <outputRelativeToContentRoot value="true" />
       </profile>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$PROJECT_DIR$/../repo/com/by122006/zircon/javac/0.1/javac-0.1.jar" />
+          <entry name="$PROJECT_DIR$/../repo/com/by122006/zircon/base/0.1/base-0.1.jar" />
+        </processorPath>
+        <module name="Zircon.test.main" />
+      </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8" />
+    <bytecodeTargetLevel target="8" />
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_STRING" value="-Xlint:unchecked" />
   </component>
 </project>
