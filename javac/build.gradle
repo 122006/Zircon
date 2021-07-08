@@ -10,7 +10,7 @@ repositories {
 }
 dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
-    implementation "com.by122006.zircon:base:0.1"
+    implementation project(":base")
 }
 compileJava {
     sourceCompatibility =JavaVersion.VERSION_1_8
