@@ -1,10 +1,14 @@
-apply plugin: 'java'
-apply plugin: 'maven'
+plugins {
+    id 'java'
+    id 'maven'
+    id 'org.jetbrains.intellij' version '1.1.2'
+}
 
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
 }
 
-dependencies {
-}

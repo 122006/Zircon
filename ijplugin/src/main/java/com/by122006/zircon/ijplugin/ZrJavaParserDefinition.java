@@ -11,19 +11,22 @@ import org.jetbrains.annotations.Nullable;
 
 public class ZrJavaParserDefinition extends JavaParserDefinition {
     private static final Logger LOG = Logger.getInstance(ZrJavaParserDefinition.class.getName());
+
     public ZrJavaParserDefinition() {
-        LOG.info("ZrJavaParserDefinition");
+        LOG.info( "ZrJavaParserDefinition" );
     }
+
     @NotNull
     @Override
     public Lexer createLexer(@Nullable Project project) {
-        LOG.info("createLexer");
+        LOG.info( "createLexer" );
         LanguageLevel level = project != null ? LanguageLevelProjectExtension.getInstance(project).getLanguageLevel() : LanguageLevel.HIGHEST;
         return createLexer(level);
     }
+
     @NotNull
     public static Lexer createLexer(@NotNull LanguageLevel level) {
-        LOG.info("createLexer");
+        LOG.info( "createLexer" );
         return new ZrJavaLexer(level);
     }
 }

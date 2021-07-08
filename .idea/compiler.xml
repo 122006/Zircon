@@ -8,11 +8,16 @@
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$PROJECT_DIR$/../repo/com/by122006/zircon/javac/0.1/javac-0.1.jar" />
+          <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
+          <entry name="$PROJECT_DIR$/../../Program Files/Java/jdk1.8.0_171/lib/tools.jar" />
+          <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="1.8" />
+    <bytecodeTargetLevel target="8" />
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_STRING" value="-Xlint:unchecked" />
   </component>
 </project>

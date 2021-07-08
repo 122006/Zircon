@@ -4,29 +4,23 @@ apply plugin: 'maven'
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
-    maven {
-        url uri('../../repo')
-    }
 }
 dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
-    implementation project(":base")
 }
 compileJava {
     sourceCompatibility =JavaVersion.VERSION_1_8
     targetCompatibility =JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
-
 uploadArchives {
     repositories {
-        mavenDeployer{
+        mavenDeployer {
             // 配置本地仓库路径，项目根目录下的repository目录中
             repository(url: uri('../../repo'))
             pom.groupId = "com.by122006.zircon"// 唯一标识（通常为模块包名，也可以任意）
-            pom.artifactId = "javac" // 项目名称（通常为类库模块名称，也可以任意）
+            pom.artifactId = "base" // 项目名称（通常为类库模块名称，也可以任意）
             pom.version = "0.1" // 版本号
         }
     }
 }
-

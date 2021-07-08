@@ -45,7 +45,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 
     @Override
     public void init(JavacTask task, String... args) {
-        System.out.println("inject [动态字符串插件]");
+        System.out.println( "inject [动态字符串插件]" );
         BasicJavacTask javacTask = (BasicJavacTask) task;
         Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
@@ -80,18 +80,23 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            e.printStackTrace();
             return;
         }
-        reloadClass("com.sun.tools.javac.parser.GroupStringRange", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.GroupStringRange$StringRange", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Group", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrJavaTokenizer$Item", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.Item", pcl, classLoader);
+        reloadClass( "formatter.ReflectionUtil", pcl, classLoader);
+        reloadClass( "formatter.Formatter", pcl, classLoader);
+        reloadClass( "formatter.SStringFormatter", pcl, classLoader);
+        reloadClass( "formatter.FStringFormatter", pcl, classLoader);
+        reloadClass( "formatter.StringRange", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
 
-        reloadClass("com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
-        Class<?> OOScannerClass = reloadClass("com.sun.tools.javac.parser.ZrScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClass("com.sun.tools.javac.parser.ZrScannerFactory", pcl, classLoader);
+        Class<?> OOScannerClass = reloadClass( "com.sun.tools.javac.parser.ZrScanner", pcl, classLoader);
+        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.parser.ZrScannerFactory", pcl, classLoader);
 
         ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
-        ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
+        ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory" );
         Object instance = getInstance(OOScannerFactoryClass, context);
         set(parserFactory, "scannerFactory", instance);
     }
@@ -124,10 +129,10 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
     }
 
     public static Object getInstance(Class<?> clas, Context context) throws ReflectiveOperationException {
-        return clas.getDeclaredMethod("instance", Context.class).invoke(null, context);
+        return clas.getDeclaredMethod( "instance", Context.class).invoke(null, context);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings( "unchecked" )
     /** add class claz to outClassLoader */
     static <T> Class<T> reloadClass(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
         try { // already loaded?
@@ -138,7 +143,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         InputStream is = incl.getResourceAsStream(path);
         byte[] bytes = new byte[is.available()];
         is.read(bytes);
-        Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
+        Method m = ClassLoader.class.getDeclaredMethod( "defineClass", new Class[]{
                 String.class, byte[].class, int.class, int.class});
         m.setAccessible(true);
         return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);

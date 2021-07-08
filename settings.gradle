@@ -1,5 +1,6 @@
 rootProject.name = 'Zircon'
-include 'test'
-include 'javac'
-include 'impl'
-
+include ':test'
+include ':javac'
+include ':impl'
+include ':base'
+if (System.getProperty("user.dir").contains(":\\")) include ':ijplugin'

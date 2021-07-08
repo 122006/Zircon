@@ -8,9 +8,12 @@
         <option name="testRunner" value="GRADLE" />
         <option name="distributionType" value="DEFAULT_WRAPPED" />
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="1.8" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/base" />
+            <option value="$PROJECT_DIR$/ijplugin" />
             <option value="$PROJECT_DIR$/impl" />
             <option value="$PROJECT_DIR$/javac" />
             <option value="$PROJECT_DIR$/test" />

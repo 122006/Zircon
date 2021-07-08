@@ -1,23 +1,18 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.ide.highlighter.JavaFileHighlighter;
-import com.intellij.lang.java.JavaParserDefinition;
-import com.intellij.lexer.*;
-import com.intellij.openapi.editor.SyntaxHighlighterColors;
+import com.intellij.lexer.Lexer;
+import com.intellij.openapi.editor.HighlighterColors;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
-import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.pom.java.LanguageLevel;
-import com.intellij.psi.JavaDocTokenType;
 import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 
-import static com.intellij.openapi.editor.colors.TextAttributesKey.createTextAttributesKey;
 
 public class ZrJavaFileHighlighter extends JavaFileHighlighter {
 
-    public static final TextAttributesKey COMMENT = createTextAttributesKey("SIMPLE_COMMENT", SyntaxHighlighterColors.LINE_COMMENT);
+    public static final TextAttributesKey COMMENT = TextAttributesKey.createTextAttributesKey("SIMPLE_COMMENT", HighlighterColors.TEXT);
 
     public ZrJavaFileHighlighter() {
         this(LanguageLevel.HIGHEST);

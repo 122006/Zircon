@@ -9,28 +9,17 @@ import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.text.CharArrayUtil;
-import com.intellij.util.text.CharSequenceHashingStrategy;
-import gnu.trove.THashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import formatter.ReflectionUtil;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Set;
 
+
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class ZrJavaLexer extends LexerBase {
     private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
-
-    private static final Set<CharSequence> JAVA9_KEYWORDS = new THashSet(Arrays.asList("open", "module", "requires", "exports", "opens", "uses", "provides", "transitive", "to", "with"), CharSequenceHashingStrategy.CASE_SENSITIVE);
-
-    public static boolean isKeyword(String id, @NotNull LanguageLevel level) {
-        return JavaLexer.isKeyword(id,level);
-    }
-
-    public static boolean isSoftKeyword(CharSequence id, @NotNull LanguageLevel level) {
-        return JavaLexer.isSoftKeyword(id,level);
-    }
 
     private Object myFlexLexer;
     private CharSequence myBuffer;
@@ -43,7 +32,7 @@ public final class ZrJavaLexer extends LexerBase {
 
     public ZrJavaLexer(@NotNull LanguageLevel level) {
         try {
-            Constructor constructor = getFlexClazz().getConstructor(LanguageLevel.class);
+            Constructor<?> constructor = getFlexClazz().getConstructor(LanguageLevel.class);
             constructor.setAccessible(true);
             myFlexLexer = constructor.newInstance(level);
         } catch (Exception e) {
@@ -53,8 +42,7 @@ public final class ZrJavaLexer extends LexerBase {
 
     private Class getFlexClazz() {
         try {
-            Class<?> aClass = Class.forName("com.intellij.lang.java.lexer._JavaLexer");
-            return aClass;
+            return Class.forName( "com.intellij.lang.java.lexer._JavaLexer" );
         } catch (ClassNotFoundException e) {
             LOG.error(e);
             throw new RuntimeException();
@@ -63,7 +51,7 @@ public final class ZrJavaLexer extends LexerBase {
 
     public ZrJavaLexer(JavaLexer lexer) {
         super();
-        myFlexLexer = ReflectionUtil.get(lexer, JavaLexer.class, "myFlexLexer");
+        myFlexLexer = ReflectionUtil.getDeclaredField(lexer, JavaLexer.class, "myFlexLexer" );
     }
 
     @Override
@@ -75,7 +63,7 @@ public final class ZrJavaLexer extends LexerBase {
         myTokenType = null;
         myTokenEndOffset = startOffset;
         try {
-            Method reset = getFlexClazz().getMethod("reset", CharSequence.class, int.class, int.class, int.class);
+            Method reset = getFlexClazz().getMethod( "reset", CharSequence.class, int.class, int.class, int.class);
             reset.setAccessible(true);
             reset.invoke(myFlexLexer, myBuffer, startOffset, endOffset, 0);
         } catch (Exception e) {
@@ -183,7 +171,7 @@ public final class ZrJavaLexer extends LexerBase {
             case 'f':
             case '$':
                 if (charAt(myBufferIndex + 1) == '"') {
-                    LOG.info("myBufferEndOffset: " + myBufferEndOffset);
+                    LOG.info( "myBufferEndOffset: " + myBufferEndOffset);
                     myTokenType = JavaTokenType.STRING_LITERAL;
                     myTokenEndOffset = getClosingQuote(myBufferIndex + 2, '"');
                 } else {
@@ -223,17 +211,17 @@ public final class ZrJavaLexer extends LexerBase {
     private void flexLocateToken() {
         try {
             if (goTo == null) {
-                goTo = getFlexClazz().getMethod("goTo", int.class);
+                goTo = getFlexClazz().getMethod( "goTo", int.class);
                 goTo.setAccessible(true);
             }
             goTo.invoke(myFlexLexer, myBufferIndex);
             if (advance == null) {
-                advance = getFlexClazz().getMethod("advance");
+                advance = getFlexClazz().getMethod( "advance" );
                 advance.setAccessible(true);
             }
             myTokenType = (IElementType) advance.invoke(myFlexLexer);
             if (getTokenEnd == null) {
-                getTokenEnd = getFlexClazz().getMethod("getTokenEnd");
+                getTokenEnd = getFlexClazz().getMethod( "getTokenEnd" );
                 getTokenEnd.setAccessible(true);
             }
             myTokenEndOffset = (int) getTokenEnd.invoke(myFlexLexer);

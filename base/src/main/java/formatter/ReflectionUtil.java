@@ -1,10 +1,10 @@
-package com.by122006.zircon.ijplugin;
+package formatter;
 
 
 import java.lang.reflect.Field;
 
 public class ReflectionUtil {
-    public static <T> void set(T t,Class<? super T> tClazz,String fieldName,Object object){
+    public static <T> void setDeclaredField(T t,Class<? super T> tClazz,String fieldName,Object object){
         try {
             Field declaredField = tClazz.getDeclaredField(fieldName);
             declaredField.setAccessible(true);
@@ -13,7 +13,7 @@ public class ReflectionUtil {
             throw new RuntimeException(e);
         }
     }
-    public static <T> Object get(T t,Class<? super T> tClazz,String fieldName){
+    public static <T> Object getDeclaredField(T t, Class<? super T> tClazz, String fieldName){
         try {
             Field declaredField = tClazz.getDeclaredField(fieldName);
             declaredField.setAccessible(true);
