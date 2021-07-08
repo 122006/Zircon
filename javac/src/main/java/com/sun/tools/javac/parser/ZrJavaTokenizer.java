@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug" ));
+    public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
 
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -20,23 +20,25 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     protected ZrJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
         super(scannerFactory, unicodeReader);
     }
+
     int groupStartIndex, groupEndIndex;
 
     public Tokens.Token readToken() {
         try {
             int bp = reader.bp;
+            boolean outLog=items == null;
             Tokens.Token handler = handler();
-            if (debug) {
+            if (debug && items != null) {
+                if (outLog) System.out.println("[" + bp + "]" );
                 String s1 = "";
                 if (handler instanceof Tokens.StringToken) {
                     s1 = "\"" + handler.stringVal() + "\"";
                 } else if (handler instanceof Tokens.NamedToken) {
                     s1 = String.valueOf(((Tokens.NamedToken) handler).name);
                 } else if (handler != null) {
-                    s1 = handler.kind.name();
+                    s1 = handler.kind.name;
                 }
-                String s = "[" + bp + "->" + reader.bp + "]" + s1;
-                System.out.println(s1);
+                System.out.print(s1);
             }
             return handler;
         } catch (JavaCException e) {
@@ -80,12 +82,12 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                     break;
                 }
             }
-            if (formatter == null) throwError(startIndex, "没有找到符合的插值器" );
-            assert formatter!=null;
+            if (formatter == null) throwError(startIndex, "没有找到符合的插值器");
+            assert formatter != null;
             int endIndex = startIndex + usePrefix.length();
             while (true) {
                 endIndex++;
-                if (endIndex >= reader.buflen) throwError(startIndex, "未找到匹配结束点" );
+                if (endIndex >= reader.buflen) throwError(startIndex, "未找到匹配结束点");
                 char ch = charAt(endIndex);
                 if (ch == '\\') {
                     endIndex++;
