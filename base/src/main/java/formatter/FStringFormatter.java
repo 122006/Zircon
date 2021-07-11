@@ -45,7 +45,7 @@ public class FStringFormatter implements Formatter {
                 if (formatRange == null) {
                     stringBuilder.append( "%s" );
                 } else {
-                    stringBuilder.append(range.stringVal);
+                    stringBuilder.append(text, formatRange.startIndex, formatRange.endIndex);
                     formatRange = null;
                 }
             }
@@ -66,22 +66,8 @@ public class FStringFormatter implements Formatter {
         items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
         items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "format" ));
         items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
-        StringBuilder formatStr = new StringBuilder();
-        String itemFormat = null;
-        for (int i = 0; i < build.size(); i++) {
-            StringRange a = build.get(i);
-            if (a.codeStyle == 0) {
-                formatStr.append(a.stringVal);
-            } else if (a.codeStyle == 2) {
-                itemFormat = text.substring(a.startIndex, a.endIndex);
-            } else if (a.codeStyle == 1) {
-                if (itemFormat != null) {
-                    formatStr.append(itemFormat);
-                    itemFormat = null;
-                } else formatStr.append( "%s" );
-            }
-        }
-        items.add(Item.loadStringToken(prefixLength, prefixLength, formatStr.toString()));
+
+        items.add(Item.loadStringToken(prefixLength, prefixLength, map2FormatString(text,build)));
         for (int i = 0; i < build.size(); i++) {
             StringRange a = build.get(i);
             int startIndex = a.startIndex;
