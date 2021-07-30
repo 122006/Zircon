@@ -170,7 +170,7 @@ public class TextStringFormat {
         assertEquals( $"xxx${}" , "xxx");
         assertEquals( $"${}xxx" , "xxx");
         assertEquals( $"${String.valueOf('test')}${String.valueOf('test')}" , "testtest");
-        assertEquals( $"${String.valueOf('test')}${String.valueOf('test')}xxx" , "testtestxxx");
+        assertEquals( $"${String.valueOf('test')}${String.te\\\\nstalueOf('test')}xxx" , "testtestxxx");
         assertEquals( $"xxx${String.valueOf('test')}${String.valueOf('test')}" , "xxxtesttest");
         assertEquals( $"xxx${String.valueOf('test')}${String.valueOf('test')}xxx" , "xxxtesttestxxx");
         assertEquals( $"xxx${String.valueOf('test')}xxx" , "xxxtestxxx");
@@ -195,12 +195,21 @@ public class TextStringFormat {
         assertEquals( $"%${add}%${add}" , "%test%test");
 
 
+
         String text=f" this is F-$String.class.getSimpleName() ";
 
-        assert Objects.equals($"Zircon: [ ${text.trim()} ]","Zircon: [ "+text.trim()+" ]");
+        assert Objects.equals($"Zircon: [ ${text.trim()} ]" ,"Zircon: [ "+text.trim()+" ]");
 
 
 
+
+        String text2=$" this is F-$String.class.getSimpleName() ";
+
+        text = text + $"232 ${text2.substring(12)} 12321" ;
+
+
+
+        String asdss= text;
 //        {
 //            String test = f"test ${\"in\\\"Str\"}";
 //            String will = f"test ", "in  \"Str";

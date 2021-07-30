@@ -22,5 +22,6 @@
     <lang.parserDefinition language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition" order="first"/>
     <lang.syntaxHighlighter language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter" order="first"/>
     <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory" serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl" overrides="true"/>
+    <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
   </extensions>
 </idea-plugin>

@@ -10,20 +10,22 @@ compileJava {
     targetCompatibility = JavaVersion.VERSION_11
 }
 repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
     maven {
         url uri('../../repo')
     }
 }
 patchPluginXml{
-    sinceBuild='202'
-    untilBuild=null
+    sinceBuild="200.*"
+    untilBuild="300"
 }
 dependencies {
     implementation "com.by122006.zircon:base:0.1"
 }
-
-intellij {
+version '1.3'
+//IU-202.7319.50
+intellij  {
     plugins = ['java']
-    version '1.2'
+    version = '202.6397.94'
 }

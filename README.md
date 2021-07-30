@@ -150,7 +150,7 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
   本插件尚未发布至idea仓库，请手动下载安装
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-1.2.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-1.3.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
    
 

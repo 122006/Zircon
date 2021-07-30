@@ -1,13 +1,13 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.lang.java.JavaLanguage;
+import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.InjectedLanguagePlaces;
-import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.LanguageInjector;
-import com.intellij.psi.PsiLanguageInjectionHost;
+import com.intellij.psi.*;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
+import com.intellij.psi.search.searches.ReferencesSearch;
+import com.intellij.psi.util.PsiClassUtil;
 import formatter.Formatter;
 import formatter.StringRange;
 import org.jetbrains.annotations.NotNull;
@@ -46,8 +46,14 @@ public class ZrStringLiteralInjector implements LanguageInjector {
                 .forEach(a -> {
 //                    LOG.warn(text.substring(a.startIndex, a.endIndex));
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
-                    places.addPlace(JavaLanguage.INSTANCE, textRange, "class __ZRStringObj {\n  // " + printOut + "\n  Object _str = ", ";\n}\n" );
+                    places.addPlace(JavaLanguage.INSTANCE, textRange,
+                            "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _str = ", ";\n}" );
+//                    places.addPlace(JavaLanguage.INSTANCE, textRange,
+//                            null,null );
                 });
-    }
+//        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(host.getProject());
+//        @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, host.getContext());
+//        host.add(codeBlockFromText);
 
+    }
 }

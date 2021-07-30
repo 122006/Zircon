@@ -16,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 public class ZrJavaHighlightingLexer extends LayeredLexer {
     public ZrJavaHighlightingLexer(LanguageLevel languageLevel) {
         super(ZrJavaParserDefinition.createLexer(languageLevel));
+        this.registerSelfStoppingLayer(new StringLiteralLexer('"', JavaTokenType.STRING_LITERAL, false, "$"), new IElementType[]{JavaTokenType.STRING_LITERAL}, IElementType.EMPTY_ARRAY);
         this.registerSelfStoppingLayer(new StringLiteralLexer('"', JavaTokenType.STRING_LITERAL, false, "s"), new IElementType[]{JavaTokenType.STRING_LITERAL}, IElementType.EMPTY_ARRAY);
         this.registerSelfStoppingLayer(new StringLiteralLexer('\'', JavaTokenType.STRING_LITERAL), new IElementType[]{JavaTokenType.CHARACTER_LITERAL}, IElementType.EMPTY_ARRAY);
         this.registerSelfStoppingLayer(new StringLiteralLexer('\uffff', JavaTokenType.TEXT_BLOCK_LITERAL, true, "s"), new IElementType[]{JavaTokenType.TEXT_BLOCK_LITERAL}, IElementType.EMPTY_ARRAY);
