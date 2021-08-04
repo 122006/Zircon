@@ -56,6 +56,11 @@ public class ZrAnnotator implements Annotator {
         }
         List<StringRange> build = formatter.build(text);
         String printOut = formatter.printOut(build, text);
+        if (element.getParent() instanceof PsiExpressionList){
+            if (printOut.startsWith("(")&&printOut.endsWith(")")){
+                printOut=printOut.substring(1,printOut.length()-1);
+            }
+        }
         holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace with normal string")
                 .range(element)
                 .tooltip(printOut)
@@ -101,11 +106,13 @@ public class ZrAnnotator implements Annotator {
                 }
             } else {
                 int appendType = 0;
-                if (itemText.matches("[A-Za-z_\\u4e00-\\u9fa5$]{1}[A-Za-z_\\u4e00-\\u9fa5$().]+")) {
-                    if (i + 1 < collect1.size() - 1) {
+                if (itemText.matches("[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+")) {
+                    if (i + 1 < collect1.size()) {
                         PsiElement nextItem = collect1.get(i + 1);
-                        if (ZrElementUtil.isJavaStringLiteral(item)) {
-                            if (nextItem.getText().matches("^[A-Za-z_\\u4e00-\\u9fa5$]+.*")) {
+                        if (ZrElementUtil.isJavaStringLiteral(nextItem)) {
+                            LOG.warn("isJavaStringLiteral: "+item);
+                            LOG.warn("nextItem.getText()= "+nextItem.getText());
+                            if (nextItem.getText().matches("\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
                                 appendType = 1;
                             }else {
                                 appendType=0;
