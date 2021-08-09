@@ -26,11 +26,10 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
             lexer = new ZrJavaLexer(level);
         } else if (lexer == null) {
             try {
-                Method createLexer = PsiBuilderFactoryImpl.class.getDeclaredMethod("createLexer", Project.class, Language.class);
-                createLexer.setAccessible(true);
-                lexer= (Lexer) createLexer.invoke(null,project,lang);
+                lexer=parserDefinition.createLexer(project);
             } catch (Exception e) {
                 e.printStackTrace();
+                throw new RuntimeException("createLexer error!");
             }
         }
 

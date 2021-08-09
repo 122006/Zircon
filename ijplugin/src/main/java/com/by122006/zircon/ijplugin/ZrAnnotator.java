@@ -12,6 +12,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
+import com.intellij.psi.codeStyle.CodeStyleManager;
 import com.intellij.util.IncorrectOperationException;
 import formatter.Formatter;
 import formatter.StringRange;
@@ -110,8 +111,6 @@ public class ZrAnnotator implements Annotator {
                     if (i + 1 < collect1.size()) {
                         PsiElement nextItem = collect1.get(i + 1);
                         if (ZrElementUtil.isJavaStringLiteral(nextItem)) {
-                            LOG.warn("isJavaStringLiteral: "+item);
-                            LOG.warn("nextItem.getText()= "+nextItem.getText());
                             if (nextItem.getText().matches("\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
                                 appendType = 1;
                             }else {
@@ -134,11 +133,11 @@ public class ZrAnnotator implements Annotator {
                 if (appendType == 1) {
                     printOut.append("${");
 
-                    printOut.append(itemText);
+                    printOut.append(itemText.replace("\n","").replace("\r",""));
                     printOut.append("}");
                 } else {
                     printOut.append("$");
-                    printOut.append(itemText);
+                    printOut.append(itemText.replace("\n","").replace("\r",""));
                 }
             }
         }
@@ -147,11 +146,12 @@ public class ZrAnnotator implements Annotator {
 //                information=ProblemHighlightType.INFORMATION;
 //                severity=HighlightSeverity.INFORMATION;
 //            }
+        String text = printOut.toString();
         holder.newAnnotation(severity, "[ZrString]: Replace '+' with '$-string'")
                 .range(element)
-                .tooltip(printOut.toString())
+                .tooltip(text)
                 .highlightType(information)
-                .withFix(new Change2SStringQuickFix(printOut.toString(), element))
+                .withFix(new Change2SStringQuickFix(text, element))
                 .create();
     }
 
@@ -185,6 +185,7 @@ public class ZrAnnotator implements Annotator {
             PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
             @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, element);
             element.replace(codeBlockFromText);
+//            CodeStyleManager.getInstance(project).reformat(codeBlockFromText);
         }
 
         @Override
@@ -223,6 +224,7 @@ public class ZrAnnotator implements Annotator {
             PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
             @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, element);
             element.getParent().replace(codeBlockFromText);
+//            CodeStyleManager.getInstance(project).reformat(codeBlockFromText);
         }
 
         @Override
