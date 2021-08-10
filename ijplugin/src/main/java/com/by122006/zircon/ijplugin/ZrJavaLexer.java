@@ -235,7 +235,7 @@ public final class ZrJavaLexer extends LexerBase {
             }
             myTokenEndOffset = (int) getTokenEnd.invoke(myFlexLexer);
         } catch (Exception e) {
-            LOG.error(e);
+            LOG.warn(e);
         }
     }
 

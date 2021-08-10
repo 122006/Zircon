@@ -2,6 +2,8 @@ package com.by122006.zircon.ijplugin;
 
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.lang.Language;
+import com.intellij.lang.folding.FoldingBuilder;
+import com.intellij.lang.folding.LanguageFolding;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
@@ -54,22 +56,12 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         build.stream().filter(a -> a.codeStyle == 1)
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
-//                    LOG.warn(text.substring(a.startIndex, a.endIndex));
 
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
                             "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}" );
-//                    places.addPlace(JavaLanguage.INSTANCE, textRange,
-//                            null,null );
+
                 });
-//        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(host.getProject());
-//        @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, host.getContext());
-//        host.add(codeBlockFromText);
-//        PsiSearchHelper.getInstance(host.getProject()).getUseScope()
-//        @NotNull ExtensionPoint<LanguageInjector> ep = host.getProject().getExtensionArea().getExtensionPoint(LanguageInjector.EXTENSION_POINT_NAME);
-//        PsiReference[] referencesFromProviders = ReferenceProvidersRegistry.getReferencesFromProviders(host);
-//        Arrays.stream(referencesFromProviders).forEach(a->{
-//            a.getElement();
-//        });
+
     }
 }

@@ -24,5 +24,6 @@
     <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory" serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl" overrides="true"/>
     <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
     <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
+    <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
   </extensions>
 </idea-plugin>
