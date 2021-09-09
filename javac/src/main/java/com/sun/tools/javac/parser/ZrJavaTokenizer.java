@@ -166,7 +166,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     /**
-     * 重定向index
+      重定向index
      */
     protected void reIndex(int index) {
         this.reader.bp = index;

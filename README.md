@@ -33,6 +33,8 @@
 
  ![example](others/zircon_show.png)
 
+ 常见字符串拼接写法对比
+ ![example](others/zircon_show2.png)
 
 ----------------  
 ### 使用示例
@@ -157,6 +159,8 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 ### 其他注意事项
 
 1. 请注意保持idea插件更新到最新
+
+2. 编译时请使用java8版本的Gradle Jvm，设置地址：File | Settings | Build, Execution, Deployment | Build Tools | Gradle。java9以上环境的兼容会在稍后进行
 
 --------------
 

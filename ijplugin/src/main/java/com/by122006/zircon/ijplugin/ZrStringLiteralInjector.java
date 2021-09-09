@@ -1,18 +1,29 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
+import com.intellij.codeInsight.folding.impl.FoldingHintPostStartupActivity;
+import com.intellij.codeInsight.folding.impl.FoldingPolicy;
+import com.intellij.codeInsight.folding.impl.FoldingUtil;
+import com.intellij.diff.tools.util.FoldingModelSupport;
 import com.intellij.lang.Language;
+import com.intellij.lang.folding.CustomFoldingProvider;
 import com.intellij.lang.folding.FoldingBuilder;
 import com.intellij.lang.folding.LanguageFolding;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.editor.EditorFactory;
+import com.intellij.openapi.editor.FoldRegion;
+import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.extensions.ExtensionPoint;
 import com.intellij.openapi.extensions.Extensions;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
+import com.intellij.psi.codeStyle.arrangement.FoldingHandler;
 import com.intellij.psi.impl.source.resolve.reference.PsiReferenceRegistrarImpl;
 import com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry;
+import com.intellij.psi.impl.source.tree.injected.FoldingRegionWindow;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.intellij.psi.search.PsiSearchHelper;
 import com.intellij.psi.search.searches.ReferencesSearch;
@@ -21,6 +32,7 @@ import formatter.Formatter;
 import formatter.StringRange;
 import org.codehaus.groovy.antlr.parser.GroovyLexer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -56,12 +68,11 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         build.stream().filter(a -> a.codeStyle == 1)
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
-
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
                             "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}" );
-
                 });
 
     }
+
 }
