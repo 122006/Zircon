@@ -1,4 +1,4 @@
-package com.sun.tools.javac.parser.formatter;
+package com.sun.tools.javac.parser;
 
 
 import java.lang.reflect.Field;

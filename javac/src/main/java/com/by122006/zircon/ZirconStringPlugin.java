@@ -81,24 +81,19 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             return;
         }
         reloadClass( "com.sun.tools.javac.parser.Item", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser2.ReflectionUtil", pcl, classLoader);
-        Class<Object> objectClass = reloadClass( "com.sun.tools.javac.parser.Formatter", pcl, classLoader);
-
+        reloadClass( "com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.Formatter", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.StringRange", pcl, classLoader);
-        Method getPrefixes = objectClass.getDeclaredMethod( "getPrefixes" );
-        List<?> prefixes = (List<?>) getPrefixes.invoke(null);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser2.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser2.ZrJavadocTokenizer", pcl, classLoader);
-
-        Class<?> OOScannerClass = reloadClass( "com.sun.tools.javac.parser2.ZrScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.parser2.ZrScannerFactory", pcl, classLoader);
-
-        ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
+        reloadClass( "com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.util.ZrScanner", pcl, classLoader);
+        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.util.ZrScannerFactory", pcl, classLoader);
+//        ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
         ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory" );
         Object instance = getInstance(OOScannerFactoryClass, context);
         set(parserFactory, "scannerFactory", instance);

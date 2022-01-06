@@ -9,9 +9,9 @@ import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
+import com.intellij.util.ReflectionUtil;
 import com.intellij.util.text.CharArrayUtil;
-import com.sun.tools.javac.formatter.Formatter;
-import com.sun.tools.javac.formatter.ReflectionUtil;
+import com.sun.tools.javac.parser.Formatter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,7 +53,7 @@ public final class ZrJavaLexer extends LexerBase {
 
     public ZrJavaLexer(JavaLexer lexer) {
         super();
-        myFlexLexer = ReflectionUtil.getDeclaredField(lexer, JavaLexer.class, "myFlexLexer");
+        myFlexLexer = com.sun.tools.javac.parser.ReflectionUtil.getDeclaredField(lexer, JavaLexer.class, "myFlexLexer");
     }
 
     @Override

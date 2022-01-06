@@ -10,27 +10,12 @@ repositories {
     mavenCentral()
 }
 
-jar {
-    manifest {
-        attributes(
-                'Add-Exports': "jdk.compiler/com.sun.tools.javac",
-        )
-    }
-}
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
     if (System.getProperty("user.dir").contains(":\\")) {
         options.compilerArgs << "-Xplugin:ZrString"
     }
-    options.compilerArgs.addAll(['--add-opens', 'java.logging/java.util.logging.Logger=jdk.compiler'])
-    options.compilerArgs.addAll(['--add-opens', 'java.logging/java.util.logging.Logger=ALL-UNNAMED'])
-    options.compilerArgs.addAll(['--add-exports', 'java.logging/java.util.logging.Logger=jdk.compiler'])
-    options.compilerArgs.addAll(['--add-exports', 'java.logging/java.util.logging.Logger=ALL-UNNAMED'])
-    options.compilerArgs.addAll(['--add-exports', 'jdk.compiler/com.sun.tools.javac=ALL-UNNAMED'])
-    options.compilerArgs.addAll(['--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED'])
-    options.compilerArgs.addAll(['--add-modules','java.logging'])
-    options.compilerArgs.addAll(['--add-modules','jdk.compiler'])
 }
 
 dependencies {

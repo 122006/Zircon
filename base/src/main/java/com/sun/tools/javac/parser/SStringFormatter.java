@@ -75,7 +75,7 @@ public class SStringFormatter implements Formatter {
                     stringBuilder.append(stringRange.stringVal);
                     stringBuilder.append( "\"" );
                 } else {
-                    stringBuilder.append( "[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]" );
+                    System.err.println( "[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]" );
                 }
             }
             stringBuilder.append( ")" );

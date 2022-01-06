@@ -1,7 +1,5 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.parser.JavaTokenizer;
-import com.sun.tools.javac.parser.Tokens;
 import com.sun.tools.javac.util.Name;
 
 import java.util.List;

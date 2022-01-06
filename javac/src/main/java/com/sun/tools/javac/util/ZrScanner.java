@@ -1,4 +1,4 @@
-package com.sun.tools.javac.parser2;
+package com.sun.tools.javac.util;
 
 import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.Scanner;

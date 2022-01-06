@@ -24,12 +24,4 @@ uploadArchives {
         }
     }
 }
-jar {
-    manifest {
-        attributes(
-                'Add-Exports': "jdk.compiler/com.sun.tools.javac",
-                'Automatic-Module-Name': "formatter"
-        )
-    }
-}
 

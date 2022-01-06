@@ -1,8 +1,7 @@
-package com.sun.tools.javac.parser2;
+package com.sun.tools.javac.util;
 
 import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.util.Context;
 
 import java.nio.CharBuffer;
 
