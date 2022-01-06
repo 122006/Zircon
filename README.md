@@ -160,8 +160,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
 1. 请注意保持idea插件更新到最新
 
-2. 编译时请使用java8版本的Gradle Jvm，设置地址：File | Settings | Build, Execution, Deployment | Build Tools | Gradle。java9以上环境的兼容会在稍后进行
-
 --------------
 
 ## TODO 后续更新计划
@@ -175,3 +173,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 ### v2.2 
  1. 重构已有代码，提高编译性能及拓展性
  2. 使用gradle编译idea插件
+
+### v2.4
+ 1. 支持jdk11、android30

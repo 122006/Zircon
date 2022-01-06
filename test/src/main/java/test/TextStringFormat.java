@@ -245,7 +245,6 @@ public class TextStringFormat {
 
         String will = f"hello ${string}";
 
-
         assert Objects.equals(will, "hello world");
     }
 
