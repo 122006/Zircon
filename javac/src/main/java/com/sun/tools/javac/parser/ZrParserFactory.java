@@ -1,10 +1,12 @@
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.parser.*;
+import com.sun.tools.javac.parser2.ZrScanner;
 import com.sun.tools.javac.util.Context;
 
 import java.nio.CharBuffer;
 
-public class ZrParserFactory extends ParserFactory{
+public class ZrParserFactory extends ParserFactory {
     private Context context;
 
     protected ZrParserFactory(Context context) {

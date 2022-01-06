@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Add-Exports: jdk.compiler/com.sun.tools.javac
+Automatic-Module-Name: formatter
+

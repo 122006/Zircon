@@ -1,8 +1,6 @@
 package test;
 
 
-import com.sun.tools.javac.util.StringUtils;
-
 import java.util.Locale;
 import java.util.logging.Logger;
 

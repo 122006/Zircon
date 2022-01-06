@@ -1,0 +1,12 @@
+com/sun/tools/javac/parser/formatter/StringRange.java
+ com.sun.tools.javac.parser.formatter.StringRange
+com/sun/tools/javac/parser/Item.java
+ com.sun.tools.javac.parser.Item
+com/sun/tools/javac/parser/formatter/FStringFormatter.java
+ com.sun.tools.javac.parser.formatter.FStringFormatter
+com/sun/tools/javac/parser/formatter/Formatter.java
+ com.sun.tools.javac.parser.formatter.Formatter
+com/sun/tools/javac/parser/formatter/ReflectionUtil.java
+ com.sun.tools.javac.parser.formatter.ReflectionUtil
+com/sun/tools/javac/parser/formatter/SStringFormatter.java
+ com.sun.tools.javac.parser.formatter.SStringFormatter

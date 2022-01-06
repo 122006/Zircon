@@ -10,10 +10,10 @@ import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.text.CharArrayUtil;
-import formatter.Formatter;
+import com.sun.tools.javac.formatter.Formatter;
+import com.sun.tools.javac.formatter.ReflectionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import formatter.ReflectionUtil;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;

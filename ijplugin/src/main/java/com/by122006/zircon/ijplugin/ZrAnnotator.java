@@ -17,8 +17,8 @@ import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
 import com.intellij.util.IncorrectOperationException;
-import formatter.Formatter;
-import formatter.StringRange;
+import com.sun.tools.javac.formatter.Formatter;
+import com.sun.tools.javac.formatter.StringRange;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;

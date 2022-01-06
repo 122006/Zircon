@@ -1,24 +1,24 @@
 package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Position;
-import formatter.*;
 
+import java.lang.reflect.Method;
 import java.nio.CharBuffer;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
 
-    protected ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
+    public ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
     }
 
-    protected ZrJavaTokenizer(ScannerFactory scannerFactory, char[] chars, int i) {
+    public ZrJavaTokenizer(ScannerFactory scannerFactory, char[] chars, int i) {
         super(scannerFactory, chars, i);
     }
 
-    protected ZrJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
+    public ZrJavaTokenizer(ScannerFactory scannerFactory, UnicodeReader unicodeReader) {
         super(scannerFactory, unicodeReader);
     }
 
@@ -66,6 +66,22 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
     }
 
+    List<String> prefixes;
+    public List<String> getPrefixes()throws Exception{
+        if (prefixes!=null) return prefixes;
+        Class<?> aClass = Class.forName( "com.sun.tools.javac.parser.Formatter" );
+        Method getPrefixes = aClass.getMethod( "getPrefixes" );
+        List<?> invoke = (List<?>)getPrefixes.invoke(null);
+        return prefixes=invoke.stream().map(String.class::cast).collect(Collectors.toList());
+    }
+    List<Formatter> formatters;
+    public List<Formatter> getAllFormatters()throws Exception{
+        if (formatters!=null) return formatters;
+        Class<?> aClass = Class.forName( "com.sun.tools.javac.parser.Formatter" );
+        Method getAllFormatters = aClass.getMethod( "getAllFormatters" );
+        List<?> invoke = (List<?>)getAllFormatters.invoke(null);
+        return formatters=invoke.stream().map(Formatter.class::cast).collect(Collectors.toList());
+    }
     private Tokens.Token handler() throws Exception {
         if (items == null || itemsIndex >= items.size()) {
             items = null;
@@ -75,7 +91,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             if (startIndex >= reader.buflen - 1) return super.readToken();
             String usePrefix = null;
-            for (String prefix : Formatter.getPrefixes()) {
+
+            for (String prefix : getPrefixes()) {
                 int endIndex = startIndex + prefix.length();
                 if (charAt(endIndex) == '"' && subChars(startIndex, endIndex).equals(prefix)) {
                     usePrefix = prefix;
@@ -83,7 +100,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             if (usePrefix == null) return super.readToken();
             Formatter formatter = null;
-            for (Formatter f : Formatter.getAllFormatters()) {
+            for (Formatter f : getAllFormatters()) {
                 if (f.prefix().equals(usePrefix)) {
                     formatter = f;
                     break;

@@ -1,0 +1,5 @@
+test/TextStringFormat.java
+ test.TextStringFormat
+test/TextStringFormat2.java
+ test.TextStringFormat2
+ test.TextStringFormat2$User

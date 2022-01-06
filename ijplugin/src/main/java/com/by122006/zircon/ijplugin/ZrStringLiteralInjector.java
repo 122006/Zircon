@@ -28,8 +28,6 @@ import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.intellij.psi.search.PsiSearchHelper;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.PsiClassUtil;
-import formatter.Formatter;
-import formatter.StringRange;
 import org.codehaus.groovy.antlr.parser.GroovyLexer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

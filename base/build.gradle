@@ -9,8 +9,8 @@ dependencies {
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
 }
 compileJava {
-    sourceCompatibility =JavaVersion.VERSION_1_8
-    targetCompatibility =JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
 uploadArchives {
@@ -24,3 +24,12 @@ uploadArchives {
         }
     }
 }
+jar {
+    manifest {
+        attributes(
+                'Add-Exports': "jdk.compiler/com.sun.tools.javac",
+                'Automatic-Module-Name': "formatter"
+        )
+    }
+}
+

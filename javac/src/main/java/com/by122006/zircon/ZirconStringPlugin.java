@@ -33,6 +33,7 @@ import com.sun.tools.javac.util.Context;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.List;
 
 public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugin {
 
@@ -71,7 +72,6 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             }
         });
     }
-
     private void startTask(Context context, ClassLoader pcl, ClassLoader classLoader) throws Exception {
         JavaCompiler compiler = null;
         try {
@@ -81,19 +81,22 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             return;
         }
         reloadClass( "com.sun.tools.javac.parser.Item", pcl, classLoader);
-        reloadClass( "formatter.ReflectionUtil", pcl, classLoader);
-        reloadClass( "formatter.Formatter", pcl, classLoader);
-        reloadClass( "formatter.SStringFormatter", pcl, classLoader);
-        reloadClass( "formatter.FStringFormatter", pcl, classLoader);
-        reloadClass( "formatter.StringRange", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser2.ReflectionUtil", pcl, classLoader);
+        Class<Object> objectClass = reloadClass( "com.sun.tools.javac.parser.Formatter", pcl, classLoader);
+
+        reloadClass( "com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.StringRange", pcl, classLoader);
+        Method getPrefixes = objectClass.getDeclaredMethod( "getPrefixes" );
+        List<?> prefixes = (List<?>) getPrefixes.invoke(null);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser2.ZrJavadocTokenizer", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser2.ZrJavadocTokenizer", pcl, classLoader);
 
-        Class<?> OOScannerClass = reloadClass( "com.sun.tools.javac.parser.ZrScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.parser.ZrScannerFactory", pcl, classLoader);
+        Class<?> OOScannerClass = reloadClass( "com.sun.tools.javac.parser2.ZrScanner", pcl, classLoader);
+        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.parser2.ZrScannerFactory", pcl, classLoader);
 
         ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
         ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory" );
