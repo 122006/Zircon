@@ -9,7 +9,7 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
-          <entry name="$PROJECT_DIR$/../../Program Files/Java/jdk1.8.0_171/lib/tools.jar" />
+          <entry name="$PROJECT_DIR$/../../../../Program Files (x86)/Java/jdk1.8.0_291/lib/tools.jar" />
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
@@ -19,5 +19,8 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_STRING" value="-Xlint:unchecked" />
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="Zircon.base.main" options="-Xlint:unchecked --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
+    </option>
   </component>
 </project>

@@ -1,7 +1,5 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.util.JCDiagnostic;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +42,7 @@ public class SStringFormatter implements Formatter {
                     }
                     items.add(Item.loadStringToken(startIndex, startIndex, stringRange.stringVal));
                 } else {
-                    javaTokenizer.fac.log.warning(startIndex, new JCDiagnostic.Warning("compiler", "no.value.for.option", "[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]\n原始字符串：" + text));
+                    throw new Error("\"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]\\n原始字符串：\" + text");
                 }
             }
         }
