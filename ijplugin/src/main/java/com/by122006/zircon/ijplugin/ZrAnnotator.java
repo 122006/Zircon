@@ -20,9 +20,13 @@ import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
 import org.jetbrains.annotations.NotNull;
+import org.jf.dexlib2.util.ReferenceUtil;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ZrAnnotator implements Annotator {
     private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
@@ -30,14 +34,56 @@ public class ZrAnnotator implements Annotator {
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         if (element.getLanguage() != JavaLanguage.INSTANCE) return;
-        if (!ZrElementUtil.isJavaStringLiteral(element)) return;
-        String text = element.getText();
-        if (text.startsWith("\"")) {
-            registerChange2SStringIntentionAction(element, holder);
+        if (element instanceof PsiPolyadicExpression&& Arrays.stream(element.getChildren()).anyMatch(ZrElementUtil::isJavaStringLiteral)) {
+            registerChange2SStringIntentionAction((PsiPolyadicExpression) element, holder);
             return;
         }
-        registerChange2NormalIntentionAction(element, holder, text);
+        if (ZrElementUtil.isJavaStringLiteral(element)){
+            if (!element.getText().startsWith("\"")){
+                registerChange2NormalIntentionAction(element, holder, element.getText());
+            }
+            return;
+        }
+        if (element instanceof PsiMethodCallExpression){
+            if (element.getFirstChild() instanceof PsiReferenceExpression
+                    &&element.getFirstChild().getText().endsWith("String.format")){
+                registerChangeFromFormatIntentionAction(element, holder);
+            }
+            return;
+        }
+//        String.format(Locale.CHINA,"1%02d22",1+ 1,""+"",3);
+    }
 
+    private void registerChangeFromFormatIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+        final PsiExpressionList formatExpression = (PsiExpressionList) element.getChildren()[1];
+        final PsiElement[] children = formatExpression.getChildren();
+        if(children.length==0) return;
+        final List<PsiElement> collect = Arrays.stream(children).filter(a -> !(a instanceof PsiJavaToken)).collect(Collectors.toList());
+        if(!ZrElementUtil.isJavaStringLiteral(collect.get(0))){
+            collect.remove(0);
+        }
+        if(!ZrElementUtil.isJavaStringLiteral(collect.get(0))){
+            // error format
+            return;
+        }
+
+        String text= "f"+collect.get(0).getText();
+        collect.remove(0);
+        text=text.replace("%n","\\n");
+        Pattern r = Pattern.compile("[^%]{1}(%.{0,4}[bBhHsScCdoxXeEfgGaAtT])");
+        Matcher m = r.matcher(text);
+        final Iterator<PsiElement> iterator = collect.iterator();
+        while (m.find()) {
+            final String group = m.group(1);
+            final String s = iterator.hasNext() ? "${"+group+":"+ (iterator.next().getText().replace("\"","'")) +"}" : "${}";
+            text = text.replace(group, s);
+        }
+        holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace 'String.format' with 'F-string'")
+                .range(element)
+                .tooltip(text)
+                .highlightType( ProblemHighlightType.INFORMATION)
+                .withFix(new Change2FStringQuickFix(text, element))
+                .create();
     }
 
     private void registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
@@ -82,13 +128,11 @@ public class ZrAnnotator implements Annotator {
 
     }
 
-    private void registerChange2SStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+    private void registerChange2SStringIntentionAction(@NotNull PsiPolyadicExpression element, @NotNull AnnotationHolder holder) {
         ProblemHighlightType information = ProblemHighlightType.INFORMATION;
         HighlightSeverity severity = HighlightSeverity.INFORMATION;
         StringBuilder printOut = new StringBuilder("$\"");
-        PsiElement parent = element.getParent();
-        if (!(parent instanceof PsiPolyadicExpression)) return;
-        List<PsiElement> collect = Arrays.stream(parent.getChildren())
+        List<PsiElement> collect = Arrays.stream(element.getChildren())
                 .filter(a -> !(a instanceof PsiWhiteSpace
                         || (a instanceof PsiJavaToken && ((PsiJavaToken) a).getTokenType() == JavaTokenType.PLUS)
                         || (Objects.equals(a.getText(), "\"\""))))
@@ -115,7 +159,7 @@ public class ZrAnnotator implements Annotator {
                 if (itemText.startsWith("\"")) {
                     printOut.append(itemText, 1, itemText.length() - 1);
                 } else {
-                    printOut.append(itemText, itemText.indexOf("\""), itemText.length() - 1);
+                    printOut.append(itemText, itemText.indexOf("\"")+1, itemText.length() - 1);
                 }
             } else {
                 int appendType = 0;
@@ -235,8 +279,44 @@ public class ZrAnnotator implements Annotator {
         public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
             PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
             @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, element);
-            PsiElement parent = element.getParent();
-            parent.replace(codeBlockFromText);
+            element.replace(codeBlockFromText);
+        }
+
+        @Override
+        public boolean startInWriteAction() {
+            return true;
+        }
+    }
+    private static class Change2FStringQuickFix implements IntentionAction {
+
+        private String printOut;
+        private PsiElement element;
+
+        public Change2FStringQuickFix(String printOut, PsiElement element) {
+            this.printOut = printOut;
+            this.element = element;
+        }
+
+        @Override
+        public @IntentionName @NotNull String getText() {
+            return "[ZrString]: Replace 'String.format' with F-string";
+        }
+
+        @Override
+        public @NotNull @IntentionFamilyName String getFamilyName() {
+            return "ZrString";
+        }
+
+        @Override
+        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile file) {
+            return true;
+        }
+
+        @Override
+        public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
+            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(printOut, element);
+            element.replace(codeBlockFromText);
         }
 
         @Override

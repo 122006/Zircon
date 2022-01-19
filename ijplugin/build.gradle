@@ -3,10 +3,10 @@ plugins {
     id 'org.jetbrains.intellij'
 }
 group 'com.by122006.zircon'
-version '1.4'
+version '1.5'
 
 compileJava {
-    sourceCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
 repositories {
@@ -23,7 +23,6 @@ patchPluginXml{
 dependencies {
     implementation "com.by122006.zircon:base:0.1"
 }
-version '1.4'
 //IU-202.7319.50
 intellij  {
     plugins = ['java']
