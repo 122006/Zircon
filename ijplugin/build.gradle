@@ -9,19 +9,24 @@ compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
+
+buildPlugin {
+    buildSearchableOptions.enabled = false
+}
+
 repositories {
-    maven { url 'https://maven.aliyun.com/repository/public/' }
-    mavenCentral()
     maven {
         url uri('../../repo')
     }
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
 }
 patchPluginXml{
     sinceBuild="200.*"
     untilBuild="300"
 }
 dependencies {
-    implementation "com.by122006.zircon:base:0.1"
+    compile "com.by122006.zircon:base:0.1"
 }
 //IU-202.7319.50
 intellij  {
