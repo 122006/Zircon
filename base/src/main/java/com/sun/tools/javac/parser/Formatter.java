@@ -48,7 +48,7 @@ public interface Formatter {
     String stringTransfer(String text);
 
     default String codeTransfer(String text) {
-        String toStr = text.replaceAll( "(^|[^\\\\])'([^']+?[^\\\\'])?'", "$1\"$2\"" )
+        String toStr = text.replaceAll( "(^|[^\\\\])'([^']*?)'", "$1\"$2\"" )
                 .replaceAll( "\\\\?([a-z0-9\"']{1})", "$1" )
                 .replace( "\\\\", "\\" );
         return toStr;

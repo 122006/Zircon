@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -61,7 +62,7 @@ public class TextStringFormat {
         assertEquals(f"do ($add)", "do (test)");
         assertEquals(f"do ($TextStringFormat.test)", "do (" + TextStringFormat.test + ")");
         assertEquals(f"test (${1+2})", "test (3)");
-        assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + String.format("str:[%s]", "format") + ")");
+        assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + (String.format( "str:[%s]" , "format")) + ")");
         assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + String.format("str:[%s]", "format") + ")");
         assertEquals(f"${\"Test,mode\".substring(0,6)} end", "Test,mode".substring(0, 6) + " end");
         assertEquals(f"test (${\"te\\nst\"})", "test (te\nst)");
@@ -154,7 +155,8 @@ public class TextStringFormat {
         assertEquals(f"${String.valueOf('test')   }   \n", "test   \n");
         assertEquals(f"   ${   String.valueOf('test')   }   \n", "   test   \n");
         assertEquals(f"$ ${add}${add}", "$ testtest");
-        assertEquals(f"\$${add}${add}xxx", "$testtestxxx");
+        assertEquals(f"\$${add}${add}xxx",
+                "$testtestxxx");
         assertEquals(f"%${add}${add}", "%testtest");
         assertEquals(f"%%${add}${add}xxx", "%%testtestxxx");
         assertEquals(f"%${add}%${add}", "%test%test");
@@ -198,11 +200,12 @@ public class TextStringFormat {
         assertEquals($"%%${add}${add}xxx", "%%testtestxxx");
         assertEquals($"%${add}%${add}", "%test%test");
 
+        assertEquals($"as${''}","as");
+
 
         String text = f" this is F-$String.class.getSimpleName() ";
 
         assert Objects.equals($"Zircon: [ ${text.trim()} ]", "Zircon: [ " + (text.trim()) + " ]");
-
 
         String text2 = $" this is F-$String.class.getSimpleName() ";
 
@@ -214,6 +217,18 @@ public class TextStringFormat {
 
 
         String asdss = text;
+        
+
+
+        String a= String.format("%02d  %-2S ", String
+                .
+                        valueOf(
+                                "123"
+                        ), "vvv"
+        );
+
+        String.format("%02d  %d %d",12,13,12);
+
 //        {
 //            String test = f"test ${\"in\\\"Str\"}";
 //            String will = f"test ", "in  \"Str";
@@ -240,6 +255,7 @@ public class TextStringFormat {
     @Test
     public void test1() {
 
+        System.out.println(f"[${%-7s:12} ${%-5s:'null'}]");
 
         String string = "world";
 

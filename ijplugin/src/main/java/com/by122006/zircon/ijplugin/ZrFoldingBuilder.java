@@ -23,8 +23,9 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ZrFoldingBuilder extends FoldingBuilderEx {
+    @NotNull
     @Override
-    public FoldingDescriptor @NotNull [] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
+    public FoldingDescriptor[] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
         if (root.getLanguage() != JavaLanguage.INSTANCE || quick) {
             return FoldingDescriptor.EMPTY;
         }
@@ -55,8 +56,6 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
                                         textRange = new TextRange(start + textOffset, a.endIndex + 1 + textOffset);
                                     } else
                                         textRange = new TextRange(a.startIndex + textOffset, a.endIndex + textOffset);
-                                    ;
-
                                     return new FoldingDescriptor(expression, textRange);
                                 }).filter(Objects::nonNull).collect(Collectors.toList());
                         result.addAll(collect);
