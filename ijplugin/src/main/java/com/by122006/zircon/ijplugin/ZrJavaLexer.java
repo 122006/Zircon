@@ -33,6 +33,7 @@ public final class ZrJavaLexer extends LexerBase {
     private IElementType myTokenType;
 
     public ZrJavaLexer(@NotNull LanguageLevel level) {
+
         try {
             Constructor<?> constructor = getFlexClazz().getConstructor(LanguageLevel.class);
             constructor.setAccessible(true);

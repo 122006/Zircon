@@ -57,6 +57,11 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
                                 .filter(a -> token.getText().startsWith(a.prefix()))
                                 .findFirst().orElse(null);
                         if (formatter==null) return Result.Continue;
+                        if (quoteHandler.needParenthesesAroundConcatenation(psiAtOffset)) {
+                            document.insertString(psiAtOffset.getTextRange().getEndOffset(), ")");
+                            document.insertString(psiAtOffset.getTextRange().getStartOffset(), "(");
+                            caretOffset++;
+                        }
                         String insertedFragment = "\" " + quoteHandler.getStringConcatenationOperatorRepresentation();
                         document.insertString(caretOffset, insertedFragment + " " + formatter.prefix() + "\"" );
                         caretOffset += insertedFragment.length();

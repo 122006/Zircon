@@ -220,14 +220,14 @@ public class TextStringFormat {
         
 
 
-        String a= String.format("%02d  %-2S ", String
+        String a= String.format  ("%02d  %-2S ", String
                 .
                         valueOf(
                                 "123"
                         ), "vvv"
         );
 
-        String.format("%02d  %d %d",12,13,12);
+        String.format("%02d  %s %s", 12, 13, 12);
 
 //        {
 //            String test = f"test ${\"in\\\"Str\"}";

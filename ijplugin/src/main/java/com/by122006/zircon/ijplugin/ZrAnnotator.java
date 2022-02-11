@@ -16,6 +16,8 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
+import com.intellij.psi.impl.source.tree.PsiWhiteSpaceImpl;
+import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
@@ -44,9 +46,9 @@ public class ZrAnnotator implements Annotator {
             }
             return;
         }
-        if (element instanceof PsiMethodCallExpression) {
+        if (element instanceof PsiMethodCallExpressionImpl) {
             if (element.getFirstChild() instanceof PsiReferenceExpression
-                    && element.getFirstChild().getText().endsWith( "String.format" )) {
+                    && element.getFirstChild().getText().replace(" ","").endsWith( "String.format" )) {
                 registerChangeFromFormatIntentionAction(element, holder);
             }
             return;
@@ -86,7 +88,7 @@ public class ZrAnnotator implements Annotator {
                     s = "%";
                 } else if ( "%n".equals(group)) {
                     s = "\n";
-                } else if ( "%s".equals(group)) {
+                } else if ( "%s".equals(group)||"%d".equals(group)) {
                     final String replace = iterator.next().getText()
                             .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1" )
                             .replace( "\"" , "'" ).replace( "\n" , "" );
