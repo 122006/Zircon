@@ -74,7 +74,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
         String text = oText;
         if (oText.startsWith("${")) text = oText.substring(2, oText.length() - 1);
         else if (oText.startsWith("$")) text = oText.substring(1);
-        if (text.length() > 10) {
+        if (text.length() > 14) {
 //            return oText.substring(0,6)+"..."+oText.substring(oText.length()-10);
             return "${...}";
         }

@@ -22,7 +22,6 @@ import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
 import org.jetbrains.annotations.NotNull;
-import org.jf.dexlib2.util.ReferenceUtil;
 
 import java.util.*;
 import java.util.regex.Matcher;
