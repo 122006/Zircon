@@ -175,3 +175,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
 ### v2.4
  1. 支持jdk11、android30
+
+### v2.5
+ 1. 支持内部代码段中使用不转义的引号
