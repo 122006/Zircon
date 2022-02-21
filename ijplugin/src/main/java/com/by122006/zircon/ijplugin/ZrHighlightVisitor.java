@@ -3,8 +3,10 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.codeInsight.daemon.impl.*;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
+import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.editor.colors.CodeInsightColors;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
@@ -12,10 +14,15 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
+import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -46,13 +53,16 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                 Formatter.getAllFormatters().stream()
                         .filter(a -> text.startsWith(a.prefix() + "\""))
                         .forEach(a -> {
-                            a.build(text).stream().filter(b -> b.codeStyle == 1)
+                            final ZrStringModel model = a.build(text);
+                            model.getList().stream().filter(b -> b.codeStyle == 1)
                                     .forEach(b -> {
                                         final PsiExpression expressionFromText;
                                         try {
                                             expressionFromText = JavaPsiFacade
                                                     .getElementFactory(expression.getProject())
-                                                    .createExpressionFromText(b.stringVal, expression);
+                                                    .createExpressionFromText(b.stringVal.trim(), expression);
+                                        } catch (ProcessCanceledException e) {
+                                            return;
                                         } catch (Exception e) {
                                             e.printStackTrace();
                                             return;
@@ -74,9 +84,12 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                         startOffset += b.startIndex;
                                         try {
                                             final HighlightInfoHolder myHolder = getMyHolder(highlightVisitor);
+                                            if (myHolder == null) {
+                                                return;
+                                            }
                                             final ZrCheckLevelHighlightInfoHolder newHolder = new ZrCheckLevelHighlightInfoHolder(myHolder.getContextFile(), holder, startOffset);
                                             setMyHolder(highlightVisitor, newHolder);
-                                            consumer.accept(expressionFromText);
+                                            consumer.accept(psiElement);
                                             setMyHolder(highlightVisitor, myHolder);
                                         } catch (ReflectiveOperationException e) {
                                             e.printStackTrace();

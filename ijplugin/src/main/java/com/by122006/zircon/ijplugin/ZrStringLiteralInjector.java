@@ -10,6 +10,7 @@ import com.intellij.psi.PsiLanguageInjectionHost;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -38,7 +39,8 @@ public class ZrStringLiteralInjector implements LanguageInjector {
             LOG.error( "未识别的字符串前缀" );
             return;
         }
-        List<StringRange> build = formatter.build(text);
+        final ZrStringModel model = formatter.build(text);
+        List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (printOut == null) return;
         build.stream().filter(a -> a.codeStyle == 1)

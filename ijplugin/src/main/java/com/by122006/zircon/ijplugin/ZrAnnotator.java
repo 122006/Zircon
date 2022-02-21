@@ -21,6 +21,7 @@ import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -90,12 +91,12 @@ public class ZrAnnotator implements Annotator {
                 } else if ( "%s".equals(group)||"%d".equals(group)) {
                     final String replace = iterator.next().getText()
                             .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1" )
-                            .replace( "\"" , "'" ).replace( "\n" , "" );
+                            .replace( "\n" , "" );
                     s = "${" + replace + "}";
                 } else {
                     final String replace = iterator.next().getText()
                             .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1" )
-                            .replace( "\"" , "'" ).replace( "\n" , "" );
+                            .replace( "\n" , "" );
                     s = "${" + group + ":" + replace + "}";
                 }
             } else {
@@ -133,7 +134,8 @@ public class ZrAnnotator implements Annotator {
             LOG.info( "未识别的字符串前缀: " + text);
             return;
         }
-        List<StringRange> build = formatter.build(text);
+        final ZrStringModel model = formatter.build(text);
+        List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (element.getParent() instanceof PsiExpressionList) {
             if (printOut.startsWith( "(" ) && printOut.endsWith( ")" )) {

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
-    public static boolean debug = "true".equalsIgnoreCase(System.getenv( "Debug"));
+    public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
 
     public ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
         super(scannerFactory, charBuffer);
@@ -33,7 +33,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 if (outLog) {
                     System.out.println();
                     Position.LineMap lineMap = getLineMap();
-                    System.out.print( "[" + lineMap.getLineNumber(reader.bp) + "," + lineMap.getColumnNumber(reader.bp) + "]");
+                    System.out.print("[" + lineMap.getLineNumber(reader.bp) + "," + lineMap.getColumnNumber(reader.bp) + "]");
                 }
                 String s1 = "";
                 if (handler instanceof Tokens.StringToken) {
@@ -47,7 +47,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
             return handler;
         } catch (JavaCException e) {
-            throw new RuntimeException( "index[" + e.errorIndex + "]发生错误: " + e.getMessage());
+            throw new RuntimeException("index[" + e.errorIndex + "]发生错误: " + e.getMessage());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -67,21 +67,25 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     List<String> prefixes;
-    public List<String> getPrefixes()throws Exception{
-        if (prefixes!=null) return prefixes;
-        Class<?> aClass = Class.forName( "com.sun.tools.javac.parser.Formatter" );
-        Method getPrefixes = aClass.getMethod( "getPrefixes" );
-        List<?> invoke = (List<?>)getPrefixes.invoke(null);
-        return prefixes=invoke.stream().map(String.class::cast).collect(Collectors.toList());
+
+    public List<String> getPrefixes() throws Exception {
+        if (prefixes != null) return prefixes;
+        Class<?> aClass = Class.forName("com.sun.tools.javac.parser.Formatter");
+        Method getPrefixes = aClass.getMethod("getPrefixes");
+        List<?> invoke = (List<?>) getPrefixes.invoke(null);
+        return prefixes = invoke.stream().map(String.class::cast).collect(Collectors.toList());
     }
+
     List<Formatter> formatters;
-    public List<Formatter> getAllFormatters()throws Exception{
-        if (formatters!=null) return formatters;
-        Class<?> aClass = Class.forName( "com.sun.tools.javac.parser.Formatter" );
-        Method getAllFormatters = aClass.getMethod( "getAllFormatters" );
-        List<?> invoke = (List<?>)getAllFormatters.invoke(null);
-        return formatters=invoke.stream().map(Formatter.class::cast).collect(Collectors.toList());
+
+    public List<Formatter> getAllFormatters() throws Exception {
+        if (formatters != null) return formatters;
+        Class<?> aClass = Class.forName("com.sun.tools.javac.parser.Formatter");
+        Method getAllFormatters = aClass.getMethod("getAllFormatters");
+        List<?> invoke = (List<?>) getAllFormatters.invoke(null);
+        return formatters = invoke.stream().map(Formatter.class::cast).collect(Collectors.toList());
     }
+
     private Tokens.Token handler() throws Exception {
         if (items == null || itemsIndex >= items.size()) {
             items = null;
@@ -111,19 +115,17 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             int endIndex = startIndex + usePrefix.length();
             while (true) {
                 endIndex++;
-                if (endIndex >= reader.buflen) throwError(startIndex, "未找到匹配结束点");
+                if (endIndex >= reader.buflen) break;
                 char ch = charAt(endIndex);
-                if (ch == '\\') {
-                    endIndex++;
-                    continue;
-                }
-                if (ch == '"') {
-                    endIndex++;
+                if (ch == '\n' || ch == '\r') {
                     break;
                 }
             }
             String searchText = subChars(startIndex, endIndex);
-            List<StringRange> group = formatter.build(searchText);
+            final ZrStringModel build = formatter.build(searchText);
+            List<StringRange> group = build.getList();
+            endIndex =startIndex+ build.endQuoteIndex;
+            searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;
             items = formatter.stringRange2Group(this, reader.buf, group, searchText, groupStartIndex);
@@ -176,14 +178,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         }
         int length = endIndex - startIndex;
         if (length == 0) return "";
-        if (startIndex > endIndex) throw new RuntimeException( "截取字符串错误： " + startIndex + "~" + endIndex);
+        if (startIndex > endIndex) throw new RuntimeException("截取字符串错误： " + startIndex + "~" + endIndex);
         char[] chars = new char[length];
         System.arraycopy(reader.buf, startIndex, chars, 0, length);
         return new String(chars);
     }
 
     /**
-      重定向index
+     * 重定向index
      */
     protected void reIndex(int index) {
         this.reader.bp = index;

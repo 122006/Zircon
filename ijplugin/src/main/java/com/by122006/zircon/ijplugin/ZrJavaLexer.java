@@ -3,23 +3,24 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.LexerBase;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.ui.DetailsComponent;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.TokenType;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
-import com.intellij.util.ReflectionUtil;
 import com.intellij.util.text.CharArrayUtil;
 import com.sun.tools.javac.parser.Formatter;
+import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.List;
 
 
-@SuppressWarnings({"unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked" , "rawtypes"})
 public final class ZrJavaLexer extends LexerBase {
     private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
 
@@ -66,7 +67,7 @@ public final class ZrJavaLexer extends LexerBase {
         myTokenType = null;
         myTokenEndOffset = startOffset;
         try {
-            Method reset = getFlexClazz().getMethod("reset", CharSequence.class, int.class, int.class, int.class);
+            Method reset = getFlexClazz().getMethod("reset" , CharSequence.class, int.class, int.class, int.class);
             reset.setAccessible(true);
             reset.invoke(myFlexLexer, myBuffer, startOffset, endOffset, 0);
         } catch (Exception e) {
@@ -159,7 +160,7 @@ public final class ZrJavaLexer extends LexerBase {
                 break;
             case '\'':
                 myTokenType = JavaTokenType.CHARACTER_LITERAL;
-                myTokenEndOffset = getClosingQuote(myBufferIndex + 1, c);
+                myTokenEndOffset = getClosingQuote0(myBufferIndex + 1, c);
                 break;
 
             case '"':
@@ -168,7 +169,7 @@ public final class ZrJavaLexer extends LexerBase {
                     myTokenEndOffset = getTextBlockEnd(myBufferIndex + 2);
                 } else {
                     myTokenType = JavaTokenType.STRING_LITERAL;
-                    myTokenEndOffset = getClosingQuote(myBufferIndex + 1, c);
+                    myTokenEndOffset = getClosingQuote0(myBufferIndex + 1, c);
                 }
                 break;
             default: {
@@ -185,7 +186,7 @@ public final class ZrJavaLexer extends LexerBase {
                 if (formatter != null) {
                     LOG.info("myBufferEndOffset: " + myBufferEndOffset);
                     myTokenType = JavaTokenType.STRING_LITERAL;
-                    myTokenEndOffset = getClosingQuote(myBufferIndex + 1 + formatter.prefix().length(), '"');
+                    myTokenEndOffset = getClosingQuote(formatter, myBufferIndex, '"');
                 } else {
                     flexLocateToken();
                 }
@@ -221,7 +222,7 @@ public final class ZrJavaLexer extends LexerBase {
     private void flexLocateToken() {
         try {
             if (goTo == null) {
-                goTo = getFlexClazz().getMethod("goTo", int.class);
+                goTo = getFlexClazz().getMethod("goTo" , int.class);
                 goTo.setAccessible(true);
             }
             goTo.invoke(myFlexLexer, myBufferIndex);
@@ -240,7 +241,7 @@ public final class ZrJavaLexer extends LexerBase {
         }
     }
 
-    private int getClosingQuote(int offset, char quoteChar) {
+    private int getClosingQuote0(int offset, char quoteChar) {
         if (offset >= myBufferEndOffset) {
             return myBufferEndOffset;
         }
@@ -260,18 +261,7 @@ public final class ZrJavaLexer extends LexerBase {
                 if (pos >= myBufferEndOffset) return myBufferEndOffset;
                 c = charAt(pos);
                 if (c == '\n' || c == '\r') continue;
-                if (c == 'u') {
-                    do {
-                        pos++;
-                    }
-                    while (pos < myBufferEndOffset && charAt(pos) == 'u');
-                    if (pos + 3 >= myBufferEndOffset) return myBufferEndOffset;
-                    boolean isBackSlash = charAt(pos) == '0' && charAt(pos + 1) == '0' && charAt(pos + 2) == '5' && charAt(pos + 3) == 'c';
-                    // on encoded backslash we also need to skip escaped symbol (e.g. \\u005c" is translated to \")
-                    pos += (isBackSlash ? 5 : 4);
-                } else {
-                    pos++;
-                }
+                pos++;
                 if (pos >= myBufferEndOffset) return myBufferEndOffset;
                 c = charAt(pos);
             } else if (c == quoteChar) {
@@ -283,6 +273,21 @@ public final class ZrJavaLexer extends LexerBase {
         }
 
         return pos + 1;
+    }
+
+    private int getClosingQuote(Formatter formatter, int offset, char quoteChar) {
+        int startIndex = offset;
+        while (true) {
+            offset++;
+            if (offset >= myBufferEndOffset) break;
+            char ch = charAt(offset);
+            if (ch == '\n' || ch == '\r') {
+                break;
+            }
+        }
+        final String s = myBuffer.subSequence(startIndex, offset).toString();
+        final ZrStringModel build = formatter.build(s);
+        return build.getEndQuoteIndex() + startIndex;
     }
 
     private int getClosingComment(int offset) {
@@ -314,7 +319,7 @@ public final class ZrJavaLexer extends LexerBase {
     private int getTextBlockEnd(int offset) {
         int pos = offset;
 
-        while ((pos = getClosingQuote(pos + 1, '"')) < myBufferEndOffset) {
+        while ((pos = getClosingQuote0(pos + 1, '"')) < myBufferEndOffset) {
             char current = charAt(pos);
             if (current == '\\') {
                 pos++;

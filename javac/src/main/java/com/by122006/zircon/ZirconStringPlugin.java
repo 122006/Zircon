@@ -85,6 +85,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         reloadClass( "com.sun.tools.javac.parser.Formatter", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
+        reloadClass( "com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.StringRange", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
         reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);

@@ -14,6 +14,7 @@ import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.sun.tools.javac.parser.FStringFormatter;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -42,7 +43,8 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
                             .filter(a -> text.charAt(a.prefix().length()) == '"' && text.startsWith(a.prefix()))
                             .findFirst().orElse(null);
                     if (formatter != null) {
-                        List<StringRange> build = formatter.build(text);
+                        final ZrStringModel model = formatter.build(text);
+                        List<StringRange> build = model.getList();
                         List<FoldingDescriptor> collect = build.stream().filter(a -> a.codeStyle == 1)
                                 .map(a -> {
                                     TextRange textRange;

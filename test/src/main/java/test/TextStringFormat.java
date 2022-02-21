@@ -53,7 +53,7 @@ public class TextStringFormat {
             assertEquals(test, will);
         }
         {
-            String test = f"test ${\"inStr\"}";
+            String test = f"test ${\"inStr\"}"; 
             String will = "test inStr";
             assertEquals(test, will);
         }
@@ -110,16 +110,19 @@ public class TextStringFormat {
         assertEquals(f"\\${add}", "${add}");
         assertEquals(f"\\n${add}", "\\ntest");
         assertEquals(f"\\n${add}", "\\ntest");
-        assertEquals(f"${1==1?'通过':\"驳回\"}", "通过");
+        assertEquals(f"${1==1?"通过":\"驳回\"}", "通过");
         assertEquals(f"${false?'通过':\"驳回\"}", "驳回");
         assertEquals($"${false?'通过':\"驳回\"}", "驳回");
 
-        assertEquals(f"审批${0==0?\"通过\":'驳回'} [${add}]\n $add", "审批通过 [test]\n test");
+        assertEquals(f"审批${0==0?"通过":'驳回'} [${add}]\n $add", "审批通过 [test]\n test");
         assertEquals(f"$add" + (2 + 3) + f"$add" + 1 + f"$add", "test5test1test");
         assertEquals(f"$add ${add}", "test test");
         assertEquals(f"${String.valueOf('testString')}", "testString");
+
         assertEquals(f"${'testString'}", "testString");
-        assertEquals(f"${(int)\'s\'}", "" + (int) 's');
+        assertEquals(f"${(int)'s'}", "" + (int) 's');
+        assertEquals(f"${"s"}", "s");
+        assertEquals(f"${'s'}", ""+'s');
         assertEquals(f"${''+'123'+String.valueOf(\'C\')+''}", "123C");
         assertEquals(f"${add}(${add})", "test(test)");
         assertEquals(f"${add}${add}", "testtest");
@@ -148,7 +151,7 @@ public class TextStringFormat {
         assertEquals(f"\n${String.valueOf('test')}${String.valueOf('test')}\n", "\ntesttest\n");
         assertEquals(f"\n${String.valueOf('test')}\n", "\ntest\n");
         assertEquals(f"\n${String.valueOf('test')}", "\ntest");
-        assertEquals(f"${String.valueOf('test')   }\n", "test\n");
+        assertEquals(f"${String.valueOf("test")   }\n", "test\n");
         assertEquals(f"${   String.valueOf('test')   }\n", "test\n");
         assertEquals(f"${   String.valueOf('test')   }   \n", "test   \n");
         assertEquals(f"${String.valueOf('test')}   \n", "test   \n");
@@ -181,7 +184,7 @@ public class TextStringFormat {
         assertEquals($"xxx${String.valueOf('test')}${String.valueOf('test')}xxx", "xxxtesttestxxx");
         assertEquals($"xxx${String.valueOf('test')}xxx", "xxxtestxxx");
         assertEquals($"xxx${String.valueOf('test')}", "xxxtest");
-        assertEquals($"${String.valueOf('test')}xxx", "testxxx");
+        assertEquals($"${String.valueOf("test")}xxx", "testxxx");
         assertEquals($"${String.valueOf('test')}${String.valueOf('test')}", "testtest");
         assertEquals($"${String.valueOf('test')}${String.valueOf('test')}\n", "testtest\n");
         assertEquals($"\n${String.valueOf('test')}${String.valueOf('test')}", "\ntesttest");
@@ -199,6 +202,7 @@ public class TextStringFormat {
         assertEquals($"%${add}${add}", "%testtest");
         assertEquals($"%%${add}${add}xxx", "%%testtestxxx");
         assertEquals($"%${add}%${add}", "%test%test");
+        assertEquals($"\"${add}\"${add}\"", "\"test\"test\"");
 
         assertEquals($"as${''}","as");
 
@@ -217,10 +221,12 @@ public class TextStringFormat {
 
 
         String asdss = text;
+
+        String testUrl="dddd http://www.baidu.com";
         
 
 
-        String a= String.format  ("%02d  %-2S ", String
+        String a= String.format  ("%2s  %-2S ", String
                 .
                         valueOf(
                                 "123"

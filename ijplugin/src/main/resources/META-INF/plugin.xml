@@ -1,7 +1,7 @@
 <idea-plugin>
   <id>com.by122006.zircon.ijplugin</id>
   <name>ZirconString</name>
-  <version>1.7</version>
+  <version>1.8</version>
   <vendor email="1109108466@qq.com" url="https://github.com/122006/Zircon">122006</vendor>
 
   <description>一款Java语言的内插字符串插件。允许你在java中使用内插字符串语法。请前往主页获得详细信息\n https://github.com/122006/Zircon</description>

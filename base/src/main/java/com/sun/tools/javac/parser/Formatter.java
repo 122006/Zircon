@@ -43,12 +43,12 @@ public interface Formatter {
 
     public List<Item> stringRange2Group(JavaTokenizer javaTokenizer, char[] buf, List<StringRange> build, String text, int groupStartIndex) throws Exception;
 
-    List<StringRange> build(String text);
+    ZrStringModel build(String text);
 
     String stringTransfer(String text);
 
     default String codeTransfer(String text) {
-        String toStr = text.replaceAll( "(^|[^\\\\])'([^']*?)'", "$1\"$2\"" )
+        String toStr = text.replaceAll( "(^|[^\\\\])'(([\\\\]?[^']{2,}?|))'", "$1\"$2\"" )
                 .replaceAll( "\\\\?([a-z0-9\"']{1})", "$1" )
                 .replace( "\\\\", "\\" );
         return toStr;

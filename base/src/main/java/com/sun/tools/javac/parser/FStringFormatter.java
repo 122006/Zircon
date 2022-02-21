@@ -13,18 +13,18 @@ public class FStringFormatter implements Formatter {
     @Override
     public String printOut(List<StringRange> build, String text) {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append( "String.format(\"" );
+        stringBuilder.append("String.format(\"");
         stringBuilder.append(map2FormatString(text, build));
-        stringBuilder.append( "\"" );
+        stringBuilder.append("\"");
         for (StringRange a : build) {
             if (a.codeStyle != 0 && a.codeStyle != 1) continue;
             if (a.codeStyle == 1) {
-                stringBuilder.append( "," );
+                stringBuilder.append(",");
                 String toStr = a.stringVal;
                 stringBuilder.append(toStr);
             }
         }
-        stringBuilder.append( ")" );
+        stringBuilder.append(")");
         return stringBuilder.toString();
     }
 
@@ -37,7 +37,7 @@ public class FStringFormatter implements Formatter {
                 stringBuilder.append(range.stringVal);
             } else if (range.codeStyle == 1) {
                 if (formatRange == null) {
-                    stringBuilder.append( "%s" );
+                    stringBuilder.append("%s");
                 } else {
                     stringBuilder.append(text, formatRange.startIndex, formatRange.endIndex);
                     formatRange = null;
@@ -51,17 +51,17 @@ public class FStringFormatter implements Formatter {
     public List<Item> stringRange2Group(JavaTokenizer javaTokenizer, char[] buf, List<StringRange> build, String text, int groupStartIndex) throws Exception {
         List<Item> items = new ArrayList<>();
         if (build.isEmpty()) {
-            items.add(Item.loadStringToken(0, 0, "" ));
+            items.add(Item.loadStringToken(0, 0, ""));
             return items;
         }
         int prefixLength = prefix().length();
 
-        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "String" ));
+        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "String"));
         items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
-        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "format" ));
+        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "format"));
         items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
 
-        items.add(Item.loadStringToken(prefixLength, prefixLength, map2FormatString(text,build)));
+        items.add(Item.loadStringToken(prefixLength, prefixLength, map2FormatString(text, build)));
         for (int i = 0; i < build.size(); i++) {
             StringRange a = build.get(i);
             int startIndex = a.startIndex;
@@ -77,8 +77,10 @@ public class FStringFormatter implements Formatter {
     }
 
     @Override
-    public List<StringRange> build(String text) {
-        List<StringRange> list = new ArrayList<>();
+    public ZrStringModel build(String text) {
+        ZrStringModel model=new ZrStringModel();
+        model.setFormatter(this);
+        List<StringRange> list = model.getList();
         int startI = prefix().length() + 1;
         int selectModel = -1;
         int pCount = 0;
@@ -94,8 +96,8 @@ public class FStringFormatter implements Formatter {
                     if (pCount == 0) {
                         if (thisIndex - startI > 0) {
                             String substring = text.substring(startI, thisIndex);
-                            if (substring.startsWith( "%" )) {
-                                int splitChar = substring.indexOf( ":" );
+                            if (substring.startsWith("%")) {
+                                int splitChar = substring.indexOf(":");
                                 if (splitChar == -1) {
                                     list.add(StringRange.code(this, text, startI, thisIndex));
                                 } else {
@@ -113,28 +115,32 @@ public class FStringFormatter implements Formatter {
                 continue;
             }
             if (selectModel == 1) {
-                if (String.valueOf(ch).matches(pCount > 0 ? "[^)]{1}" : "[A-Za-z0-9_\\u4e00-\\u9fa5.$]{1}" )) continue;
+                if (String.valueOf(ch).matches(pCount > 0 ? "[^)]{1}" : "[A-Za-z0-9_\\u4e00-\\u9fa5.$]{1}")) continue;
                 if (ch == '(') {
-                    if (text.substring(thisIndex).matches( "^\\([^)]*\\).*" )) {
+                    if (text.substring(thisIndex).matches("^\\([^)]*\\).*")) {
                         pCount++;
                         continue;
                     }
                 } else if (ch == ')') {
                     if (pCount > 0) {
-                        if (text.substring(thisIndex).matches( "^\\)\\.[A-Za-z_\\u4e00-\\u9fa5$]+.*" )) {
+                        if (text.substring(thisIndex).matches("^\\)\\.[A-Za-z_\\u4e00-\\u9fa5$]+.*")) {
                             pCount--;
                             continue;
                         }
-                        thisIndex++;
+                        list.add(StringRange.code(this, text, startI, thisIndex + 1));
+                        startI = thisIndex + 1;
+                        selectModel = -1;
+                        continue;
                     }
                 }
                 list.add(StringRange.code(this, text, startI, thisIndex));
-                startI = thisIndex;
                 selectModel = -1;
+                startI = thisIndex;
+                thisIndex--;
                 continue;
             }
             if (ch == '$' && !(text.charAt(thisIndex - 1) == '\\' && text.charAt(thisIndex - 2) == '\\')
-                    && String.valueOf(text.charAt(thisIndex + 1)).matches( "[A-Za-z_\\u4e00-\\u9fa5{$]{1}" )) {
+                    && String.valueOf(text.charAt(thisIndex + 1)).matches("[A-Za-z_\\u4e00-\\u9fa5{$]{1}")) {
                 if (thisIndex - startI != 0)
                     list.add(StringRange.string(this, text, startI, thisIndex));
                 if (text.charAt(thisIndex + 1) == '{') {
@@ -147,6 +153,14 @@ public class FStringFormatter implements Formatter {
                     pCount = 0;
                 }
             }
+            if (selectModel==-1){
+                if (ch=='"'){
+                    list.add(StringRange.string(this, text, startI, thisIndex));
+                    model.setOriginalString(text.substring(0,thisIndex+1));
+                    model.setEndQuoteIndex(thisIndex+1);
+                    return model;
+                }
+            }
         }
         if (text.length() - 1 > startI) {
             if (selectModel > 0) {
@@ -155,12 +169,14 @@ public class FStringFormatter implements Formatter {
                 list.add(StringRange.string(this, text, startI, text.length() - 1));
             }
         }
-        return list;
+        model.setOriginalString(text);
+        model.setEndQuoteIndex(text.length());
+        return model;
     }
 
     @Override
     public String stringTransfer(String str) {
-        return str.replace( "%", "%%" ).replace( "\\$", "$" );
+        return str.replace("%" , "%%").replace("\\$" , "$");
     }
 
 }
