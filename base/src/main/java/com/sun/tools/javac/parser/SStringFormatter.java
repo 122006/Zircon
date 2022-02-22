@@ -149,7 +149,9 @@ public class SStringFormatter implements Formatter {
             }
             if (selectModel == -1) {
                 if (ch == '"') {
-                    list.add(StringRange.string(this, text, startI, thisIndex));
+                    if (thisIndex > startI) {
+                        list.add(StringRange.string(this, text, startI, thisIndex));
+                    }
                     model.setOriginalString(text.substring(0, thisIndex + 1));
                     model.setEndQuoteIndex(thisIndex + 1);
                     return model;
@@ -162,14 +164,14 @@ public class SStringFormatter implements Formatter {
             } else {
                 list.add(StringRange.string(this, text, startI, text.length() - 1));
             }
-            model.setOriginalString(text);
-            model.setEndQuoteIndex(text.length());
         }
+        model.setOriginalString(text);
+        model.setEndQuoteIndex(text.length());
         return model;
     }
 
     @Override
     public String stringTransfer(String str) {
-        return str.replace("\\$" , "$");
+        return str.replace("\\$", "$");
     }
 }

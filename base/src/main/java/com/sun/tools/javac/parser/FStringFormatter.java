@@ -78,7 +78,7 @@ public class FStringFormatter implements Formatter {
 
     @Override
     public ZrStringModel build(String text) {
-        ZrStringModel model=new ZrStringModel();
+        ZrStringModel model = new ZrStringModel();
         model.setFormatter(this);
         List<StringRange> list = model.getList();
         int startI = prefix().length() + 1;
@@ -153,11 +153,13 @@ public class FStringFormatter implements Formatter {
                     pCount = 0;
                 }
             }
-            if (selectModel==-1){
-                if (ch=='"'){
-                    list.add(StringRange.string(this, text, startI, thisIndex));
-                    model.setOriginalString(text.substring(0,thisIndex+1));
-                    model.setEndQuoteIndex(thisIndex+1);
+            if (selectModel == -1) {
+                if (ch == '"') {
+                    if (thisIndex > startI) {
+                        list.add(StringRange.string(this, text, startI, thisIndex));
+                    }
+                    model.setOriginalString(text.substring(0, thisIndex + 1));
+                    model.setEndQuoteIndex(thisIndex + 1);
                     return model;
                 }
             }
@@ -176,7 +178,7 @@ public class FStringFormatter implements Formatter {
 
     @Override
     public String stringTransfer(String str) {
-        return str.replace("%" , "%%").replace("\\$" , "$");
+        return str.replace("%", "%%").replace("\\$", "$");
     }
 
 }

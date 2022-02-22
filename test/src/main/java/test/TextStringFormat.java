@@ -207,6 +207,7 @@ public class TextStringFormat {
         assertEquals($"as${''}","as");
 
 
+
         String text = f" this is F-$String.class.getSimpleName() ";
 
         assert Objects.equals($"Zircon: [ ${text.trim()} ]", "Zircon: [ " + (text.trim()) + " ]");
