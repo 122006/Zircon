@@ -19,6 +19,7 @@ public class TextStringFormat {
 
 
     public static void main(String[] str) {
+        System.out.println($"java.version=${System.getProperty("java.version")}");
         {
             String test = f"tes";
             String will = "tes";
@@ -113,8 +114,7 @@ public class TextStringFormat {
         assertEquals(f"${1==1?"通过":\"驳回\"}", "通过");
         assertEquals(f"${false?'通过':\"驳回\"}", "驳回");
         assertEquals($"${false?'通过':\"驳回\"}", "驳回");
-
-        assertEquals(f"审批${0==0?"通过":'驳回'} [${add}]\n $add", "审批通过 [test]\n test");
+        assertEquals(f"审批${Boolean.valueOf("true")?"通过":'驳回'} [${add}]\n $add", "审批通过 [test]\n test");
         assertEquals(f"$add" + (2 + 3) + f"$add" + 1 + f"$add", "test5test1test");
         assertEquals(f"$add ${add}", "test test");
         assertEquals(f"${String.valueOf('testString')}", "testString");
@@ -262,7 +262,7 @@ public class TextStringFormat {
     @Test
     public void test1() {
 
-        System.out.println(f"[${%-7s:12} ${%-5s:'null'}]");
+        System.out.println(f"[${%-7s:12} \n${%-5s:'null'}]");
 
         String string = "world";
 

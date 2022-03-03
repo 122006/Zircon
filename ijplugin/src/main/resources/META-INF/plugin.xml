@@ -20,14 +20,14 @@
   <extensions defaultExtensionNs="com.intellij">
     <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
     <lang.parserDefinition language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition" order="first"/>
-<!--    <lang.syntaxHighlighter language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter" order="first"/>-->
+    <lang.syntaxHighlighter language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter" order="first"/>
     <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory" serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl" overrides="true"/>
     <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
     <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
     <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
 <!--    <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>-->
     <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
-    <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"/>
+    <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler" order="first"/>
     <highlightVisitor implementation="com.by122006.zircon.ijplugin.ZrHighlightVisitor" order="first"/>
 <!--    <Filter implementation="com.by122006.zircon.ijplugin.ZrHighlightErrorFilter" />-->
   </extensions>

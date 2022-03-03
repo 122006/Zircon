@@ -87,8 +87,7 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
             EditorHighlighter highlighter = ((EditorEx) editor).getHighlighter();
             HighlighterIterator iterator = highlighter.createIterator(offset - 1);
             IElementType type = iterator.getTokenType();
-            if (StringEscapesTokenTypes.STRING_LITERAL_ESCAPES.contains(type)
-                    || (quoteHandler instanceof ZrJavaQuoteHandler && ((ZrJavaQuoteHandler) quoteHandler).isInsideLiteral2(iterator))) {
+            if (quoteHandler instanceof ZrJavaQuoteHandler) {
                 return true;
             }
         }
