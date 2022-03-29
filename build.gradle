@@ -3,7 +3,9 @@ plugins {
     id 'maven'
     id 'org.jetbrains.intellij' version '1.1.2'
 }
+dependencies {
 
+}
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()

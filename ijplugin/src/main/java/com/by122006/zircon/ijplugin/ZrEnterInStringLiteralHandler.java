@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.editorActions.EnterHandler;
 import com.intellij.codeInsight.editorActions.JavaLikeQuoteHandler;
@@ -53,9 +54,7 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
                     Document document = editor.getDocument();
                     if (quoteHandler.canBeConcatenated(psiAtOffset)) {
                         ASTNode token = psiAtOffset.getNode();
-                        final Formatter formatter = Formatter.getAllFormatters().stream()
-                                .filter(a -> token.getText().startsWith(a.prefix()))
-                                .findFirst().orElse(null);
+                        final Formatter formatter = ZrUtil.checkPsiLiteralExpression(token);
                         if (formatter==null) return Result.Continue;
                         if (quoteHandler.needParenthesesAroundConcatenation(psiAtOffset)) {
                             document.insertString(psiAtOffset.getTextRange().getEndOffset(), ")");

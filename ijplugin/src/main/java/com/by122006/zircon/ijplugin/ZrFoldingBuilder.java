@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.folding.FoldingBuilderEx;
 import com.intellij.lang.folding.FoldingDescriptor;
@@ -36,12 +37,9 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
             public void visitLiteralExpression(PsiLiteralExpression expression) {
                 if (expression instanceof PsiLiteralExpressionImpl
                         && ((PsiLiteralExpressionImpl) expression).getLiteralElementType() == JavaTokenType.STRING_LITERAL) {
-
                     if (expression.getText().startsWith("\"")) return;
                     String text = expression.getText();
-                    Formatter formatter = Formatter.getAllFormatters().stream()
-                            .filter(a -> text.charAt(a.prefix().length()) == '"' && text.startsWith(a.prefix()))
-                            .findFirst().orElse(null);
+                    Formatter formatter = ZrUtil.checkPsiLiteralExpression(expression);
                     if (formatter != null) {
                         final ZrStringModel model = formatter.build(text);
                         List<StringRange> build = model.getList();

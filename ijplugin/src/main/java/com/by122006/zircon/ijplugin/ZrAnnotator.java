@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrUtil;
 import com.intellij.codeInsight.folding.impl.FoldingUtil;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.ProblemHighlightType;
@@ -16,7 +17,6 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.tree.PsiWhiteSpaceImpl;
 import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.util.IncorrectOperationException;
 import com.sun.tools.javac.parser.Formatter;
@@ -28,7 +28,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ZrAnnotator implements Annotator {
     private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
@@ -36,11 +35,11 @@ public class ZrAnnotator implements Annotator {
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         if (element.getLanguage() != JavaLanguage.INSTANCE) return;
-        if (element instanceof PsiPolyadicExpression && Arrays.stream(element.getChildren()).anyMatch(ZrElementUtil::isJavaStringLiteral)) {
+        if (element instanceof PsiPolyadicExpression && Arrays.stream(element.getChildren()).anyMatch(ZrUtil::isJavaStringLiteral)) {
             registerChange2SStringIntentionAction((PsiPolyadicExpression) element, holder);
             return;
         }
-        if (ZrElementUtil.isJavaStringLiteral(element)) {
+        if (ZrUtil.isJavaStringLiteral(element)) {
             if (!element.getText().startsWith( "\"" )) {
                 registerChange2NormalIntentionAction(element, holder, element.getText());
             }
@@ -48,7 +47,7 @@ public class ZrAnnotator implements Annotator {
         }
         if (element instanceof PsiMethodCallExpressionImpl) {
             if (element.getFirstChild() instanceof PsiReferenceExpression
-                    && element.getFirstChild().getText().replace(" ","").endsWith( "String.format" )) {
+                    && element.getFirstChild().getText().replace( " ", "" ).endsWith( "String.format" )) {
                 registerChangeFromFormatIntentionAction(element, holder);
             }
             return;
@@ -63,17 +62,17 @@ public class ZrAnnotator implements Annotator {
         final PsiElement[] children = formatExpression.getChildren();
         if (children.length == 0) return;
         final List<PsiElement> collect = Arrays.stream(children).filter(a -> !(a instanceof PsiJavaToken || a instanceof PsiWhiteSpace)).collect(Collectors.toList());
-        if (!ZrElementUtil.isJavaStringLiteral(collect.get(0))) {
+        if (!ZrUtil.isJavaStringLiteral(collect.get(0))) {
             collect.remove(0);
         }
-        if (!ZrElementUtil.isJavaStringLiteral(collect.get(0))) {
+        if (!ZrUtil.isJavaStringLiteral(collect.get(0))) {
             // error format
             return;
         }
 
         String text = "f" + collect.get(0).getText();
         collect.remove(0);
-        text = text.replace( "%n" , "\\n" ).replace( "$" , "\\$" );
+        text = text.replace( "%n", "\\n" ).replace( "$", "\\$" );
         Matcher m = Pattern.compile( "%.*?[%bBhHsScCdoxXeEfgGaAtT]" ).matcher(text);
         final Iterator<PsiElement> iterator = collect.iterator();
         StringBuilder stringBuilder = new StringBuilder();
@@ -88,15 +87,15 @@ public class ZrAnnotator implements Annotator {
                     s = "%";
                 } else if ( "%n".equals(group)) {
                     s = "\n";
-                } else if ( "%s".equals(group)||"%d".equals(group)) {
+                } else if ( "%s".equals(group) || "%d".equals(group)) {
                     final String replace = iterator.next().getText()
-                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1" )
-                            .replace( "\n" , "" );
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1" )
+                            .replace( "\n", "" );
                     s = "${" + replace + "}";
                 } else {
                     final String replace = iterator.next().getText()
-                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1" )
-                            .replace( "\n" , "" );
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1" )
+                            .replace( "\n", "" );
                     s = "${" + group + ":" + replace + "}";
                 }
             } else {
@@ -126,7 +125,7 @@ public class ZrAnnotator implements Annotator {
         if (endIndex == 0) {
             return;
         }
-        String prefix = text.substring(0, endIndex).replace( "\\" , "" );
+        String prefix = text.substring(0, endIndex).replace( "\\", "" );
         if (prefix.contains( "\\" )) return;
         Formatter formatter = allFormatters.stream()
                 .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
@@ -170,7 +169,7 @@ public class ZrAnnotator implements Annotator {
         if (collect.size() == 1) return;
         List<PsiElement> firstCollect = new ArrayList<>();
         for (PsiElement psiElement : collect) {
-            if (!ZrElementUtil.isJavaStringLiteral(psiElement)) {
+            if (!ZrUtil.isJavaStringLiteral(psiElement)) {
                 firstCollect.add(psiElement);
             } else {
                 break;
@@ -185,7 +184,7 @@ public class ZrAnnotator implements Annotator {
         for (int i = 0; i < collect1.size(); i++) {
             PsiElement item = collect1.get(i);
             String itemText = item.getText();
-            if (ZrElementUtil.isJavaStringLiteral(item)) {
+            if (ZrUtil.isJavaStringLiteral(item)) {
                 if (itemText.startsWith( "\"" )) {
                     printOut.append(itemText, 1, itemText.length() - 1);
                 } else {
@@ -196,7 +195,7 @@ public class ZrAnnotator implements Annotator {
                 if (itemText.matches( "[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+" )) {
                     if (i + 1 < collect1.size()) {
                         PsiElement nextItem = collect1.get(i + 1);
-                        if (ZrElementUtil.isJavaStringLiteral(nextItem)) {
+                        if (ZrUtil.isJavaStringLiteral(nextItem)) {
                             if (nextItem.getText().matches( "\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*" )) {
                                 appendType = 1;
                             } else {
@@ -215,10 +214,10 @@ public class ZrAnnotator implements Annotator {
                     if (itemText.length() <= 2) continue;
                     itemText = itemText.substring(1, itemText.length() - 1).trim();
                 }
-                final String replace = itemText.replaceAll( "([^\\\\])'" , "$1\\'" )
-                        .replaceAll( "([^\\\\])\"" , "$1'" )
-                        .replace( "\n" , "" )
-                        .replace( "\r" , "" );
+                final String replace = itemText.replaceAll( "([^\\\\])'", "$1\\'" )
+                        .replace( "\n", "" )
+                        .replace( "\r", "" );
+                if (replace.endsWith( "))" )) appendType = 1;
                 if (appendType == 1) {
                     printOut.append( "${" );
                     printOut.append(replace);
