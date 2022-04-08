@@ -25,6 +25,12 @@ compileJava {
 
 
 }
+task copyJavacClass(type: Copy) {
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
+    into "${rootDir}/javac/src/main/resources/clazz/java7"
+    rename ~/(.*)\.class/, '$1.clazz'
+}
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava
     archiveClassifier = "sources"

@@ -11,6 +11,7 @@ import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.UnicodeReader;
 import com.sun.tools.javac.util.Context;
 
+import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -28,7 +29,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 
     @Override
     public void init(JavacTask task, String... args) {
-        System.out.println( "inject [动态字符串插件] jdk:"+System.getProperty("java.version") );
+        System.out.println("inject [动态字符串插件] jdk:" + System.getProperty("java.version"));
         System.out.println(task.toString());
 
         BasicJavacTask javacTask = (BasicJavacTask) task;
@@ -56,6 +57,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             }
         });
     }
+
     private void startTask(Context context, ClassLoader pcl, ClassLoader classLoader) throws Exception {
         JavaCompiler compiler = null;
         try {
@@ -64,22 +66,22 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            e.printStackTrace();
             return;
         }
-        reloadClass( "com.sun.tools.javac.parser.Item", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.Formatter", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.StringRange", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
-        reloadClass( "com.sun.tools.javac.util.ZrScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClass( "com.sun.tools.javac.util.ZrScannerFactory", pcl, classLoader);
+
+        reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.Formatter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.util.ZrScanner", pcl, classLoader);
+        Class<?> OOScannerFactoryClass = reloadClassJavacVersion("com.sun.tools.javac.util.ZrScannerFactory", pcl, classLoader);
 //        ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
-        ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory" );
+        ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
         Object instance = getInstance(OOScannerFactoryClass, context);
         set(parserFactory, "scannerFactory", instance);
     }
@@ -112,28 +114,45 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
     }
 
     public static Object getInstance(Class<?> clas, Context context) throws ReflectiveOperationException {
-        return clas.getDeclaredMethod( "instance", Context.class).invoke(null, context);
+        return clas.getDeclaredMethod("instance", Context.class).invoke(null, context);
     }
 
-
-    public boolean checkJavaTokenizerVersionNew(){
+    public static boolean checkJavaTokenizerVersionNew() {
         return UnicodeReader.class.isAssignableFrom(JavaTokenizer.class);
     }
-    @SuppressWarnings( "unchecked" )
-    /** add class claz to outClassLoader */
+
     static <T> Class<T> reloadClass(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
-        try { // already loaded?
+        return reloadClass(claz, incl, outcl, null);
+    }
+
+    static <T> Class<T> reloadClassJavacVersion(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
+        final String[] split = claz.split("\\.");
+        final String simpleClassName = split[split.length - 1];
+        return reloadClass(claz, incl, outcl, "clazz/" + (checkJavaTokenizerVersionNew() ? "java16" : "java7") + "/" + simpleClassName + ".clazz");
+    }
+
+    @SuppressWarnings("unchecked")
+    static <T> Class<T> reloadClass(String claz, ClassLoader incl, ClassLoader outcl, String oPath) throws Exception {
+        try {
             return (Class<T>) outcl.loadClass(claz);
         } catch (ClassNotFoundException e) {
         }
-        String path = claz.replace('.', '/') + ".class";
-        InputStream is = incl.getResourceAsStream(path);
-        if (is==null){
-            throw new RuntimeException("找不到对应类:"+claz);
+        String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
+        System.out.println("path=" + path);
+        InputStream is = path.startsWith("/")?ZirconStringPlugin.class.getResourceAsStream(path):incl.getResourceAsStream(path);
+
+        if (is == null) {
+            final File file = new File("");
+            System.out.println(file.getAbsolutePath());
+            System.out.println(file.exists());
+            for (String s : file.getParentFile().list()) {
+                System.out.println(s);
+            }
+            throw new RuntimeException("找不到对应类:" + claz);
         }
         byte[] bytes = new byte[is.available()];
         is.read(bytes);
-        Method m = ClassLoader.class.getDeclaredMethod( "defineClass", new Class[]{
+        Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
                 String.class, byte[].class, int.class, int.class});
         m.setAccessible(true);
         return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);

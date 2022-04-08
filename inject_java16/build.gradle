@@ -25,22 +25,11 @@ compileJava {
 
 
 }
-//afterEvaluate {
-//    tasks.matching {
-//        it.name.contains("build")
-//    }.each { task ->
-//        task.doLast {copyJavacClass}
-//    }
-//}
 task copyJavacClass(type: Copy) {
-//    doLast("build"){
-//        System.out.println("will copy")
-//    }
-    System.out.println(new File("${buildDir}/classes/java/main/com/sun/tools/javac/parser").exists())
     from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
-    into "${projectDir.path}/javac/src/main/resources"
-    System.out.println(new File("${projectDir.path}/javac/src/main/resources").list())
+    into "${rootDir}/javac/src/main/resources/clazz/java16"
+    rename ~/(.*)\.class/, '$1.clazz'
 }
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava

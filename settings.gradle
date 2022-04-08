@@ -1,12 +1,13 @@
 rootProject.name = 'Zircon'
-include ':test'
 include ':javac'
 include ':impl'
 include ':base'
-System.out.println(System.getProperty("java.version"))
-if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
-include ':inject_java16'
-} else {
-include ':inject_java7'
+if (System.getProperty("user.dir").contains(":\\")) {
+    include ':test'
+    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
+        include ':inject_java16'
+    } else {
+        include ':inject_java7'
+    }
+    include ':ijplugin'
 }
-if (System.getProperty("user.dir").contains(":\\")) include ':ijplugin'

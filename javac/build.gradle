@@ -13,11 +13,13 @@ repositories {
 dependencies {
 //    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
     System.out.println("[javac] jdkVersion:" + System.getProperty("java.version"))
-    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16)
-        implementation project(":inject_java16")
-    else
-        implementation project(":inject_java7")
+//    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16)
+//        implementation project(":inject_java16")
+//    else
+//        implementation project(":inject_java7")
 //    implementation "com.by122006.zircon:base:0.1"
+        implementation project(":base")
+
 }
 jar {
     manifest {
