@@ -2,30 +2,29 @@ plugins {
     id 'java'
     id 'maven-publish'
 }
+
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
 }
 dependencies {
+    System.out.println("use inject_java7")
     implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
+    System.out.println("jdkVersion:"+System.getProperty("java.version"))
+    System.out.println("javaHome:"+System.getProperty("java.home"))
+    implementation project(":base")
+//    implementation "com.by122006.zircon:base:0.1"
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
-}
-//uploadArchives {
-//    repositories {
-//        mavenDeployer {
-//            // 配置本地仓库路径，项目根目录下的repository目录中
-//            repository(url: uri('../../repo'))
-//            pom.groupId = "com.by122006.zircon"// 唯一标识（通常为模块包名，也可以任意）
-//            pom.artifactId = "base" // 项目名称（通常为类库模块名称，也可以任意）
-//            pom.version = "0.1" // 版本号
-//        }
-//    }
-//}
 
+
+}
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava
     archiveClassifier = "sources"
@@ -35,7 +34,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             groupId "com.by122006.zircon"
-            artifactId "base"
+            artifactId "inject_java16"
             version "0.2"
             from components.java
             artifact sourceJar
@@ -48,3 +47,5 @@ publishing {
     }
 
 }
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11

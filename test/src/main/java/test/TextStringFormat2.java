@@ -18,9 +18,9 @@ public class TextStringFormat2 {
 
         String show = null;
         //Zircon内插字符串
-        show = f"${user.name}是一个${user.age}岁的${user.gender?'男生':'女生'}，工号是${%06d:user.number}";
+        show = f"${user.name}是一个${user.age}岁的${user.gender?"男生":"女生"}，工号是${%06d:user.number}";
         //Zircon内插字符串(收缩后)
-        show = f"${user.name}是一个${user.age}岁的${user.gender?'男生':'女生'}，工号是${%06d:user.number}";
+        show = f"${user.name}是一个${user.age}岁的${user.gender?"男生":"女生"}，工号是${%06d:user.number}";
 
         //'+'号拼接
         show = user.name + "是一个" + user.age + "岁的" + (user.gender ? "男生" : "女生") + "，工号是" + fillNumberStringWithLeftZero(user.number);

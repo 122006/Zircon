@@ -33,7 +33,7 @@ public class Item {
 
     public static Item loadIdentifierToken(JavaTokenizer tokenizer, int startIndex, int endIndex, String identifier)  throws Exception{
         com.sun.tools.javac.util.List<Tokens.NamedToken> var3 = null;
-        Name name = tokenizer.reader.names.fromString(identifier);
+        Name name = tokenizer.fac.names.fromString(identifier);
         Tokens.TokenKind tk = tokenizer.fac.tokens.lookupKind(name);
         Tokens.NamedToken stringToken = new Tokens.NamedToken(tk, startIndex, endIndex, name, null);
         return new Item(startIndex, endIndex, stringToken);

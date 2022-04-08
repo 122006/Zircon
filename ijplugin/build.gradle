@@ -26,7 +26,7 @@ patchPluginXml{
     untilBuild="300"
 }
 dependencies {
-    compile "com.by122006.zircon:base:0.1"
+    implementation "com.by122006.zircon:base:0.2"
 }
 //IU-202.7319.50
 intellij  {

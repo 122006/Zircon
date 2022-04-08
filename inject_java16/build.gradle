@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
+}
+dependencies {
+//    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
+    System.out.println("use inject_java16")
+    System.out.println("jdkVersion:" + System.getProperty("java.version"))
+    System.out.println("javaHome:" + System.getProperty("java.home"))
+    implementation project(":base")
+//    implementation "com.by122006.zircon:base:0.1"
+}
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
+
+
+}
+//afterEvaluate {
+//    tasks.matching {
+//        it.name.contains("build")
+//    }.each { task ->
+//        task.doLast {copyJavacClass}
+//    }
+//}
+task copyJavacClass(type: Copy) {
+//    doLast("build"){
+//        System.out.println("will copy")
+//    }
+    System.out.println(new File("${buildDir}/classes/java/main/com/sun/tools/javac/parser").exists())
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
+    into "${projectDir.path}/javac/src/main/resources"
+    System.out.println(new File("${projectDir.path}/javac/src/main/resources").list())
+}
+task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+    archiveClassifier = "sources"
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId "com.by122006.zircon"
+            artifactId "inject_java16"
+            version "0.2"
+            from components.java
+            artifact sourceJar
+        }
+    }
+    repositories {
+        maven {
+            url = uri('../../repo')
+        }
+    }
+
+}

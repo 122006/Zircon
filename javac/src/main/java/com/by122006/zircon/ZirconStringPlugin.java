@@ -1,24 +1,3 @@
-/*
- * Copyright (C) 2009-2013 The Project Lombok Authors.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 package com.by122006.zircon;
 
 import com.sun.source.tree.LiteralTree;
@@ -26,13 +5,16 @@ import com.sun.source.util.*;
 import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.parser.ScannerFactory;
+import com.sun.tools.javac.parser.UnicodeReader;
 import com.sun.tools.javac.util.Context;
 
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 
 public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugin {
@@ -46,7 +28,9 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 
     @Override
     public void init(JavacTask task, String... args) {
-        System.out.println( "inject [动态字符串插件]" );
+        System.out.println( "inject [动态字符串插件] jdk:"+System.getProperty("java.version") );
+        System.out.println(task.toString());
+
         BasicJavacTask javacTask = (BasicJavacTask) task;
         Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
@@ -131,6 +115,10 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         return clas.getDeclaredMethod( "instance", Context.class).invoke(null, context);
     }
 
+
+    public boolean checkJavaTokenizerVersionNew(){
+        return UnicodeReader.class.isAssignableFrom(JavaTokenizer.class);
+    }
     @SuppressWarnings( "unchecked" )
     /** add class claz to outClassLoader */
     static <T> Class<T> reloadClass(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
@@ -140,13 +128,14 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         }
         String path = claz.replace('.', '/') + ".class";
         InputStream is = incl.getResourceAsStream(path);
+        if (is==null){
+            throw new RuntimeException("找不到对应类:"+claz);
+        }
         byte[] bytes = new byte[is.available()];
         is.read(bytes);
         Method m = ClassLoader.class.getDeclaredMethod( "defineClass", new Class[]{
                 String.class, byte[].class, int.class, int.class});
         m.setAccessible(true);
         return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);
-
-
     }
 }

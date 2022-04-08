@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'maven'
+    id 'maven-publish'
     id 'org.jetbrains.intellij' version '1.1.2'
 }
 dependencies {
@@ -13,4 +13,3 @@ repositories {
         url uri('../../repo')
     }
 }
-

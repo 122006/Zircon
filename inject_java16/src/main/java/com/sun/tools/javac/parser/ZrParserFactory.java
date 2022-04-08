@@ -1,7 +1,7 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.util.ZrScanner;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.ZrScanner;
 
 import java.nio.CharBuffer;
 

@@ -2,14 +2,8 @@ package test;
 
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class TextStringFormat {
@@ -54,8 +48,8 @@ public class TextStringFormat {
             assertEquals(test, will);
         }
         {
-            String test = f"test ${\"inStr\"}"; 
             String will = "test inStr";
+            String test = f"test ${\"inStr\"}";
             assertEquals(test, will);
         }
         String add = "test";
@@ -63,18 +57,20 @@ public class TextStringFormat {
         assertEquals(f"do ($add)", "do (test)");
         assertEquals(f"do ($TextStringFormat.test)", "do (" + TextStringFormat.test + ")");
         assertEquals(f"test (${1+2})", "test (3)");
-        assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + (String.format( "str:[%s]" , "format")) + ")");
+        assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + (String.format("str:[%s]", "format")) + ")");
         assertEquals(f"test (${String.format(\"str:[%s]\",\"format\")})", "test (" + String.format("str:[%s]", "format") + ")");
         assertEquals(f"${\"Test,mode\".substring(0,6)} end", "Test,mode".substring(0, 6) + " end");
         assertEquals(f"test (${\"te\\nst\"})", "test (te\nst)");
         assertEquals(f"test\n (${\"te\\nst\"})", "test\n (te\nst)");
         assertEquals(f"test (${\"te\\\"st\"})", "test (te\"st)");
         assertEquals(f"(${\"test\"})", "(test)");
+        assertEquals($"a${1 == 0 ? "" : "("+add+")"}", "a(test)");
+
         assertEquals(f"({${add}})", "({test})");
         assertEquals(f"({${%03d:12}})", "({012})");
         assertEquals(f"({${%.2f:12d}})", "({12.00})");
         assertEquals($"test (${String.valueOf(\"123\")})", "test (123)");
-        assertEquals($"test (${String.valueOf('123')})", "test (123)");
+        assertEquals($"test (${String.valueOf("123")})", "test (123)");
         assertEquals(f"(${})", "()");
         assertEquals(f"${}", "");
         assertEquals($"${}", "");
@@ -112,18 +108,20 @@ public class TextStringFormat {
         assertEquals(f"\\n${add}", "\\ntest");
         assertEquals(f"\\n${add}", "\\ntest");
         assertEquals(f"${1==1?"通过":\"驳回\"}", "通过");
-        assertEquals(f"${false?'通过':\"驳回\"}", "驳回");
-        assertEquals($"${false?'通过':\"驳回\"}", "驳回");
-        assertEquals(f"审批${Boolean.valueOf("true")?"通过":'驳回'} [${add}]\n $add", "审批通过 [test]\n test");
+        assertEquals(f"${String.valueOf("2")}", "2");
+
+        assertEquals($"${false?"通过":\"驳回\"}", "驳回");
+        assertEquals(f"审批${Boolean.valueOf("true")?"通过":"驳回"} [${add}]\n $add", "审批通过 [test]\n test");
         assertEquals(f"$add" + (2 + 3) + f"$add" + 1 + f"$add", "test5test1test");
         assertEquals(f"$add ${add}", "test test");
-        assertEquals(f"${String.valueOf('testString')}", "testString");
+        assertEquals(f"${String.valueOf("2'2'2")}", "2'2'2");
+        assertEquals(f"${String.valueOf("testString")}", "testString");
 
-        assertEquals(f"${'testString'}", "testString");
+        assertEquals(f"${"testString"}", "testString");
         assertEquals(f"${(int)'s'}", "" + (int) 's');
         assertEquals(f"${"s"}", "s");
-        assertEquals(f"${'s'}", ""+'s');
-        assertEquals(f"${''+'123'+String.valueOf(\'C\')+''}", "123C");
+        assertEquals(f"${"s"}", "" + 's');
+        assertEquals(f"${""+"123"+String.valueOf('C')+""}", "123C");
         assertEquals(f"${add}(${add})", "test(test)");
         assertEquals(f"${add}${add}", "testtest");
         assertEquals(f"${add}${add}xxx", "testtestxxx");
@@ -138,25 +136,25 @@ public class TextStringFormat {
         assertEquals(f"xxx${}xxx", "xxxxxx");
         assertEquals(f"xxx${}", "xxx");
         assertEquals(f"${}xxx", "xxx");
-        assertEquals(f"${String.valueOf('test')}${String.valueOf('test')}", "testtest");
-        assertEquals(f"${String.valueOf('test')}${String.valueOf('test')}xxx", "testtestxxx");
-        assertEquals(f"xxx${String.valueOf('test')}${String.valueOf('test')}", "xxxtesttest");
-        assertEquals(f"xxx${String.valueOf('test')}${String.valueOf('test')}xxx", "xxxtesttestxxx");
-        assertEquals(f"xxx${String.valueOf('test')}xxx", "xxxtestxxx");
-        assertEquals(f"xxx${String.valueOf('test')}", "xxxtest");
-        assertEquals(f"${String.valueOf('test')}xxx", "testxxx");
-        assertEquals(f"${String.valueOf('test')}${String.valueOf('test')}", "testtest");
-        assertEquals(f"${String.valueOf('test')}${String.valueOf('test')}\n", "testtest\n");
-        assertEquals(f"\n${String.valueOf('test')}${String.valueOf('test')}", "\ntesttest");
-        assertEquals(f"\n${String.valueOf('test')}${String.valueOf('test')}\n", "\ntesttest\n");
-        assertEquals(f"\n${String.valueOf('test')}\n", "\ntest\n");
-        assertEquals(f"\n${String.valueOf('test')}", "\ntest");
-        assertEquals(f"${String.valueOf("test")   }\n", "test\n");
-        assertEquals(f"${   String.valueOf('test')   }\n", "test\n");
-        assertEquals(f"${   String.valueOf('test')   }   \n", "test   \n");
-        assertEquals(f"${String.valueOf('test')}   \n", "test   \n");
-        assertEquals(f"${String.valueOf('test')   }   \n", "test   \n");
-        assertEquals(f"   ${   String.valueOf('test')   }   \n", "   test   \n");
+        assertEquals(f"${String.valueOf("test")}${String.valueOf("test")}", "testtest");
+        assertEquals(f"${String.valueOf("test")}${String.valueOf("test")}xxx", "testtestxxx");
+        assertEquals(f"xxx${String.valueOf("test")}${String.valueOf("test")}", "xxxtesttest");
+        assertEquals(f"xxx${String.valueOf("test")}${String.valueOf("test")}xxx", "xxxtesttestxxx");
+        assertEquals(f"xxx${String.valueOf("test")}xxx", "xxxtestxxx");
+        assertEquals(f"xxx${String.valueOf("test")}", "xxxtest");
+        assertEquals(f"${String.valueOf("test")}xxx", "testxxx");
+        assertEquals(f"${String.valueOf("test")}${String.valueOf("test")}", "testtest");
+        assertEquals(f"${String.valueOf("test")}${String.valueOf("test")}\n", "testtest\n");
+        assertEquals(f"\n${String.valueOf("test")}${String.valueOf("test")}", "\ntesttest");
+        assertEquals(f"\n${String.valueOf("test")}${String.valueOf("test")}\n", "\ntesttest\n");
+        assertEquals(f"\n${String.valueOf("test")}\n", "\ntest\n");
+        assertEquals(f"\n${String.valueOf("test")}", "\ntest");
+        assertEquals(f"${"test"   }\n", "test\n");
+        assertEquals(f"${   String.valueOf("test")   }\n", "test\n");
+        assertEquals(f"${   String.valueOf("test")   }   \n", "test   \n");
+        assertEquals(f"${String.valueOf("test")}   \n", "test   \n");
+        assertEquals(f"${String.valueOf("test")   }   \n", "test   \n");
+        assertEquals(f"   ${   String.valueOf("test")   }   \n", "   test   \n");
         assertEquals(f"$ ${add}${add}", "$ testtest");
         assertEquals(f"\$${add}${add}xxx",
                 "$testtestxxx");
@@ -178,25 +176,25 @@ public class TextStringFormat {
         assertEquals($"xxx${}xxx", "xxxxxx");
         assertEquals($"xxx${}", "xxx");
         assertEquals($"${}xxx", "xxx");
-        assertEquals($"${String.valueOf('test')}${String.valueOf('test')}", "testtest");
-        assertEquals($"${String.valueOf('test')}${String.valueOf('test')}xxx", "testtestxxx");
-        assertEquals($"xxx${String.valueOf('test')}${String.valueOf('test')}", "xxxtesttest");
-        assertEquals($"xxx${String.valueOf('test')}${String.valueOf('test')}xxx", "xxxtesttestxxx");
-        assertEquals($"xxx${String.valueOf('test')}xxx", "xxxtestxxx");
-        assertEquals($"xxx${String.valueOf('test')}", "xxxtest");
-        assertEquals($"${String.valueOf("test")}xxx", "testxxx");
-        assertEquals($"${String.valueOf('test')}${String.valueOf('test')}", "testtest");
-        assertEquals($"${String.valueOf('test')}${String.valueOf('test')}\n", "testtest\n");
-        assertEquals($"\n${String.valueOf('test')}${String.valueOf('test')}", "\ntesttest");
-        assertEquals($"\n${String.valueOf('test')}${String.valueOf('test')}\n", "\ntesttest\n");
-        assertEquals($"\n${String.valueOf('test')}\n", "\ntest\n");
-        assertEquals($"\n${String.valueOf('test')}", "\ntest");
-        assertEquals($"${String.valueOf('test')   }\n", "test\n");
-        assertEquals($"${   String.valueOf('test')   }\n", "test\n");
-        assertEquals($"${   String.valueOf('test')   }   \n", "test   \n");
-        assertEquals($"${String.valueOf('test')}   \n", "test   \n");
-        assertEquals($"${String.valueOf('test')   }   \n", "test   \n");
-        assertEquals($"   ${   String.valueOf('test')   }   \n", "   test   \n");
+        assertEquals($"${String.valueOf("test")}${String.valueOf("test")}", "testtest");
+        assertEquals($"${String.valueOf("test")}${String.valueOf("test")}xxx", "testtestxxx");
+        assertEquals($"xxx${String.valueOf("test")}${String.valueOf("test")}", "xxxtesttest");
+        assertEquals($"xxx${String.valueOf("test")}${String.valueOf("test")}xxx", "xxxtesttestxxx");
+        assertEquals($"xxx${String.valueOf("test")}xxx", "xxxtestxxx");
+        assertEquals($"xxx${String.valueOf("test")}", "xxxtest");
+        assertEquals($"${"test"}xxx", "testxxx");
+        assertEquals($"${String.valueOf("test")}${String.valueOf("test")}", "testtest");
+        assertEquals($"${String.valueOf("test")}${String.valueOf("test")}\n", "testtest\n");
+        assertEquals($"\n${String.valueOf("test")}${String.valueOf("test")}", "\ntesttest");
+        assertEquals($"\n${String.valueOf("test")}${String.valueOf("test")}\n", "\ntesttest\n");
+        assertEquals($"\n${String.valueOf("test")}\n", "\ntest\n");
+        assertEquals($"\n${String.valueOf("test")}", "\ntest");
+        assertEquals($"${String.valueOf("test")   }\n", "test\n");
+        assertEquals($"${   String.valueOf("test")   }\n", "test\n");
+        assertEquals($"${   String.valueOf("test")   }   \n", "test   \n");
+        assertEquals($"${String.valueOf("test")}   \n", "test   \n");
+        assertEquals($"${String.valueOf("test")   }   \n", "test   \n");
+        assertEquals($"   ${   String.valueOf("test")   }   \n", "   test   \n");
         assertEquals($"$ ${add}${add}", "$ testtest");
         assertEquals($"\$${add}${add}xxx", "$testtestxxx");
         assertEquals($"%${add}${add}", "%testtest");
@@ -204,9 +202,13 @@ public class TextStringFormat {
         assertEquals($"%${add}%${add}", "%test%test");
         assertEquals($"\"${add}\"${add}\"", "\"test\"test\"");
 
-        assertEquals($"as${''}","as");
+        assertEquals($"as${""}", "as");
 
 
+//        assertEquals($"${throwException()}", "testThrowException");
+
+
+//        assertEquals($"${Stream}", "");
 
         String text = f" this is F-$String.class.getSimpleName() ";
 
@@ -223,15 +225,10 @@ public class TextStringFormat {
 
         String asdss = text;
 
-        String testUrl="dddd http://www.baidu.com";
-        
+        String testUrl = "dddd http://www.baidu.com";
 
 
-        String a= String.format  ("%2s  %-2S ", String
-                .
-                        valueOf(
-                                "123"
-                        ), "vvv"
+        String a = String.format("%2s  %-2S ", "123", "vvv"
         );
 
         String.format("%02d  %s %s", 12, 13, 12);
@@ -262,7 +259,7 @@ public class TextStringFormat {
     @Test
     public void test1() {
 
-        System.out.println(f"[${%-7s:12} \n${%-5s:'null'}]");
+        System.out.println(f"[${%-7s:12} \n${%-5s:"null"}]");
 
         String string = "world";
 
@@ -271,5 +268,8 @@ public class TextStringFormat {
         assert Objects.equals(will, "hello world");
     }
 
+    public static String throwException() throws IllegalAccessException {
+        return "testThrowException";
+    }
 
 }
