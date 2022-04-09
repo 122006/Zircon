@@ -6,12 +6,5 @@ buildscript {
             url uri('../repo')
         }
     }
-    dependencies {
-        if (System.getProperty("user.dir").contains(":\\")) {
-            classpath 'com.by122006.zircon:gradle:+'
-        }else {
-            classpath 'com.github.122006.Zircon:gradle:2.+'
-        }
-    }
 }
 
