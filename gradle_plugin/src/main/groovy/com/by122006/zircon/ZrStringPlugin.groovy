@@ -21,7 +21,10 @@ class ZrStringPlugin implements Plugin<Project> {
                 }
             }
         }
+//        project.dependencies{
+//            annotationProcessor "com.github.122006.Zircon:javac:2.+"
+//        }
         project.dependencies.add("annotationProcessor"
-                , project.dependencies.create("com.github.122006.Zircon:gradle:2.+"))
+                , project.dependencies.create("com.github.122006.Zircon:javac:2.7"))
     }
 }

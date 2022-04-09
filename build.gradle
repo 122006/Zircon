@@ -1,3 +1,7 @@
+ext{
+    version="2.7"
+}
+
 buildscript {
     repositories {
         maven { url 'https://maven.aliyun.com/repository/public/' }

@@ -11,8 +11,8 @@ repositories {
     }
 }
 dependencies {
+    compileOnly files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation project(":base")
-
 }
 jar {
     manifest {
@@ -35,9 +35,9 @@ task sourceJar(type: Jar) {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId "com.by122006.zircon"
+            groupId "com.github.122006.Zircon"
             artifactId "javac"
-            version "0.2"
+            version rootProject.ext.version
             from components.java
             artifact sourceJar
         }

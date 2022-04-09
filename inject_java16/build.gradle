@@ -28,25 +28,3 @@ task copyJavacClass(type: Copy) {
     into "${rootDir}/javac/src/main/resources/clazz/java16"
     rename ~/(.*)\.class/, '$1.clazz'
 }
-task sourceJar(type: Jar) {
-    from sourceSets.main.allJava
-    archiveClassifier = "sources"
-}
-
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId "com.by122006.zircon"
-            artifactId "inject_java16"
-            version "0.2"
-            from components.java
-            artifact sourceJar
-        }
-    }
-    repositories {
-        maven {
-            url = uri('../../repo')
-        }
-    }
-
-}
