@@ -1,15 +1,17 @@
-plugins {
-    id 'java'
-    id 'maven-publish'
-    id 'org.jetbrains.intellij' version '1.1.2'
-}
-dependencies {
-
-}
-repositories {
-    maven { url 'https://maven.aliyun.com/repository/public/' }
-    mavenCentral()
-    maven {
-        url uri('../../repo')
+buildscript {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        mavenCentral()
+        maven {
+            url uri('../repo')
+        }
+    }
+    dependencies {
+        if (System.getProperty("user.dir").contains(":\\")) {
+            classpath 'com.by122006.zircon:gradle:+'
+        }else {
+            classpath 'com.github.122006.Zircon:gradle:2.+'
+        }
     }
 }
+

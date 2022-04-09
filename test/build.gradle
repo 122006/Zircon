@@ -1,5 +1,7 @@
+
 plugins {
     id 'java'
+    id 'ZrString'
 }
 
 
@@ -14,32 +16,12 @@ repositories {
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-    if (System.getProperty("user.dir").contains(":\\")) {
-        options.compilerArgs
-                << "-Xplugin:ZrString"
-        options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
-//                << "--add-exports=jdk.compiler/com.sun.tools.javac.api=zircon.javac"
-//                << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=zircon.javac"
-//                << "--add-exports=jdk.compiler/com.sun.tools.javac.main=zircon.javac"
-//                << "--add-exports=jdk.compiler/com.sun.tools.javac.parser=zircon.javac"
-//                << "--add-exports=jdk.compiler/com.sun.tools.javac.util=zircon.javac"
-        options.fork=true
-        options.forkOptions.jvmArgs
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED"
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
-                << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
-                << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED"
-                << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
-
-    }
 }
 
 dependencies {
     implementation 'junit:junit:4.12'
     testImplementation group: 'junit', name: 'junit', version: '4.12'
     annotationProcessor project(":javac")
-//    implementation "com.by122006.zircon:javac:0.2"
+//    annotationProcessor "com.by122006.zircon:javac:0.2"
+//    annotationProcessor "com.github.122006:Zircon:ad35619415"
 }

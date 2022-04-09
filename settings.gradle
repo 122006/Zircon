@@ -1,7 +1,8 @@
 rootProject.name = 'Zircon'
 include ':javac'
-include ':impl'
+//include ':impl'
 include ':base'
+include ':gradle_plugin'
 if (System.getProperty("user.dir").contains(":\\")) {
     include ':test'
     if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
@@ -11,3 +12,5 @@ if (System.getProperty("user.dir").contains(":\\")) {
     }
     include ':ijplugin'
 }
+include 'gradle_plugin'
+

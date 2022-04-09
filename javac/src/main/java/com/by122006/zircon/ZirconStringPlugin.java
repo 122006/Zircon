@@ -30,8 +30,6 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
     @Override
     public void init(JavacTask task, String... args) {
         System.out.println("inject [动态字符串插件] jdk:" + System.getProperty("java.version"));
-        System.out.println(task.toString());
-
         BasicJavacTask javacTask = (BasicJavacTask) task;
         Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
@@ -138,16 +136,8 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         } catch (ClassNotFoundException e) {
         }
         String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
-        System.out.println("path=" + path);
         InputStream is = path.startsWith("/")?ZirconStringPlugin.class.getResourceAsStream(path):incl.getResourceAsStream(path);
-
         if (is == null) {
-            final File file = new File("");
-            System.out.println(file.getAbsolutePath());
-            System.out.println(file.exists());
-            for (String s : file.getParentFile().list()) {
-                System.out.println(s);
-            }
             throw new RuntimeException("找不到对应类:" + claz);
         }
         byte[] bytes = new byte[is.available()];

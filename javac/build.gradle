@@ -11,21 +11,14 @@ repositories {
     }
 }
 dependencies {
-//    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
-    System.out.println("[javac] jdkVersion:" + System.getProperty("java.version"))
-//    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16)
-//        implementation project(":inject_java16")
-//    else
-//        implementation project(":inject_java7")
-//    implementation "com.by122006.zircon:base:0.1"
-        implementation project(":base")
+    implementation project(":base")
 
 }
 jar {
     manifest {
         attributes(
-                'Add-Exports': "jdk.compiler/com.sun.tools.javac.api",
-                'Automatic-Module-Name': "ALL-UNNAMED"
+                'Add-Exports': "jdk.compiler/com.sun.tools.javac.api jdk.compiler/com.sun.tools.javac.util jdk.compiler/com.sun.tools.javac.comp",
+                'Add-Opens': "jdk.compiler/com.sun.tools.javac.main jdk.compiler/com.sun.tools.javac.parser",
         )
     }
 }
@@ -33,15 +26,6 @@ compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
-//            << "--add-exports=jdk.compiler/com.sun.tools.javac.api=zircon.javac"
-//            << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=zircon.javac"
-//            << "--add-exports=jdk.compiler/com.sun.tools.javac.main=zircon.javac"
-//            << "--add-exports=jdk.compiler/com.sun.tools.javac.parser=zircon.javac"
-//            << "--add-exports=jdk.compiler/com.sun.tools.javac.util=zircon.javac"
-//    options.forkOptions.jvmArgs
-//            << "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
-//            << "-J--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
-
 }
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava

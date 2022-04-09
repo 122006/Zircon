@@ -11,12 +11,7 @@ repositories {
     }
 }
 dependencies {
-    System.out.println("use inject_java7")
-    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
-    System.out.println("jdkVersion:"+System.getProperty("java.version"))
-    System.out.println("javaHome:"+System.getProperty("java.home"))
     implementation project(":base")
-//    implementation "com.by122006.zircon:base:0.1"
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
