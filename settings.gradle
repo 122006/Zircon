@@ -12,5 +12,4 @@ if (System.getProperty("user.dir").contains(":\\")) {
     }
     include ':ijplugin'
 }
-include 'gradle_plugin'
 
