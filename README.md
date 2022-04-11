@@ -84,7 +84,7 @@
 2. [gradle引入](#gradle)
 
 
-####使用Gradle构建项目 <div id="gradle">
+#### 使用Gradle构建项目 <div id="gradle">
 
 > 有两种方式引入依赖
 > 
@@ -147,13 +147,17 @@ Step 2. 在需要使用插件的module的`build.gradle`文件中进行如下操�
 
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
-如果编译安卓项目，module的`build.gradle`文件中加入以下代码，以配置javac参数
+Step 3. 引入javac插件
+	
+	
+	1. 如果编译安卓项目，module的`build.gradle`文件中加入以下代码，以配置javac参数
 
-		tasks.withType(JavaCompile) {
+	tasks.withType(JavaCompile) {
                options.compilerArgs  << "-Xplugin:ZrString"
-           }
+        }
 
-如果编译标准java项目(非安卓项目)，以配置javac参数
+	
+	2.如果编译标准java项目(非安卓项目)，以配置javac参数
 
 	    compileJava {
                options.compilerArgs  << "-Xplugin:ZrString"
