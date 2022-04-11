@@ -79,25 +79,29 @@
     > 你可以使用正则 `(\$|f)"(.*'.*)+?"` 全局搜索项目以找到可能影响的地方 
 
 ---------------
-### 插件引入
+### 插件引入 
+1. [maven引入](#maven)
+2. [gradle引入](#gradle)
 
-**使用Gradle构建项目**
 
-### 有两种方式引入依赖
-[ZrString插件自动引入](#applyplugin)
+####使用Gradle构建项目 <div id="gradle">
 
-> 支持jdk7-jdk16以上
+> 有两种方式引入依赖
+> 
+1. [ZrString插件自动引入](#applyplugin)
+> 
+> 支持jdk7-jdk17以上
 
-[手动引入依赖](#annotationProcessor)
+2. [手动引入依赖](#annotationProcessor)
 
 > 只支持到jdk15
 
 
 
 
-<div id='applyplugin'/>
+<div id='applyplugin'>
 
-### 使用ZrString插件自动引入依赖（推荐）
+#### 使用ZrString插件自动引入依赖（推荐）
 Step 1.在你的根项目`build.gradle`文件中进行如下操作
 ````
 buildscript {
@@ -112,12 +116,14 @@ buildscript {
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
 Step 2.在需要使用插件的module的`build.gradle`文件中进行如下操作
-首行引入插件
-`apply plugin: 'ZrString'`
 
-<div id='annotationProcessor'/>
+1. 首行引入插件
 
-### 手动引入依赖
+    `apply plugin: 'ZrString'`
+
+<div id='annotationProcessor'>
+
+#### 手动引入依赖
 > 该方法对jdk16-jdk17的配置较繁琐，不推荐
 
 
@@ -153,7 +159,7 @@ Step 2. 在需要使用插件的module的`build.gradle`文件中进行如下操�
                options.compilerArgs  << "-Xplugin:ZrString"
            }
         
-**使用Maven构建项目**
+**使用Maven构建项目**<div id="maven">
     
 Step 1. 增加依赖
 
