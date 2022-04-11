@@ -83,6 +83,44 @@
 
 **使用Gradle构建项目**
 
+### 有两种方式引入依赖
+[ZrString插件自动引入](#applyplugin)
+
+> 支持jdk7-jdk16以上
+
+[手动引入依赖](#annotationProcessor)
+
+> 只支持到jdk15
+
+
+
+
+<div id='applyplugin'/>
+
+### 使用ZrString插件自动引入依赖（推荐）
+Step 1.在你的根项目`build.gradle`文件中进行如下操作
+````
+buildscript {
+    repositories {
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'com.github.122006.Zircon:gradle:版本号'
+    }
+}
+````
+当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+
+Step 2.在需要使用插件的module的`build.gradle`文件中进行如下操作
+首行引入插件
+`apply plugin: 'ZrString'`
+
+<div id='annotationProcessor'/>
+
+### 手动引入依赖
+> 该方法对jdk16-jdk17的配置较繁琐，不推荐
+
+
 Step 1. 在你的根目录项目`build.gradle`文件中进行如下操作
 
 	    allprojects {
@@ -165,7 +203,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 ## TODO 后续更新计划
 
  1. idea插件监听项目使用的javac版本，以判断是否生效该功能
- 2. 增加对代码段中双引号无需转义的支持（以替代单引号）
 
 --------------
 
@@ -180,3 +217,8 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
 ### v2.5
  1. 支持内部代码段中使用不转义的引号
+
+### v2.7
+1. 不再支持使用单引号转义双引号语法
+2. 支持使用gradle插件配置项目
+3. 重构以支持jdk16、jdk17
