@@ -12,8 +12,9 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/base" />
+            <option value="$PROJECT_DIR$/gradle_plugin" />
             <option value="$PROJECT_DIR$/ijplugin" />
-            <option value="$PROJECT_DIR$/impl" />
+            <option value="$PROJECT_DIR$/inject_java7" />
             <option value="$PROJECT_DIR$/javac" />
             <option value="$PROJECT_DIR$/test" />
           </set>

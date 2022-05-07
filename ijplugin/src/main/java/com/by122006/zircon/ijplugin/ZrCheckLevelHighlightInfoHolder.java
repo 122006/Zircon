@@ -25,7 +25,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jsoup.internal.StringUtil;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHolder {
@@ -115,8 +117,13 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
                         return false;
                     }
                 }.setElement(psiElement);
-                newInfo.registerFix(actionShow, first.getOptions(psiElement, null), first.getAction().getFamilyName(), markerPair.getSecond().shiftRight(startIndex), null);
-
+                List<IntentionAction> options;
+                try {
+                    options = first.getOptions(psiElement, null);
+                } catch (Throwable e) {
+                    options=new ArrayList<>();
+                }
+                newInfo.registerFix(actionShow, options, first.getAction().getFamilyName(), markerPair.getSecond().shiftRight(startIndex), null);
             });
         holder.add(newInfo);
         return true;
