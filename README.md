@@ -200,7 +200,7 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
   本插件尚未发布至idea仓库，请手动下载安装
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-1.9.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.0.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
    
 
@@ -212,7 +212,8 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
 ## TODO 后续更新计划
 
- 1. idea插件监听项目使用的javac版本，以判断是否生效该功能
+ 1. idea插件 监听项目使用的javac版本，以判断是否生效该功能
+ 2. idea插件 支持检测格式化标识是否与代码匹配
 
 --------------
 
@@ -232,3 +233,7 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 1. 不再支持使用单引号转义双引号语法
 2. 支持使用gradle插件配置项目
 3. 重构以支持jdk16、jdk17
+
+### idea插件2.0
+1. 支持`f-string`自动提示格式符及类型匹配错误
+2. 普通字符串支持自动识别转化为`$-string`

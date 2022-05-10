@@ -71,7 +71,6 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                             } catch (ProcessCanceledException e) {
                                 return;
                             } catch (Exception e) {
-                                e.printStackTrace();
                                 return;
                             }
                             final HighlightVisitorImpl highlightVisitor = getHighlightVisitor(psiElement.getProject());
