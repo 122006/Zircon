@@ -202,12 +202,20 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 #### 手动安装
 1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.1.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
-#### 插件仓库加载
-1. idea 'File | Settings | Plugins' 搜索Zircon下载 
+#### ide内插件仓库加载
+	
+For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Zircon"</kbd> > <kbd>Install Plugin</kbd> > <kbd>Restart IntelliJ IDEA</kbd>
+
+For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kbd>
 
 #### 网页加载 
 
-##### [点击跳转到jetbrains插件市场](https://plugins.jetbrains.com/plugin/19146-zircon)
+<a href="https://plugins.jetbrains.com/embeddable/install/19146">
+    <img src="https://user-images.githubusercontent.com/12044174/123105697-94066100-d46a-11eb-9832-338cdf4e0612.png" width="300"/>
+</a>
+
+
+
 
 ### 其他注意事项
 
