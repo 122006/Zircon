@@ -6,7 +6,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:2.7'
+        classpath 'com.github.122006.Zircon:gradle:2.8'
     }
 }
 apply plugin: 'java'

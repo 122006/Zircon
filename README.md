@@ -198,11 +198,12 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
         
 ### 安装IDEA插件
 
-  本插件尚未发布至idea仓库，请手动下载安装
+<iframe frameborder="none" width="245px" height="48px" src="https://plugins.jetbrains.com/embeddable/install/19146"></iframe>
 
+#### 手动安装
 1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.1.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
-   
+#### 插件仓库加载
 
 ### 其他注意事项
 

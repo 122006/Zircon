@@ -5,10 +5,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public interface Formatter {
-//    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
+    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
     List<Formatter> FORMATTERS = new ArrayList<>();
     List<String> PREFIXES = new ArrayList<>();
 
@@ -19,7 +20,7 @@ public interface Formatter {
         List<Class<? extends Formatter>> classes = Arrays.asList(SStringFormatter.class, FStringFormatter.class);
         List<Formatter> collect = classes.stream().map(a -> {
             try {
-                return (Formatter)a.getConstructor().newInstance();
+                return (Formatter) a.getConstructor().newInstance();
             } catch (Exception e) {
                 e.printStackTrace();
                 return null;
@@ -48,6 +49,13 @@ public interface Formatter {
     String stringTransfer(String text);
 
     default String codeTransfer(String text) {
+//        if (text.matches( "^\".*|.*[^'\\\\]{1}\".*")) {
+//            return text;
+//        } else {
+//            String toStr = text.replaceAll( "\\\\?([a-z0-9\"']{1})" , "$1")
+//                    .replace( "\\\\" , "\\");
+//            return toStr;
+//        }
         String toStr = text.replaceAll( "\\\\?([a-z0-9\"']{1})", "$1" )
                 .replace( "\\\\", "\\" );
         return toStr;
@@ -58,7 +66,7 @@ public interface Formatter {
         String toStr = codeTransfer(str);
         int replaceCount = str.length() - toStr.length();
         if (!Objects.equals(str, toStr)) {
-//            logger.info( "替代后续文本 ${" + str + "}->${" + toStr + "}" );
+//            logger.info( "替代后续文本 ${" + str + "}->${" + toStr + "}");
             System.arraycopy(toStr.toCharArray(), 0, buf, groupStartIndex + startIndex, toStr.length());
             char[] array = new char[replaceCount];
             Arrays.fill(array, ' ');
