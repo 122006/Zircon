@@ -25,6 +25,6 @@ class ZrStringPlugin implements Plugin<Project> {
 //            annotationProcessor "com.github.122006.Zircon:javac:2.+"
 //        }
         project.dependencies.add("annotationProcessor"
-                , project.dependencies.create("com.github.122006.Zircon:javac:2.7"))
+                , project.dependencies.create("com.github.122006.Zircon:javac:2.8"))
     }
 }

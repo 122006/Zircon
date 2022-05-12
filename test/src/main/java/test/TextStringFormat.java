@@ -66,6 +66,9 @@ public class TextStringFormat {
         assertEquals( f"(${\"test\"})" , "(test)");
         assertEquals( $"a${1 == 0 ? "" : "("+add+")"}" , "a(test)");
 
+        assertEquals( f"({${'"'}})" , "({\"})");
+        assertEquals( f"${"\\n"}" , "\n");
+        assertEquals( f"${"\\""}" , "\"");
         assertEquals( f"({${add}})" , "({test})");
         assertEquals( f"({${%03d:12}})" , "({012})");
         assertEquals( f"({${%.2f:12d}})" , "({12.00})");
@@ -107,10 +110,10 @@ public class TextStringFormat {
         assertEquals( f"\\${add}" , "${add}");
         assertEquals( f"\\n${add}" , "\\ntest");
         assertEquals( f"\\n${add}" , "\\ntest");
-        assertEquals( f"${1==1?"通过":\"驳回\"}" , "通过");
+        assertEquals( f"${1==1?"通过":"驳回"}" , "通过");
         assertEquals( f"${String.valueOf("2")}" , "2");
 
-        assertEquals( $"${false?"通过":\"驳回\"}" , "驳回");
+        assertEquals( $"${false?\"通过\":\"驳回\"}" , "驳回");
         assertEquals( f"审批${Boolean.valueOf("true")?"通过":"驳回"} [${add}]\n $add" , "审批通过 [test]\n test");
         assertEquals( f"$add" + (2 + 3) + f"$add" + 1 + f"$add" , "test5test1test");
         assertEquals( f"$add ${add}" , "test test");

@@ -8,13 +8,32 @@
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/javac/2.7/javac-2.7.jar" />
-          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/base/2.7/base-2.7.jar" />
+          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/javac/2.8/javac-2.8.jar" />
+          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/base/2.8/base-2.8.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel target="8" />
+    <bytecodeTargetLevel target="8">
+      <module name="Zircon.base" target="11" />
+      <module name="Zircon.base.main" target="1.8" />
+      <module name="Zircon.base.test" target="11" />
+      <module name="Zircon.gradle_plugin" target="11" />
+      <module name="Zircon.gradle_plugin.main" target="11" />
+      <module name="Zircon.gradle_plugin.test" target="11" />
+      <module name="Zircon.ijplugin" target="11" />
+      <module name="Zircon.ijplugin.main" target="11" />
+      <module name="Zircon.ijplugin.test" target="11" />
+      <module name="Zircon.inject_java7" target="11" />
+      <module name="Zircon.inject_java7.main" target="1.8" />
+      <module name="Zircon.inject_java7.test" target="11" />
+      <module name="Zircon.javac" target="1.8" />
+      <module name="Zircon.javac.main" target="1.8" />
+      <module name="Zircon.javac.test" target="1.8" />
+      <module name="Zircon.test" target="11" />
+      <module name="Zircon.test.main" target="1.8" />
+      <module name="Zircon.test.test" target="11" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_STRING" value="-Xlint:unchecked" />
