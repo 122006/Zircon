@@ -55,6 +55,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
     @Override
     public boolean add(@Nullable HighlightInfo info) {
         if (info == null) return false;
+        if (psiElement==null) return false;
         if (info.type == HighlightInfoType.UNHANDLED_EXCEPTION) {
             final ExceptionUtil.HandlePlace handlePlace = ExceptionUtil.getHandlePlace(psiElement.getParent().getContext(), ExceptionUtil.getOwnUnhandledExceptions(psiElement).get(0), null);
             final boolean b = handlePlace != ExceptionUtil.HandlePlace.UNHANDLED;

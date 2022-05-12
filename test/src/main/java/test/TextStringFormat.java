@@ -110,11 +110,11 @@ public class TextStringFormat {
         assertEquals( f"\\${add}" , "${add}");
         assertEquals( f"\\n${add}" , "\\ntest");
         assertEquals( f"\\n${add}" , "\\ntest");
-        assertEquals( f"${1==1?"通过":"驳回"}" , "通过");
+        assertEquals( f"${1==1?"通过":\"驳回\"}" , "通过");
         assertEquals( f"${String.valueOf("2")}" , "2");
 
         assertEquals( $"${false?\"通过\":\"驳回\"}" , "驳回");
-        assertEquals( f"审批${Boolean.valueOf("true")?"通过":"驳回"} [${add}]\n $add" , "审批通过 [test]\n test");
+        assertEquals( f"审批${Boolean.valueOf("true")?\"通过\":"驳回"} [${add}]\n $add" , "审批通过 [test]\n test");
         assertEquals( f"$add" + (2 + 3) + f"$add" + 1 + f"$add" , "test5test1test");
         assertEquals( f"$add ${add}" , "test test");
         assertEquals( f"${String.valueOf("2'2'2")}" , "2'2'2");
