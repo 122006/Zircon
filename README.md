@@ -1,4 +1,4 @@
-# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a><a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a>
 
 -----------------
 
@@ -205,8 +205,9 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 #### 插件仓库加载
 1. idea 'File | Settings | Plugins' 搜索Zircon下载 
 
-#### 网页加载
-[![点击跳转到jetbrains插件市场](https://plugins.jetbrains.com/embeddable/install/19146)] 
+#### 网页加载 
+
+##### [点击跳转到jetbrains插件市场](https://plugins.jetbrains.com/plugin/19146-zircon)
 
 ### 其他注意事项
 
