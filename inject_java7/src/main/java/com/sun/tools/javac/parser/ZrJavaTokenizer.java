@@ -124,7 +124,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             String searchText = subChars(startIndex, endIndex);
             final ZrStringModel build = formatter.build(searchText);
             List<StringRange> group = build.getList();
-            endIndex =startIndex+ build.endQuoteIndex;
+            endIndex =startIndex+ build.originalString.length();
             searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;

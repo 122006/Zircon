@@ -287,7 +287,7 @@ public final class ZrJavaLexer extends LexerBase {
         }
         final String s = myBuffer.subSequence(startIndex, offset).toString();
         final ZrStringModel build = formatter.build(s);
-        return build.getEndQuoteIndex() + startIndex;
+        return build.getEndQuoteIndex() + startIndex+1;
     }
 
     private int getClosingComment(int offset) {

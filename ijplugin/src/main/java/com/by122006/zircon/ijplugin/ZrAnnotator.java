@@ -15,21 +15,29 @@ import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.FoldRegion;
+import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.FoldingModelEx;
+import com.intellij.openapi.editor.markup.EffectType;
+import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
+import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
 import com.sun.tools.javac.parser.*;
 import com.sun.tools.javac.parser.Formatter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.awt.*;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,52 +55,153 @@ public class ZrAnnotator implements Annotator {
             return;
         }
         if (ZrUtil.isJavaStringLiteral(element)) {
-            if (!element.getText().startsWith("\"")) {
-                registerChange2NormalIntentionAction(element, holder, element.getText());
-                final FStringFormatter fStringFormatter = new FStringFormatter();
-                if (element.getText().startsWith(fStringFormatter.prefix())) {
-                    try {
-                        final ZrStringModel build = fStringFormatter.build(element.getText());
-                        checkFStringError(element, build, holder);
-                    } catch (Exception e) {
-                        LOG.warn(e);
+            final String text = element.getText();
+            if (!text.startsWith( "\"")) {
+                final Formatter formatter = registerChange2NormalIntentionAction(element, holder, text);
+                if (formatter != null) {
+                    final ZrStringModel model = formatter.build(text);
+                    String printOut = replace2NormalString(element, holder, text, formatter, model);
+                    foldCode(element, holder, printOut);
+                    boldSpecialChar(element, holder, formatter, model);
+                    model.getList().stream().filter(a-> a.codeStyle==1).forEach(a->{
+                        final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
+                                .shiftRight(element.getTextOffset());
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                                .range(textRange)
+                                .highlightType(ProblemHighlightType.INFORMATION)
+                                .textAttributes(ZrStringTextCodeStyle1)
+                                .create();
+                    });
+                    if (formatter instanceof FStringFormatter) {
+                        try {
+                            checkFStringError(element, model, holder);
+                        } catch (Exception e) {
+                            LOG.warn(e);
+                        }
+                    }
+                    if (formatter instanceof SStringFormatter) {
+                        try {
+                            final ZrStringModel build = new FStringFormatter().build(text);
+                            checkSStringChange2FString(element, build, holder);
+                        } catch (Exception e) {
+                            LOG.warn(e);
+                        }
                     }
                 }
-                final SStringFormatter SStringFormatter = new SStringFormatter();
-                if (element.getText().startsWith(SStringFormatter.prefix())) {
-                    try {
-                        final ZrStringModel build = fStringFormatter.build(element.getText());
-                        checkSStringChange2FString(element, build, holder);
-                    } catch (Exception e) {
-                        LOG.warn(e);
-                    }
-                }
-            }else {
-                checkNeedChange2SString(element, holder);
+
+            } else {
+                checkNeedChange2SString(element, holder,text);
             }
             return;
         }
         if (element instanceof PsiMethodCallExpressionImpl) {
-//  public static final CallMatcher STRING_FORMATTED = CallMatcher.instanceCall(CommonClassNames.JAVA_LANG_STRING, "formatted")
-//    .parameterTypes("java.lang.Object...");
             if (FormatUtils.isFormatCall((PsiMethodCallExpression) element)) {
                 registerChangeFromFormatIntentionAction((PsiMethodCallExpressionImpl) element, holder);
             }
             return;
         }
-//        String.format(Locale.CHINA,"1%02d22",1+ 1,""+"",3);
     }
 
-    private void checkNeedChange2SString(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        if (element.getText().matches(".*\\$\\{.*")){
-            holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: 替换为'$-string'模板字符串")
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleP1
+            = createTextAttributesKey( "ZrStringTextCodeStyleP1" ,
+            new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC)
+            , null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit
+            = createTextAttributesKey( "ZrStringTextCodeStyleSplit" ,
+            new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, null, null, Font.PLAIN)
+            , null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle2
+            = createTextAttributesKey( "ZrStringTextCodeStyle2" ,
+            new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, null, null, Font.ITALIC)
+            , null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle1
+            = createTextAttributesKey( "ZrStringTextCodeStyle1" ,
+            new TextAttributes(null,new JBColor(new Color(255,255,255,0), new Color(0,0,0,0)) , new JBColor(0x999999,0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN)
+            , null);
+
+    private void boldSpecialChar(PsiElement element, AnnotationHolder holder, Formatter formatter, ZrStringModel model) {
+        String text = model.getOriginalString();
+        {
+            final TextRange textRange = TextRange.create(0, text.indexOf( "\""))
+                    .shiftRight(element.getTextOffset());
+            holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                    .range(textRange)
+                    .highlightType(ProblemHighlightType.INFORMATION)
+                    .textAttributes(ZrStringTextCodeStyleP1)
+                    .create();
+        }
+        {
+            int lastItemEndIndex = text.indexOf( "\"") + 1;
+            final List<StringRange> list = new ArrayList<>(model.getList());
+            list.add(StringRange.of(0, model.getEndQuoteIndex(), model.getEndQuoteIndex()));
+            for (StringRange stringRange : list) {
+                String sub = text.substring(lastItemEndIndex, stringRange.startIndex).trim();
+                {
+                    final TextRange textRange = TextRange.create(lastItemEndIndex, stringRange.startIndex)
+                            .shiftRight(element.getTextOffset());
+                    if (sub.equals( "$")) {
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                                .range(textRange)
+                                .highlightType(ProblemHighlightType.INFORMATION)
+                                .textAttributes(ZrStringTextCodeStyleSplit)
+                                .create();
+                    } else if (sub.equals( "${")) {
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                                .range(textRange)
+                                .highlightType(ProblemHighlightType.INFORMATION)
+                                .textAttributes(ZrStringTextCodeStyleSplit)
+                                .create();
+                    } else if (sub.equals( "}")) {
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                                .range(textRange)
+                                .highlightType(ProblemHighlightType.INFORMATION)
+                                .textAttributes(ZrStringTextCodeStyleSplit)
+                                .create();
+                    } else if (formatter instanceof FStringFormatter & sub.equals( ":")) {
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                                .range(textRange)
+                                .highlightType(ProblemHighlightType.INFORMATION)
+                                .textAttributes(ZrStringTextCodeStyleSplit)
+                                .create();
+                    }
+                }
+                if (stringRange.codeStyle == 2) {
+                    final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
+                            .shiftRight(element.getTextOffset());
+                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                            .range(textRange)
+                            .textAttributes(ZrStringTextCodeStyle2)
+                            .create();
+                }
+                lastItemEndIndex = stringRange.endIndex;
+            }
+
+        }
+    }
+
+    public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
+        final Constructor<?> constructor = Arrays.stream(TextAttributesKey.class.getDeclaredConstructors()).filter(a -> a.getParameterCount() == 3)
+                .findFirst().orElseThrow(() -> new RuntimeException( "不支持的idea版本"));
+        constructor.setAccessible(true);
+        try {
+            return (TextAttributesKey) constructor.newInstance(externalName, defaultAttributes, fallbackAttributeKey);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(new RuntimeException( "不支持的idea版本"));
+        }
+    }
+
+    private void checkNeedChange2SString(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
+        if (text.matches( ".*\\$\\{.*")) {
+            holder.newAnnotation(HighlightSeverity.INFORMATION,"[ZrString]:replace with '$-string'")
                     .range(element)
                     .highlightType(ProblemHighlightType.INFORMATION)
                     .withFix(new IntentionAction() {
                         @Override
                         public @IntentionName
-                        @NotNull String getText() {
-                            return "[ZrString]: 替换为'$-string'模板字符串";
+                        @NotNull
+                        String getText() {
+                            return "[ZrString]: replace with '$-string'";
                         }
 
                         @Override
@@ -110,7 +219,7 @@ public class ZrAnnotator implements Annotator {
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                             if (editor instanceof EditorEx) {
                                 PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "$"+ element.getText();
+                                final String text = "$" + element.getText();
                                 @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
                                 element.replace(codeBlockFromText);
                             }
@@ -127,15 +236,16 @@ public class ZrAnnotator implements Annotator {
 
     private void checkSStringChange2FString(PsiElement element, ZrStringModel build, AnnotationHolder holder) {
         final boolean change2FString = build.getList().stream().anyMatch(a -> a.codeStyle == 2);
-        if (change2FString){
-            holder.newAnnotation(HighlightSeverity.WARNING, "[ZrString]: 请使用'F-string'以格式化字符串")
+        if (change2FString) {
+            holder.newAnnotation(HighlightSeverity.WEAK_WARNING,"[ZrString]:replace with 'F-string'")
                     .range(element)
-                    .highlightType(ProblemHighlightType.WARNING)
+                    .highlightType(ProblemHighlightType.WEAK_WARNING)
                     .withFix(new IntentionAction() {
                         @Override
                         public @IntentionName
-                        @NotNull String getText() {
-                            return "[ZrString]: 替换为'F-string'";
+                        @NotNull
+                        String getText() {
+                            return "[ZrString]: replace with 'F-string'";
                         }
 
                         @Override
@@ -153,7 +263,7 @@ public class ZrAnnotator implements Annotator {
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                             if (editor instanceof EditorEx) {
                                 PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "f"+element.getText().substring(1);
+                                final String text = "f" + element.getText().substring(1);
                                 @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
                                 element.replace(codeBlockFromText);
                             }
@@ -161,7 +271,7 @@ public class ZrAnnotator implements Annotator {
 
                         @Override
                         public boolean startInWriteAction() {
-                            return false;
+                            return true;
                         }
                     })
                     .create();
@@ -169,8 +279,8 @@ public class ZrAnnotator implements Annotator {
     }
 
     private void checkFStringError(@NotNull PsiElement element, ZrStringModel build, AnnotationHolder holder) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Class<?> aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
-        final Method decode = aClass.getMethod("decode", String.class, int.class);
+        final Class<?> aClass = Class.forName( "com.siyeh.ig.bugs.FormatDecode");
+        final Method decode = aClass.getMethod( "decode" , String.class, int.class);
         decode.setAccessible(true);
         build.getList().stream().map(a -> {
             switch (a.codeStyle) {
@@ -218,7 +328,7 @@ public class ZrAnnotator implements Annotator {
                 final Throwable targetException = e.getTargetException();
                 final TextRange textRange = TextRange.create(formatRange.startIndex, formatRange.endIndex)
                         .shiftRight(element.getTextOffset());
-                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: "+targetException.getMessage())
+                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: " + targetException.getMessage())
                         .range(textRange)
                         .highlightType(ProblemHighlightType.ERROR)
                         .create();
@@ -243,7 +353,7 @@ public class ZrAnnotator implements Annotator {
             }
             BiPredicate<Object, PsiType> valid = (o, psiType) -> {
                 try {
-                    final Method method = o.getClass().getMethod("valid", PsiType.class);
+                    final Method method = o.getClass().getMethod( "valid" , PsiType.class);
                     method.setAccessible(true);
                     return (boolean) method.invoke(o, psiType);
                 } catch (Exception e) {
@@ -261,7 +371,7 @@ public class ZrAnnotator implements Annotator {
                 if (preciseType == null || !valid.test(validator, preciseType)) {
                     final TextRange textRange = argumentRange.get(i)
                             .shiftRight(element.getTextOffset());
-                    holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 参数类型不匹配。当前传入:"+argumentType.getCanonicalText())
+                    holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 参数类型不匹配。当前传入:" + argumentType.getCanonicalText())
                             .range(textRange)
                             .highlightType(ProblemHighlightType.ERROR)
                             .create();
@@ -287,8 +397,8 @@ public class ZrAnnotator implements Annotator {
 
         String text = "f" + collect.get(0).getText();
         collect.remove(0);
-        text = text.replace("%n", "\\n").replace("$", "\\$");
-        Matcher m = Pattern.compile("%(\\d+\\$)?([-#+ 0,(<]*)?(\\d+)?(\\.\\d*)?([tT])?([a-zA-Z%])").matcher(text);
+        text = text.replace( "%n" , "\\n").replace( "$" , "\\$");
+        Matcher m = Pattern.compile( "%(\\d+\\$)?([-#+ 0,(<]*)?(\\d+)?(\\.\\d*)?([tT])?([a-zA-Z%])").matcher(text);
         final Iterator<PsiElement> iterator = collect.iterator();
         StringBuilder stringBuilder = new StringBuilder();
         int lastIndex = 0;
@@ -298,19 +408,19 @@ public class ZrAnnotator implements Annotator {
             String group = m.group(0);
             final String s;
             if (iterator.hasNext()) {
-                if ("%%".equals(group)) {
+                if ( "%%".equals(group)) {
                     s = "%";
-                } else if ("%n".equals(group)) {
+                } else if ( "%n".equals(group)) {
                     s = "\n";
-                } else if ("%s".equals(group) || "%d".equals(group)) {
+                } else if ( "%s".equals(group) || "%d".equals(group)) {
                     final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1")
+                            .replace( "\n" , "");
                     s = "${" + replace + "}";
                 } else {
                     final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1")
+                            .replace( "\n" , "");
                     s = "${" + group + ":" + replace + "}";
                 }
             } else {
@@ -329,30 +439,44 @@ public class ZrAnnotator implements Annotator {
                 .create();
     }
 
-    private void registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
+    @Nullable
+    private Formatter registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
         List<Formatter> allFormatters = Formatter.getAllFormatters();
-        int endIndex = text.indexOf("\"");
+        int endIndex = text.indexOf( "\"");
         if (endIndex == -1) {
             LOG.info(element +
                     "字符串前缀无法识别: " + text);
-            return;
+            return null;
         }
         if (endIndex == 0) {
-            return;
+            return null;
         }
-        String prefix = text.substring(0, endIndex).replace("\\", "");
-        if (prefix.contains("\\")) return;
+        String prefix = text.substring(0, endIndex).replace( "\\" , "");
+        if (prefix.contains( "\\")) return null;
         Formatter formatter = allFormatters.stream()
                 .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
         if (formatter == null) {
-            LOG.info("未识别的字符串前缀: " + text);
-            return;
+            LOG.info( "未识别的字符串前缀: " + text);
+            return null;
         }
-        final ZrStringModel model = formatter.build(text);
+        return formatter;
+    }
+
+    private void foldCode(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String printOut) {
+        if (element.getTextOffset() != 0)
+            holder.newAnnotation(HighlightSeverity.INFORMATION,"[ZrString]: fold Code")
+                    .range(element)
+                    .highlightType(ProblemHighlightType.INFORMATION)
+                    .withFix(new FoldCodeQuickFix(element, element.getTextOffset()))
+                    .create();
+    }
+
+    @NotNull
+    private String replace2NormalString(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text, Formatter formatter, ZrStringModel model) {
         List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (element.getParent() instanceof PsiExpressionList) {
-            if (printOut.startsWith("(") && printOut.endsWith(")")) {
+            if (printOut.startsWith( "(") && printOut.endsWith( ")")) {
                 printOut = printOut.substring(1, printOut.length() - 1);
             }
         }
@@ -362,20 +486,13 @@ public class ZrAnnotator implements Annotator {
                 .highlightType(ProblemHighlightType.INFORMATION)
                 .withFix(new Change2NormalStringQuickFix(printOut, element))
                 .create();
-        if (element.getTextOffset() != 0)
-            holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Fold line string code")
-                    .range(element)
-                    .tooltip(printOut)
-                    .highlightType(ProblemHighlightType.INFORMATION)
-                    .withFix(new FoldCodeQuickFix(element, element.getTextOffset()))
-                    .create();
-
+        return printOut;
     }
 
     private void registerChange2SStringIntentionAction(@NotNull PsiPolyadicExpression element, @NotNull AnnotationHolder holder) {
         ProblemHighlightType information = ProblemHighlightType.INFORMATION;
         HighlightSeverity severity = HighlightSeverity.INFORMATION;
-        StringBuilder printOut = new StringBuilder("$\"");
+        StringBuilder printOut = new StringBuilder( "$\"");
         List<PsiElement> collect = Arrays.stream(element.getChildren())
                 .filter(a -> !(a instanceof PsiWhiteSpace
                         || (a instanceof PsiJavaToken && ((PsiJavaToken) a).getTokenType() == JavaTokenType.PLUS)
@@ -391,27 +508,27 @@ public class ZrAnnotator implements Annotator {
             }
         }
         if (!firstCollect.isEmpty()) {
-            printOut.append("${");
-            printOut.append(firstCollect.stream().map(PsiElement::getText).collect(Collectors.joining("+")));
-            printOut.append("}");
+            printOut.append( "${");
+            printOut.append(firstCollect.stream().map(PsiElement::getText).collect(Collectors.joining( "+")));
+            printOut.append( "}");
         }
         List<PsiElement> collect1 = collect.stream().skip(firstCollect.size()).collect(Collectors.toList());
         for (int i = 0; i < collect1.size(); i++) {
             PsiElement item = collect1.get(i);
             String itemText = item.getText();
             if (ZrUtil.isJavaStringLiteral(item)) {
-                if (itemText.startsWith("\"")) {
+                if (itemText.startsWith( "\"")) {
                     printOut.append(itemText, 1, itemText.length() - 1);
                 } else {
-                    printOut.append(itemText, itemText.indexOf("\"") + 1, itemText.length() - 1);
+                    printOut.append(itemText, itemText.indexOf( "\"") + 1, itemText.length() - 1);
                 }
             } else {
                 int appendType = 0;
-                if (itemText.matches("[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+")) {
+                if (itemText.matches( "[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+")) {
                     if (i + 1 < collect1.size()) {
                         PsiElement nextItem = collect1.get(i + 1);
                         if (ZrUtil.isJavaStringLiteral(nextItem)) {
-                            if (nextItem.getText().matches("\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
+                            if (nextItem.getText().matches( "\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
                                 appendType = 1;
                             } else {
                                 appendType = 0;
@@ -429,21 +546,21 @@ public class ZrAnnotator implements Annotator {
                     if (itemText.length() <= 2) continue;
                     itemText = itemText.substring(1, itemText.length() - 1).trim();
                 }
-                final String replace = itemText.replaceAll("([^\\\\])'", "$1\\'")
-                        .replace("\n", "")
-                        .replace("\r", "");
-                if (replace.endsWith("))")) appendType = 1;
+                final String replace = itemText.replaceAll( "([^\\\\])'" , "$1\\'")
+                        .replace( "\n" , "")
+                        .replace( "\r" , "");
+                if (replace.endsWith( "))")) appendType = 1;
                 if (appendType == 1) {
-                    printOut.append("${");
+                    printOut.append( "${");
                     printOut.append(replace);
-                    printOut.append("}");
+                    printOut.append( "}");
                 } else {
-                    printOut.append("$");
+                    printOut.append( "$");
                     printOut.append(replace);
                 }
             }
         }
-        printOut.append("\"");
+        printOut.append( "\"");
 //            if( collect.stream().filter(a->(!ZrElementUtil.isJavaStringLiteral(a))).allMatch(a->a.getText().length()<10)){
 //                information=ProblemHighlightType.INFORMATION;
 //                severity=HighlightSeverity.INFORMATION;

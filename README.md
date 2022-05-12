@@ -200,7 +200,7 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
   本插件尚未发布至idea仓库，请手动下载安装
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.0.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.1.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
    
 
@@ -213,7 +213,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 ## TODO 后续更新计划
 
  1. idea插件 监听项目使用的javac版本，以判断是否生效该功能
- 2. idea插件 支持检测格式化标识是否与代码匹配
 
 --------------
 
@@ -237,3 +236,6 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 ### idea插件2.0
 1. 支持`f-string`自动提示格式符及类型匹配错误
 2. 普通字符串支持自动识别转化为`$-string`
+
+### idea插件2.1
+1. 模板字符串结构字符会用特殊颜色标出

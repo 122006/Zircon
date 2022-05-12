@@ -34,8 +34,8 @@ public class ZrJavaQuoteHandler extends JavaQuoteHandler {
                         .findFirst().orElse(null);
                 if (formatter == null) return true;
                 final ZrStringModel build = formatter.build(charsSequence.subSequence(checkStart, checkEndIndex).toString());
-                if (build.getEndQuoteIndex()+checkStart >= iterator.getEnd()) return false;
-                checkStart=build.getEndQuoteIndex()+checkStart;
+                if (build.getEndQuoteIndex()+1+checkStart >= iterator.getEnd()) return false;
+                checkStart=build.getEndQuoteIndex()+1+checkStart;
             }
             return true;
         }

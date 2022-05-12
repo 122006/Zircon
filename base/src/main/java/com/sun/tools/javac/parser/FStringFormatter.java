@@ -159,7 +159,7 @@ public class FStringFormatter implements Formatter {
                         list.add(StringRange.string(this, text, startI, thisIndex));
                     }
                     model.setOriginalString(text.substring(0, thisIndex + 1));
-                    model.setEndQuoteIndex(thisIndex + 1);
+                    model.setEndQuoteIndex(thisIndex);
                     return model;
                 }
             }
@@ -172,7 +172,7 @@ public class FStringFormatter implements Formatter {
             }
         }
         model.setOriginalString(text);
-        model.setEndQuoteIndex(text.length());
+        model.setEndQuoteIndex(text.length()-1);
         return model;
     }
 

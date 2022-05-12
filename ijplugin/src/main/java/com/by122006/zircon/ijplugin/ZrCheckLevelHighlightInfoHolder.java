@@ -114,7 +114,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
 
                     @Override
                     public boolean startInWriteAction() {
-                        return false;
+                        return action.startInWriteAction();
                     }
                 }.setElement(psiElement);
                 List<IntentionAction> options;

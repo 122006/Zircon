@@ -104,9 +104,9 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                 logger.error( "ZirconString的错误检查功能不支持该idea版本:" + e);
                             } catch (ProcessCanceledException e) {
                                 throw e;
-                            } catch (AssertionError e){
+                            } catch (AssertionError e) {
                                 logger.warn(e);
-                            }catch (Exception e) {
+                            } catch (Exception e) {
                                 e.printStackTrace();
                                 logger.error(e);
 //                                            holder.add(HighlightInfo.newHighlightInfo(HighlightInfoType.ERROR).range(expression, startOffset + errorElement[0].getTextRange().getStartOffset(), startOffset + errorElement[0].getTextRange().getEndOffset()).create());
@@ -117,13 +117,13 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     }
 
     private HighlightInfoHolder getMyHolder(HighlightVisitorImpl highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder" );
+        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder");
         myHolder.setAccessible(true);
         return (HighlightInfoHolder) myHolder.get(highlightVisitor);
     }
 
     private void setMyHolder(HighlightVisitorImpl highlightVisitor, HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder" );
+        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder");
         myHolder.setAccessible(true);
         myHolder.set(highlightVisitor, highlightInfoHolder);
     }
@@ -131,6 +131,9 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     @Override
     public boolean analyze(@NotNull PsiFile file, boolean updateWholeFile, @NotNull HighlightInfoHolder holder, @NotNull Runnable highlight) {
         this.holder = holder;
+        if (!file.isPhysical()) {
+            return true;
+        }
         highlight.run();
         return true;
     }

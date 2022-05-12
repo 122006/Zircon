@@ -56,6 +56,8 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
                                         textRange = new TextRange(start + textOffset, a.endIndex + 1 + textOffset);
                                     } else
                                         textRange = new TextRange(a.startIndex + textOffset, a.endIndex + textOffset);
+                                    if (textRange.getLength() < 14) return null;
+                                    if (text.matches("[0-9A-Za-z_\\u4e00-\\u9fa5$]+(?:\\(\\))?")) return null;
                                     return new FoldingDescriptor(expression, textRange);
                                 }).filter(Objects::nonNull).collect(Collectors.toList());
                         result.addAll(collect);
@@ -70,19 +72,12 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
 
     @Nullable
     public String getPlaceholderText(@NotNull ASTNode node, @NotNull TextRange range) {
-        String oText = node.getText().substring(range.getStartOffset() - node.getStartOffset(), range.getEndOffset() - node.getStartOffset());
-        String text = oText;
-        if (oText.startsWith("${")) text = oText.substring(2, oText.length() - 1);
-        else if (oText.startsWith("$")) text = oText.substring(1);
-        if (text.length() > 14) {
-//            return oText.substring(0,6)+"..."+oText.substring(oText.length()-10);
-            return "${...}";
-        }
-        return "${" + text + "}";
+        return "${...}";
     }
 
     @Override
-    public @Nullable String getPlaceholderText(@NotNull ASTNode node) {
+    public @Nullable
+    String getPlaceholderText(@NotNull ASTNode node) {
         return "...";
     }
 
