@@ -4,6 +4,7 @@ import com.by122006.zircon.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.ide.highlighter.JavaFileType;
+import com.intellij.jsp.JspSpiUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
@@ -21,7 +22,6 @@ import com.intellij.psi.impl.source.resolve.reference.impl.providers.JavaClassRe
 import com.intellij.psi.impl.source.tree.ElementType;
 import com.intellij.psi.impl.source.tree.JavaJspElementType;
 import com.intellij.psi.jsp.JspFile;
-import com.intellij.psi.jsp.JspSpiUtil;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.ArrayUtil;
@@ -70,13 +70,28 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
         final JspFile jspFile = JspPsiUtil.getJspFile(file);
         collectNamesToImport(names, comments, file, jspFile);
         if (jspFile != null) {
-            PsiFile[] files = ArrayUtil.mergeArrays(JspSpiUtil.getIncludingFiles(jspFile), JspSpiUtil.getIncludedFiles(jspFile));
-            for (PsiFile includingFile : files) {
-                final PsiFile javaRoot = includingFile.getViewProvider().getPsi(JavaLanguage.INSTANCE);
-                if (javaRoot instanceof PsiJavaFile && file != javaRoot) {
-                    collectNamesToImport(names, comments, (PsiJavaFile) javaRoot, jspFile);
+            try {
+                 Class<?> aClass;
+                try {
+                    aClass = Class.forName("com.intellij.jsp.JspSpiUtil");
+                } catch (ClassNotFoundException e) {
+                    aClass = Class.forName("com.intellij.psi.jsp.JspSpiUtil");
                 }
+                final Method getIncludingFiles = aClass.getDeclaredMethod("getIncludingFiles", JspFile.class);
+                final PsiFile[] invoke = (PsiFile[]) getIncludingFiles.invoke(null, jspFile);
+                final Method getIncludedFiles = aClass.getDeclaredMethod("getIncludedFiles", JspFile.class);
+                final PsiFile[] invoke2 = (PsiFile[]) getIncludedFiles.invoke(null, jspFile);
+                PsiFile[] files = ArrayUtil.mergeArrays(invoke, invoke2);
+                for (PsiFile includingFile : files) {
+                    final PsiFile javaRoot = includingFile.getViewProvider().getPsi(JavaLanguage.INSTANCE);
+                    if (javaRoot instanceof PsiJavaFile && file != javaRoot) {
+                        collectNamesToImport(names, comments, (PsiJavaFile) javaRoot, jspFile);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+
         }
         final Method addUnresolvedImportNames = ImportHelper.class.getDeclaredMethod( "addUnresolvedImportNames", Set.class, PsiJavaFile.class);
         addUnresolvedImportNames.setAccessible(true);

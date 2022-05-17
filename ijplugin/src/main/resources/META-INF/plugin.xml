@@ -1,14 +1,47 @@
 <idea-plugin>
     <id>com.by122006.zircon.ijplugin</id>
     <vendor email="1109108466@qq.com" url="https://github.com/122006/Zircon">122006</vendor>
-    <description>A template String plugin for java language . Allows you to use 'template String' Syntax in Java. Please go to the home page for details\n https://github.com/122006/Zircon</description>
-    <!-- please see https://plugins.jetbrains.com/docs/intellij/build-number-ranges.html for description -->
-    <!-- please see https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html
-         on how to target different products -->
+    <description><![CDATA[
+        <strong>Zircon / Template Strings in Java</strong>
+        <p>Allows you to use the <b>'template string'</b> syntax in the Java language.</p>
+        <p>The plugin provides IDEA to parse template strings in Java, including highlighting keywords, providing code
+            completion, automatic fix, and other effects.</p>
+        <p>Has all the features of 'template strings' in other languages with Java enhancements.</p>
+        <ol>
+            <li><p>Support android, Java and other projects using Javac</p></li>
+            <li><p>Almost no additional compilation time</p></li>
+            <li><p>Code content support IDEA completion prompt (need to install IDEA plug-in)</p></li>
+            <li><p>More inline string syntax sugar support</p></li>
+        </ol>
+        <p>After installing this idea plugin, if you are building your project using Maven or Gradle, you will need to
+            install the build plugin.</p>
+        </p>
+        <p>Step 1. In your root project &#39;build.gradle&#39; file, do the following</p>
+        <code>
+            <p>buildscript {</p>
+            <p> repositories {</p>
+            <p> maven { url &#39;https://jitpack.io&#39; }</p>
+            <p> }</p>
+            <p> dependencies {</p>
+            <p> classpath &#39;com.github.122006.Zircon:gradle:+&#39;</p>
+            <p> }</p>
+            <p>} </p>
+        </code>
+        <p>Step 2. In the &#39;build.gradle&#39; file of the module where you want to use the plug-in, do the
+            following</p>
+        <ol>
+            <li>Introduce the plug-in in the first line</li>
+        </ol>
+        <p><code>apply plugin: &#39;ZrString&#39;</code></p>
+        </p>
+        </p>
+        <p>Maven is also supported, See more: <a href="https://github.com/122006/Zircon">https://github.com/122006/Zircon</a>
+        </p>
+        ]]></description>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
-
+    <change-notes>Initial release of the plugin.</change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
         <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
@@ -17,9 +50,11 @@
     </actions>
     <extensions defaultExtensionNs="com.intellij">
         <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
-        <lang.parserDefinition language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition"
+        <lang.parserDefinition language="JAVA"
+                               implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition"
                                order="first"/>
-        <lang.syntaxHighlighter language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter"
+        <lang.syntaxHighlighter language="JAVA"
+                                implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter"
                                 order="first"/>
         <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory"
                             serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl"

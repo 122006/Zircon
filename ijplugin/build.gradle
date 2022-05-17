@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.intellij' version '1.1.2'
 }
 group 'com.by122006.zircon'
-version '2.1'
+version '2.2'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -31,5 +31,5 @@ dependencies {
 //IU-202.7319.50
 intellij  {
     plugins = ['java']
-    version = '202.6397.94'
+    version = 'IU-213.7172.25'
 }

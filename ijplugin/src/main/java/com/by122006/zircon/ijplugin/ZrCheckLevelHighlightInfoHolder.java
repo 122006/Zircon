@@ -118,13 +118,13 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
                         return action.startInWriteAction();
                     }
                 }.setElement(psiElement);
-                List<IntentionAction> options;
-                try {
-                    options = first.getOptions(psiElement, null);
-                } catch (Throwable e) {
-                    options=new ArrayList<>();
-                }
-                newInfo.registerFix(actionShow, options, first.getAction().getFamilyName(), markerPair.getSecond().shiftRight(startIndex), null);
+//                Iterable options;
+//                try {
+//                    options = first.getOptions(psiElement, null);
+//                } catch (Throwable e) {
+//                    options=new ArrayList<>();
+//                }
+                newInfo.registerFix(actionShow, null, first.getAction().getFamilyName(), markerPair.getSecond().shiftRight(startIndex), null);
             });
         holder.add(newInfo);
         return true;
