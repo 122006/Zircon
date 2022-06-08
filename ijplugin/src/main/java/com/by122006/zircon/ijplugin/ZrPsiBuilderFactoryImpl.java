@@ -29,7 +29,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
                 lexer=parserDefinition.createLexer(project);
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new RuntimeException("createLexer error!");
+                throw new RuntimeException("createLexer error:"+e.getMessage());
             }
         }
 

@@ -15,24 +15,9 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
-      <module name="Zircon.base" target="11" />
-      <module name="Zircon.base.main" target="1.8" />
-      <module name="Zircon.base.test" target="11" />
-      <module name="Zircon.gradle_plugin" target="11" />
-      <module name="Zircon.gradle_plugin.main" target="11" />
-      <module name="Zircon.gradle_plugin.test" target="11" />
-      <module name="Zircon.ijplugin" target="11" />
-      <module name="Zircon.ijplugin.main" target="11" />
-      <module name="Zircon.ijplugin.test" target="11" />
       <module name="Zircon.inject_java7" target="11" />
       <module name="Zircon.inject_java7.main" target="1.8" />
       <module name="Zircon.inject_java7.test" target="11" />
-      <module name="Zircon.javac" target="1.8" />
-      <module name="Zircon.javac.main" target="1.8" />
-      <module name="Zircon.javac.test" target="1.8" />
-      <module name="Zircon.test" target="11" />
-      <module name="Zircon.test.main" target="1.8" />
-      <module name="Zircon.test.test" target="11" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

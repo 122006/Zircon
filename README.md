@@ -224,7 +224,8 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 
 ## TODO 后续更新计划
 
- 1. idea插件 监听项目使用的javac版本，以判断是否生效该功能
+ 1. idea插件 监听项目使用的javac版本，以判断是否生效该功能（检测一个编译时引入的class？）
+ 2. 面板字符串，形如$"#{person.name}"="person.name",或者$"#{\.(\S+):person.name}"="name"
 
 --------------
 

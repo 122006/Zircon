@@ -72,6 +72,18 @@ public class ZrAnnotator implements Annotator {
                                 .textAttributes(ZrStringTextCodeStyle1)
                                 .create();
                     });
+                    final String previewString = model.getList().stream().map(a -> {
+                        if (a.codeStyle == 0) {
+                            return model.getOriginalString().substring(a.startIndex, a.endIndex);
+                        } else if (a.codeStyle == 1) {
+                            return "__";
+                        }
+                        return "";
+                    }).collect(Collectors.joining());
+                    holder.newAnnotation(HighlightSeverity.INFORMATION, previewString)
+                            .range(element)
+                            .highlightType(ProblemHighlightType.INFORMATION)
+                            .create();
                     if (formatter instanceof FStringFormatter) {
                         try {
                             checkFStringError(element, model, holder);
@@ -110,12 +122,12 @@ public class ZrAnnotator implements Annotator {
     static @NotNull
     TextAttributesKey ZrStringTextCodeStyleSplit
             = createTextAttributesKey( "ZrStringTextCodeStyleSplit" ,
-            new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, null, null, Font.PLAIN)
+            new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN)
             , null);
     static @NotNull
     TextAttributesKey ZrStringTextCodeStyle2
             = createTextAttributesKey( "ZrStringTextCodeStyle2" ,
-            new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, null, null, Font.ITALIC)
+            new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC)
             , null);
     static @NotNull
     TextAttributesKey ZrStringTextCodeStyle1
@@ -456,7 +468,7 @@ public class ZrAnnotator implements Annotator {
 
     private void foldCode(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String printOut) {
         if (element.getTextOffset() != 0)
-            holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: fold Code")
+            holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
                     .range(element)
                     .highlightType(ProblemHighlightType.INFORMATION)
                     .withFix(new FoldCodeQuickFix(element, element.getTextOffset()))

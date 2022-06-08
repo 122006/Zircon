@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public interface Formatter {
-    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
+//    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
     List<Formatter> FORMATTERS = new ArrayList<>();
     List<String> PREFIXES = new ArrayList<>();
 
@@ -49,6 +49,7 @@ public interface Formatter {
     String stringTransfer(String text);
 
     default String codeTransfer(String text) {
+        // todo :这是一个测试，或许可以让字符串代码段格式完全按照非字符串内容格式？
 //        if (text.matches( "^\".*|.*[^'\\\\]{1}\".*")) {
 //            return text;
 //        } else {
@@ -66,7 +67,7 @@ public interface Formatter {
         String toStr = codeTransfer(str);
         int replaceCount = str.length() - toStr.length();
         if (!Objects.equals(str, toStr)) {
-//            logger.info( "替代后续文本 ${" + str + "}->${" + toStr + "}");
+//            System.err.println( "替代后续文本 ${" + str + "}->${" + toStr + "}");
             System.arraycopy(toStr.toCharArray(), 0, buf, groupStartIndex + startIndex, toStr.length());
             char[] array = new char[replaceCount];
             Arrays.fill(array, ' ');

@@ -1,6 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.codeInsight.daemon.ImplicitUsageProvider;
+import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.psi.*;
 import com.intellij.psi.search.LocalSearchScope;
@@ -24,6 +25,8 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
     }
 
     private boolean checkReferencedFromZrStringLiteral(PsiElement elem) {
+        if (elem.getLanguage() != JavaLanguage.INSTANCE) return false;
+
         PsiNamedElement namedElement = this.findNamedElement(elem);
         if (namedElement != null) {
             PsiFile containingFile = elem.getContainingFile();
