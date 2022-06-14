@@ -224,8 +224,10 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 
 ## TODO 后续更新计划
 
- 1. idea插件 监听项目使用的javac版本，以判断是否生效该功能（检测一个编译时引入的class？）
- 2. 面板字符串，形如$"#{person.name}"="person.name",或者$"#{\.(\S+):person.name}"="name"
+ 1. *idea插件* 监听项目使用的javac版本，以判断是否生效该功能
+    >（检测一个编译时引入的class？）
+ 2. *面板字符串* 形如`$"#{person.name}"`=`"person.name"`,或者`$"#{\.(\S+):person.name}"`=`"name"`。
+    >用于调试日志输出、打印字面量等，可以考虑新建一个模板字符串类型
 
 --------------
 
@@ -245,6 +247,7 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 1. 不再支持使用单引号转义双引号语法
 2. 支持使用gradle插件配置项目
 3. 重构以支持jdk16、jdk17
+
 
 ### idea插件2.0
 1. 支持`f-string`自动提示格式符及类型匹配错误
