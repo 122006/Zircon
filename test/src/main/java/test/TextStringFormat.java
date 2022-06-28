@@ -55,10 +55,10 @@ public class TextStringFormat {
         String add = "test";
         assertEquals( f"do ($add)" , "do (test)");
         assertEquals( f"do ($add)" , "do (test)");
-        assertEquals( f"do ($TextStringFormat.test)" , "do (" + TextStringFormat.test + ")");
+        assertEquals( f"do ($TextStringFormat.test2)" , "do (" + TextStringFormat.test + ")");
         assertEquals( f"test (${1+2})" , "test (3)");
         assertEquals( f"test (${String.format(\"str:[%s]\",\"format\")})" , "test (" + (String.format( "str:[%s]" , "format")) + ")");
-        assertEquals( f"test (${String.format(\"str:[%s]\",\"format\")})" , "test (" + String.format( "str:[%s]" , "format") + ")");
+        assertEquals( f"test (${String.format("str:[%s]","format")})" , "test (" + String.format( "str:[%s]" , "format") + ")");
         assertEquals( f"${\"Test,mode\".substring(0,6)} end" , "Test,mode".substring(0, 6) + " end");
         assertEquals( f"test (${\"te\\nst\"})" , "test (te\nst)");
         assertEquals( f"test\n (${\"te\\nst\"})" , "test\n (te\nst)");

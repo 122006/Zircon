@@ -3,6 +3,7 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.lang.*;
 import com.intellij.lang.impl.PsiBuilderFactoryImpl;
 import com.intellij.lang.impl.PsiBuilderImpl;
+import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.project.Project;

@@ -200,7 +200,7 @@ Step 2. 配置javac参数 `("-Xplugin:ZrString")`
 
 
 #### 手动安装
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.2.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.3.zip) 进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 #### ide内插件仓库加载
 	
@@ -258,3 +258,6 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 
 ### idea插件2.1
 1. 模板字符串结构字符会用特殊颜色标出
+
+### idea插件2.3
+1. 修复启动后一段时间代码异常检查失效的问题

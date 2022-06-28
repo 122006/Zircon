@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.intellij' version '1.1.2'
 }
 group 'com.by122006.zircon'
-version '2.2'
+version '2.3'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11

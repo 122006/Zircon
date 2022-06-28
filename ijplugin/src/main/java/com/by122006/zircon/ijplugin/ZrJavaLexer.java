@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.LexerBase;
 import com.intellij.openapi.diagnostic.Logger;
@@ -60,6 +61,10 @@ public final class ZrJavaLexer extends LexerBase {
 
     @Override
     public void start(@NotNull CharSequence buffer, int startOffset, int endOffset, int initialState) {
+        LOG.info("ZrJavaLexer start size:"+buffer.length());
+        if (buffer.length()<100){
+            LOG.info(buffer.toString());
+        }
         myBuffer = buffer;
         myBufferArray = CharArrayUtil.fromSequenceWithoutCopying(buffer);
         myBufferIndex = startOffset;
@@ -173,6 +178,7 @@ public final class ZrJavaLexer extends LexerBase {
                 }
                 break;
             default: {
+
                 Formatter formatter = Formatter.getAllFormatters().stream().filter((Formatter a) -> {
                     String prefix = a.prefix();
                     int length = prefix.length();
@@ -184,7 +190,7 @@ public final class ZrJavaLexer extends LexerBase {
                     return true;
                 }).findFirst().orElse(null);
                 if (formatter != null) {
-                    LOG.info("myBufferEndOffset: " + myBufferEndOffset);
+//                    LOG.info("myBufferEndOffset: " + myBufferEndOffset);
                     myTokenType = JavaTokenType.STRING_LITERAL;
                     myTokenEndOffset = getClosingQuote(formatter, myBufferIndex, '"');
                 } else {
@@ -287,6 +293,7 @@ public final class ZrJavaLexer extends LexerBase {
         }
         final String s = myBuffer.subSequence(startIndex, offset).toString();
         final ZrStringModel build = formatter.build(s);
+        LOG.info("Read ZrString："+build.getOriginalString());
         return build.getEndQuoteIndex() + startIndex+1;
     }
 

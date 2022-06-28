@@ -1,13 +1,11 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.core.CoreJavaCodeStyleManager;
+import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.InjectedLanguagePlaces;
-import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.LanguageInjector;
-import com.intellij.psi.PsiLanguageInjectionHost;
+import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.sun.tools.javac.parser.Formatter;
@@ -24,6 +22,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
     public void getLanguagesToInject(@NotNull PsiLanguageInjectionHost host, @NotNull InjectedLanguagePlaces places) {
         if (!(host instanceof PsiLiteralExpressionImpl)) return;
         if (!(host.getLanguage().isKindOf(JavaLanguage.INSTANCE))) return;
+        if (InjectedLanguageManager.getInstance(host.getProject()).isInjectedFragment(host.getContainingFile())) return;
         PsiLiteralExpressionImpl impl = (PsiLiteralExpressionImpl) host;
         if (!(impl.getLiteralElementType() == JavaTokenType.STRING_LITERAL)) return;
         String text = impl.getCanonicalText();
@@ -49,8 +48,10 @@ public class ZrStringLiteralInjector implements LanguageInjector {
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
+                    LOG.info("addPlace "+a.stringVal);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
                             "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}" );
+
                 });
 
     }

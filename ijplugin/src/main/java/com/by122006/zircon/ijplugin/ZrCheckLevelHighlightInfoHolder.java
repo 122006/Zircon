@@ -14,6 +14,7 @@ import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
 import com.intellij.lang.annotation.AnnotationSession;
 import com.intellij.lang.annotation.HighlightSeverity;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHolder {
+    private static final Logger LOG = Logger.getInstance(ZrCheckLevelHighlightInfoHolder.class.getName());
     HighlightInfoHolder holder;
     int startIndex;
 
@@ -56,6 +58,8 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
     public boolean add(@Nullable HighlightInfo info) {
         if (info == null) return false;
         if (psiElement==null) return false;
+        LOG.info("visit:"+psiElement.getText());
+
         if (info.type == HighlightInfoType.UNHANDLED_EXCEPTION) {
             final ExceptionUtil.HandlePlace handlePlace = ExceptionUtil.getHandlePlace(psiElement.getParent().getContext(), ExceptionUtil.getOwnUnhandledExceptions(psiElement).get(0), null);
             final boolean b = handlePlace != ExceptionUtil.HandlePlace.UNHANDLED;
@@ -68,6 +72,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
         }
 
         final TextRange rangeInElement = TextRange.create(startIndex + info.getStartOffset(), startIndex + info.getEndOffset());
+
         final HighlightInfo.Builder severity = HighlightInfo
                 .newHighlightInfo(info.type)
                 .range(psiElement, rangeInElement)
@@ -75,6 +80,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
                 .severity(info.getSeverity());
         if (info.getDescription() != null) severity.escapedToolTip(info.getDescription());
         final HighlightInfo newInfo = severity.create();
+        LOG.info("visit severity:"+newInfo);
         if (newInfo == null) return false;
         if (info.quickFixActionRanges != null)
             info.quickFixActionRanges.forEach(markerPair -> {

@@ -6,6 +6,7 @@ import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.injection.InjectedLanguageManager;
+import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.java.parser.JavaParser;
 import com.intellij.lang.java.parser.JavaParserUtil;
 import com.intellij.openapi.diagnostic.Logger;
@@ -38,19 +39,19 @@ import java.util.stream.Collectors;
 public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     Logger logger = Logger.getInstance(ZrHighlightVisitor.class);
     HighlightInfoHolder holder;
-    HighlightVisitorImpl highlightVisitor;
+//    HighlightVisitorImpl highlightVisitor;
 
     public HighlightVisitorImpl getHighlightVisitor(Project project) {
-        if (highlightVisitor != null)
-            return highlightVisitor;
+//        if (highlightVisitor != null)
+//            return highlightVisitor;
         final HighlightVisitor[] extensions = HighlightVisitorImpl.EP_HIGHLIGHT_VISITOR.getExtensions(project);
-        highlightVisitor = (HighlightVisitorImpl) Arrays.stream(extensions).filter(a -> a instanceof HighlightVisitorImpl).findFirst().orElse(null);
+        HighlightVisitorImpl highlightVisitor = (HighlightVisitorImpl) Arrays.stream(extensions).filter(a -> a instanceof HighlightVisitorImpl).findFirst().orElse(null);
         return highlightVisitor;
     }
 
     @Override
     public boolean suitableForFile(@NotNull PsiFile file) {
-        return file instanceof PsiImportHolder && !InjectedLanguageManager.getInstance(file.getProject()).isInjectedFragment(file);
+        return file instanceof PsiImportHolder &&file.getLanguage()== JavaLanguage.INSTANCE && !InjectedLanguageManager.getInstance(file.getProject()).isInjectedFragment(file);
     }
 
     @Override
@@ -64,15 +65,23 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                 model.getList().stream().filter(b -> b.codeStyle == 1)
                         .forEach(b -> {
                             final PsiElement expressionFromText;
+                            logger.info("visit:" + b.stringVal);
                             try {
                                 expressionFromText = JavaPsiFacade
                                         .getElementFactory(expression.getProject())
                                         .createExpressionFromText(b.stringVal.trim(), expression.getParent());
+//                                final JavaCodeFragmentFactory codeFragmentFactory = JavaCodeFragmentFactory.getInstance(psiElement.getProject());
+//                                expressionFromText =
+//                                        codeFragmentFactory.createExpressionCodeFragment(b.stringVal.trim(), psiElement.getContext(),  JavaPsiFacade.getElementFactory(psiElement.getProject()).createTypeFromText("java.lang.String", null), true);
+//                                expressionFromText.accept(highlightVisitor);
                             } catch (ProcessCanceledException e) {
+                                e.printStackTrace();
                                 return;
                             } catch (Exception e) {
+                                e.printStackTrace();
                                 return;
                             }
+                            logger.info("fileName="+psiElement.getContainingFile().getName());
                             final HighlightVisitorImpl highlightVisitor = getHighlightVisitor(psiElement.getProject());
                             Consumer<PsiElement> consumer = null;
                             consumer = new Consumer<>() {
@@ -85,23 +94,26 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                     highlightVisitor.visit(elem);
                                 }
                             };
+
                             final TextRange textRange = expression.getTextRange();
                             int startOffset = textRange.getStartOffset();
                             startOffset += b.startIndex;
                             try {
                                 final HighlightInfoHolder myHolder = getMyHolder(highlightVisitor);
                                 if (myHolder == null) {
+                                    logger.warn("myHolder==null");
                                     return;
                                 }
                                 final ZrCheckLevelHighlightInfoHolder newHolder = new ZrCheckLevelHighlightInfoHolder(myHolder.getContextFile(), holder, startOffset);
                                 setMyHolder(highlightVisitor, newHolder);
+
                                 newHolder.setPsiElement(expressionFromText);
                                 consumer.accept(expressionFromText);
                                 newHolder.setPsiElement(null);
                                 setMyHolder(highlightVisitor, myHolder);
                             } catch (ReflectiveOperationException e) {
                                 e.printStackTrace();
-                                logger.error( "ZirconString的错误检查功能不支持该idea版本:" + e);
+                                logger.error("ZirconString的错误检查功能不支持该idea版本:" + e);
                             } catch (ProcessCanceledException e) {
                                 throw e;
                             } catch (AssertionError e) {
@@ -117,13 +129,13 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     }
 
     private HighlightInfoHolder getMyHolder(HighlightVisitorImpl highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder");
+        final Field myHolder = highlightVisitor.getClass().getDeclaredField("myHolder");
         myHolder.setAccessible(true);
         return (HighlightInfoHolder) myHolder.get(highlightVisitor);
     }
 
     private void setMyHolder(HighlightVisitorImpl highlightVisitor, HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField( "myHolder");
+        final Field myHolder = highlightVisitor.getClass().getDeclaredField("myHolder");
         myHolder.setAccessible(true);
         myHolder.set(highlightVisitor, highlightInfoHolder);
     }

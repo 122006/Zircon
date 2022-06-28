@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaParserDefinition;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.diagnostic.Logger;
