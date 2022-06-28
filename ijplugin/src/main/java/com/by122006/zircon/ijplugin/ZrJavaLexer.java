@@ -61,10 +61,10 @@ public final class ZrJavaLexer extends LexerBase {
 
     @Override
     public void start(@NotNull CharSequence buffer, int startOffset, int endOffset, int initialState) {
-        LOG.info("ZrJavaLexer start size:"+buffer.length());
-        if (buffer.length()<100){
-            LOG.info(buffer.toString());
-        }
+//        LOG.info("ZrJavaLexer start size:"+buffer.length());
+//        if (buffer.length()<100){
+//            LOG.info(buffer.toString());
+//        }
         myBuffer = buffer;
         myBufferArray = CharArrayUtil.fromSequenceWithoutCopying(buffer);
         myBufferIndex = startOffset;
@@ -293,7 +293,7 @@ public final class ZrJavaLexer extends LexerBase {
         }
         final String s = myBuffer.subSequence(startIndex, offset).toString();
         final ZrStringModel build = formatter.build(s);
-        LOG.info("Read ZrString："+build.getOriginalString());
+//        LOG.info("Read ZrString："+build.getOriginalString());
         return build.getEndQuoteIndex() + startIndex+1;
     }
 

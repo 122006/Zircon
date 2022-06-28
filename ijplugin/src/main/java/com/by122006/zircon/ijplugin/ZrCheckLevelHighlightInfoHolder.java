@@ -58,7 +58,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
     public boolean add(@Nullable HighlightInfo info) {
         if (info == null) return false;
         if (psiElement==null) return false;
-        LOG.info("visit:"+psiElement.getText());
+//        LOG.info("visit:"+psiElement.getText());
 
         if (info.type == HighlightInfoType.UNHANDLED_EXCEPTION) {
             final ExceptionUtil.HandlePlace handlePlace = ExceptionUtil.getHandlePlace(psiElement.getParent().getContext(), ExceptionUtil.getOwnUnhandledExceptions(psiElement).get(0), null);
@@ -80,7 +80,7 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
                 .severity(info.getSeverity());
         if (info.getDescription() != null) severity.escapedToolTip(info.getDescription());
         final HighlightInfo newInfo = severity.create();
-        LOG.info("visit severity:"+newInfo);
+//        LOG.info("visit severity:"+newInfo);
         if (newInfo == null) return false;
         if (info.quickFixActionRanges != null)
             info.quickFixActionRanges.forEach(markerPair -> {

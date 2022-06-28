@@ -65,7 +65,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                 model.getList().stream().filter(b -> b.codeStyle == 1)
                         .forEach(b -> {
                             final PsiElement expressionFromText;
-                            logger.info("visit:" + b.stringVal);
+//                            logger.info("visit:" + b.stringVal);
                             try {
                                 expressionFromText = JavaPsiFacade
                                         .getElementFactory(expression.getProject())
@@ -81,7 +81,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                 e.printStackTrace();
                                 return;
                             }
-                            logger.info("fileName="+psiElement.getContainingFile().getName());
+//                            logger.info("fileName="+psiElement.getContainingFile().getName());
                             final HighlightVisitorImpl highlightVisitor = getHighlightVisitor(psiElement.getProject());
                             Consumer<PsiElement> consumer = null;
                             consumer = new Consumer<>() {
