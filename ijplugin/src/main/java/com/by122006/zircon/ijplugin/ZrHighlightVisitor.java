@@ -29,6 +29,8 @@ import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -51,12 +53,12 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
 
     @Override
     public boolean suitableForFile(@NotNull PsiFile file) {
-        return file instanceof PsiImportHolder &&file.getLanguage()== JavaLanguage.INSTANCE && !InjectedLanguageManager.getInstance(file.getProject()).isInjectedFragment(file);
+        return file instanceof PsiImportHolder && file.getLanguage() == JavaLanguage.INSTANCE && !InjectedLanguageManager.getInstance(file.getProject()).isInjectedFragment(file);
     }
 
     @Override
     public void visit(@NotNull PsiElement psiElement) {
-        if (psiElement instanceof PsiLiteralExpression) {
+        if (psiElement instanceof PsiLiteralExpression && psiElement.getContainingFile() != null && psiElement.getContainingFile().isPhysical()) {
             @NotNull PsiLiteralExpression expression = (PsiLiteralExpression) psiElement;
             final String text = expression.getText();
             final Formatter formatter = ZrUtil.checkPsiLiteralExpression(expression);
@@ -65,6 +67,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                 model.getList().stream().filter(b -> b.codeStyle == 1)
                         .forEach(b -> {
                             final PsiElement expressionFromText;
+//                            logger.info("visit:" + b.stringVal);
 //                            logger.info("visit:" + b.stringVal);
                             try {
                                 expressionFromText = JavaPsiFacade
@@ -91,7 +94,11 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                     for (PsiElement c : children) {
                                         accept(c);
                                     }
-                                    highlightVisitor.visit(elem);
+                                    try {
+                                        highlightVisitor.visit(elem);
+                                    } catch (Exception e) {
+                                        ;
+                                    }
                                 }
                             };
 
@@ -102,15 +109,18 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                 final HighlightInfoHolder myHolder = getMyHolder(highlightVisitor);
                                 if (myHolder == null) {
                                     logger.warn("myHolder==null");
+                                }
+                                if (psiElement.getContainingFile() == null) {
+                                    logger.warn("getContainingFile()==null");
                                     return;
                                 }
-                                final ZrCheckLevelHighlightInfoHolder newHolder = new ZrCheckLevelHighlightInfoHolder(myHolder.getContextFile(), holder, startOffset);
+                                final ZrCheckLevelHighlightInfoHolder newHolder = new ZrCheckLevelHighlightInfoHolder(psiElement.getContainingFile(), holder, startOffset);
                                 setMyHolder(highlightVisitor, newHolder);
-
                                 newHolder.setPsiElement(expressionFromText);
                                 consumer.accept(expressionFromText);
                                 newHolder.setPsiElement(null);
-                                setMyHolder(highlightVisitor, myHolder);
+                                if (myHolder != null)
+                                    setMyHolder(highlightVisitor, myHolder);
                             } catch (ReflectiveOperationException e) {
                                 e.printStackTrace();
                                 logger.error("ZirconString的错误检查功能不支持该idea版本:" + e);
@@ -128,16 +138,16 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
         }
     }
 
-    private HighlightInfoHolder getMyHolder(HighlightVisitorImpl highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField("myHolder");
+    private HighlightInfoHolder getMyHolder(@NotNull HighlightVisitorImpl highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
+        final Field myHolder = HighlightVisitorImpl.class.getDeclaredField("myHolder");
         myHolder.setAccessible(true);
         return (HighlightInfoHolder) myHolder.get(highlightVisitor);
     }
 
-    private void setMyHolder(HighlightVisitorImpl highlightVisitor, HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = highlightVisitor.getClass().getDeclaredField("myHolder");
+    private void setMyHolder(@NotNull HighlightVisitorImpl highlightVisitor, @NotNull HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+        final Method myHolder = HighlightVisitorImpl.class.getDeclaredMethod("prepare", HighlightInfoHolder.class, PsiFile.class);
         myHolder.setAccessible(true);
-        myHolder.set(highlightVisitor, highlightInfoHolder);
+        myHolder.invoke(highlightVisitor, highlightInfoHolder, highlightInfoHolder.getContextFile());
     }
 
     @Override
@@ -146,7 +156,11 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
         if (!file.isPhysical()) {
             return true;
         }
-        highlight.run();
+        try {
+            highlight.run();
+        } finally {
+            this.holder = null;
+        }
         return true;
     }
 
@@ -155,3 +169,4 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
         return new ZrHighlightVisitor();
     }
 }
+

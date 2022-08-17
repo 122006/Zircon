@@ -172,6 +172,11 @@ Step 1. 增加依赖
             <artifactId>javac</artifactId>
             <version>版本号</version>
         </dependency>
+	    <dependency>
+            <groupId>com.github.122006.Zircon</groupId>
+            <artifactId>base</artifactId>
+            <version>版本号</version>
+        </dependency>
         
 Step 2. 配置jitpack仓库
 

@@ -44,6 +44,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (printOut == null) return;
+
         build.stream().filter(a -> a.codeStyle == 1)
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
