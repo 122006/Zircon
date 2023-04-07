@@ -1,3 +1,5 @@
+import com.sun.tools.javac.code.Symtab
+
 buildscript {
     repositories {
         maven {
@@ -6,11 +8,11 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:2.8'
+//        classpath 'com.github.122006.Zircon:gradle:2.8'
     }
 }
 apply plugin: 'java'
-apply plugin: 'ZrString'
+//apply plugin: 'ZrString'
 
 
 repositories {
@@ -30,6 +32,26 @@ compileJava {
 dependencies {
     implementation 'junit:junit:4.12'
     testImplementation group: 'junit', name: 'junit', version: '4.12'
-//    annotationProcessor "com.by122006.zircon:javac:0.2"
-//    annotationProcessor "com.github.122006:Zircon:ad35619415"
+    annotationProcessor project(":javac")
+}
+tasks.withType(JavaCompile) {
+    options.compilerArgs  << "-Xplugin:ZrString"
+//    options.compilerArgs  << "-Xplugin:MethodRedirect"
+    it.options.fork = true
+
+    it.options.forkOptions.jvmArgs
+            << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+            << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
+            << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED"
+
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Types=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Names=ALL-UNNAMED"
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Symtab=ALL-UNNAMED"
+
+            << "--add-opens=jdk.compiler/com.sun.tools.javac.processing.JavacProcessingEnvironment=ALL-UNNAMED"
 }

@@ -8,8 +8,8 @@
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
-          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/javac/2.8/javac-2.8.jar" />
-          <entry name="$PROJECT_DIR$/../repo/com/github/122006/Zircon/base/2.8/base-2.8.jar" />
+          <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
+          <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
       </profile>

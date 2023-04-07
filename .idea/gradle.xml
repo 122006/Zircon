@@ -11,6 +11,7 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/androidTest" />
             <option value="$PROJECT_DIR$/base" />
             <option value="$PROJECT_DIR$/gradle_plugin" />
             <option value="$PROJECT_DIR$/ijplugin" />

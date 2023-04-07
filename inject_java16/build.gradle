@@ -22,8 +22,9 @@ compileJava {
 
 
 }
-task copyJavacClass(type: Copy) {
+task copyJavacClass(type: Copy,dependsOn: build) {
     from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
     into "${rootDir}/javac/src/main/resources/clazz/java16"
     rename ~/(.*)\.class/, '$1.clazz'

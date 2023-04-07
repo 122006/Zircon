@@ -1,22 +1,38 @@
 package com.by122006.zircon;
 
+import com.sun.org.apache.xerces.internal.util.SymbolTable;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.util.*;
 import com.sun.tools.javac.api.BasicJavacTask;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.Attr;
+import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.UnicodeReader;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Names;
 
+import javax.naming.Name;
 import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Objects;
+
+import static com.sun.tools.javac.code.Flags.PUBLIC;
+import static com.sun.tools.javac.code.Flags.STATIC;
 
 public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugin {
 
@@ -35,23 +51,22 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
         task.addTaskListener(new TaskListener() {
             @Override
             public void started(TaskEvent e) {
-                if (e.getKind() != TaskEvent.Kind.PARSE) {
-                    return;
+                if (e.getKind() == TaskEvent.Kind.PARSE) {
+                    try {
+                        startTask(context, ZirconStringPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                    } catch (Exception exception) {
+                        exception.printStackTrace();
+                    }
                 }
-                try {
-                    startTask(context, ZirconStringPlugin.class.getClassLoader(), Attr.class.getClassLoader());
-                } catch (Exception exception) {
-                    exception.printStackTrace();
-                }
+
             }
 
             @Override
             public void finished(TaskEvent e) {
-//                System.out.println("end: TaskEvent.Kind."+e.getKind());
-                if (e.getKind() != TaskEvent.Kind.PARSE) {
-                    return;
+                System.out.println("end: TaskEvent.Kind."+e.getKind());
+                if (e.getKind() == TaskEvent.Kind.ANALYZE) {
+                    e.getCompilationUnit().accept(ZirconStringPlugin.this, null);
                 }
-                e.getCompilationUnit().accept(ZirconStringPlugin.this, null);
             }
         });
     }
@@ -65,28 +80,58 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             return;
         }
 
-        reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.Formatter", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
-        reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.util.ZrScanner", pcl, classLoader);
-        Class<?> OOScannerFactoryClass = reloadClassJavacVersion("com.sun.tools.javac.util.ZrScannerFactory", pcl, classLoader);
-//        ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
-        ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
-        Object instance = getInstance(OOScannerFactoryClass, context);
-        set(parserFactory, "scannerFactory", instance);
+        try {
+            reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.Formatter", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
+            reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
+            final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
+            final Class<?> ZrTransTypes = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrTransTypes", pcl, classLoader);
+
+            reloadClassJavacVersion("com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.util.ZrScanner", pcl, classLoader);
+            Class<?> OOScannerFactoryClass = reloadClassJavacVersion("com.sun.tools.javac.util.ZrScannerFactory", pcl, classLoader);
+            ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
+            ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
+            resolve = (Resolve)getInstance(ZrResolve, context);
+            Object instance = getInstance(OOScannerFactoryClass, context);
+            set(parserFactory, "scannerFactory", instance);
+            set(compiler,"transTypes",getInstance(ZrTransTypes, context));
+            treeMaker = (TreeMaker) get(parserFactory, "F");
+            types = (Types) get(treeMaker, "types");
+            names = (Names) get(treeMaker, "names");
+            syms = (Symtab) get(treeMaker, "syms");
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+
     }
+    TreeMaker treeMaker;
+    Resolve resolve;
+    Types types;
+    Names names;
+    Symtab syms;
 
     @Override
-    public Void visitLiteral(LiteralTree node, Void unused) {
-        return super.visitLiteral(node, unused);
+    public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
+        if (node.getMethodSelect().getClass()==com.sun.tools.javac.tree.JCTree.JCFieldAccess.class&&node.toString().contains("add")){
+//            System.out.println("code:"+node);
+//            if (((JCTree.JCFieldAccess)node.getMethodSelect()).selected.type.toString().equals("java.lang.String")
+//            &&((JCTree.JCFieldAccess)node.getMethodSelect()).getIdentifier().toString().equals("add")){
+//                System.out.println("selected:"+((JCTree.JCFieldAccess)node.getMethodSelect()).selected.getClass());
+////                ((JCTree.JCFieldAccess)node.getMethodSelect()).selected=treeMaker.Ident(names.fromString("test.TestClass2.Test.add")
+////                        , new Symbol.MethodSymbol(PUBLIC|STATIC,names.fromString("add"),new Type.MethodType(of, ((JCTree.JCFieldAccess)node.getMethodSelect()).selected.type,
+////                        List.nil(), syms.methodClass),null));
+//            }
+        }
+        return super.visitMethodInvocation(node, unused);
     }
 
     public static Object get(Object obj, String field) {

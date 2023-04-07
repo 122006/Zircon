@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij' version '1.1.2'
+    id 'org.jetbrains.intellij' version '1.13.2'
 }
 group 'com.by122006.zircon'
 version '2.3'

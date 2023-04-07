@@ -1,8 +1,10 @@
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ZrScanner;
 
+import java.lang.reflect.Field;
 import java.nio.CharBuffer;
 
 public class ZrParserFactory extends ParserFactory {
@@ -15,6 +17,7 @@ public class ZrParserFactory extends ParserFactory {
     public JavacParser newParser(CharSequence var1, boolean var2, boolean var3, boolean var4) {
         Scanner var5 = newScanner(var1, var2);
 //        System.out.println("newParser: "+var5);
+        System.out.println("ZrTreeMaker: "+F);
         return new JavacParser(this, var5, var2, var4, var3);
     }
     public Scanner newScanner(CharSequence var1, boolean var2) {
