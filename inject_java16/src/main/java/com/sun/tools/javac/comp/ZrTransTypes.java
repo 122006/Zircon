@@ -18,7 +18,7 @@ public class ZrTransTypes  extends TransTypes {
 
     @Override
     public void visitClassDef(JCTree.JCClassDecl tree) {
-        System.out.println("visitClassDef:"+tree);
+//        System.out.println("visitClassDef:"+tree);
         super.visitClassDef(tree);
     }
 

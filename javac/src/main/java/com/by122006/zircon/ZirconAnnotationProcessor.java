@@ -49,10 +49,10 @@ public class ZirconAnnotationProcessor  extends AbstractProcessor {
                 @Override
                 public void visitApply(JCTree.JCMethodInvocation tree) {
                     super.visitApply(tree);
-//                    tree.args.forEach(a->{
-//                        System.out.println(TreeInfo.symbol(a.getTree()));
-//                    });
-//                    System.out.println("getKind:"+tree.getKind()+"; "+"getTypeArguments:"+tree.getTypeArguments()+"; "+"args:"+tree.args+"; "+"getMethodSelect:"+tree.getMethodSelect());
+                    tree.args.forEach(a->{
+                        System.out.println(TreeInfo.symbol(a.getTree()));
+                    });
+                    System.out.println("getKind:"+tree.getKind()+"; "+"getTypeArguments:"+tree.getTypeArguments()+"; "+"args:"+tree.args+"; "+"getMethodSelect:"+tree.getMethodSelect());
                 }
 
 //                @Override

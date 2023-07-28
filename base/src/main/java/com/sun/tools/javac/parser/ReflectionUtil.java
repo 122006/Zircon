@@ -13,11 +13,11 @@ public class ReflectionUtil {
             throw new RuntimeException(e);
         }
     }
-    public static <T> Object getDeclaredField(T t, Class<? super T> tClazz, String fieldName){
+    public static <T,M> M getDeclaredField(T t, Class<? super T> tClazz, String fieldName){
         try {
             Field declaredField = tClazz.getDeclaredField(fieldName);
             declaredField.setAccessible(true);
-            return declaredField.get(t);
+            return (M) declaredField.get(t);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

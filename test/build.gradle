@@ -36,7 +36,7 @@ dependencies {
 }
 tasks.withType(JavaCompile) {
     options.compilerArgs  << "-Xplugin:ZrString"
-//    options.compilerArgs  << "-Xplugin:MethodRedirect"
+    options.compilerArgs  << "-Xplugin:MethodRedirect"
     it.options.fork = true
 
     it.options.forkOptions.jvmArgs
