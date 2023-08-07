@@ -13,6 +13,7 @@ repositories {
 dependencies {
 //    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation project(":base")
+    implementation project(":zircon")
 //    implementation "com.by122006.zircon:base:0.1"
 }
 compileJava {

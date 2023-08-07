@@ -1,19 +1,18 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.jvm.ByteCodes;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.sun.tools.javac.code.Flags.PUBLIC;
 import static com.sun.tools.javac.code.Flags.SIGNATURE_POLYMORPHIC;
-import static com.sun.tools.javac.code.Kinds.Kind.ABSENT_MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.ERR;
 import static com.sun.tools.javac.comp.Resolve.MethodResolutionPhase.BASIC;
 
@@ -180,36 +179,54 @@ public class ZrResolve extends Resolve {
     public List<Symbol.MethodSymbol> findRedirectMethod(Name methodName) {
         if (redirectMethodSymbolMap == null) {
             redirectMethodSymbolMap = new HashMap<>();
+            long startTime=System.currentTimeMillis();
             final Map<Name, Map<Symbol.ModuleSymbol, Symbol.PackageSymbol>> allPackages = ReflectionUtil.getDeclaredField(syms, Symtab.class, "packages");
             System.out.println("======allPackages：" + allPackages);
-            allPackages.values()
-                    .forEach(packageSymPair -> {
-                        packageSymPair.values().stream()
-                                .filter(packageSymbol -> packageSymbol.fullname.toString().startsWith("test"))
-                                .forEach(packageSymbol -> {
-                                    System.out.println("======packageSymbol：" + packageSymbol.fullname);
-                                    final List<Symbol> enclosedElements = packageSymbol.getEnclosedElements();
-                                    enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(e -> {
-                                        final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) e;
-                                        System.out.println("find in " + classSymbol + "[" + classSymbol.getClass());
-                                        classSymbol.members().getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream().anyMatch(annotation -> annotation.toString().endsWith("ExMethod")))
-                                                .forEach(symbol -> {
-                                                    Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
-                                                    System.out.println("find method " + method + "[" + method.getSimpleName());
-                                                    final List<Symbol.MethodSymbol> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                                                    redirectMethodSymbolMap.put(method.getSimpleName(), list.append(method));
-                                                });
-                                    });
-                                });
-                    });
+            final String clazzName = "zircon.ExMethod";
+            for (Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> packageSymPair : new ArrayList<>(allPackages.values())) {
+                packageSymPair.values().stream()
+                        .filter(packageSymbol -> Stream.of("java.util", "com.sun", "sun", "jdk","org.junit","java.io","java.nio","java.lang","java.security","java.net")
+                                .noneMatch(a -> packageSymbol.fullname.toString().startsWith(a)))
+                        .forEach(packageSymbol -> {
+                            System.out.println("======packageSymbol：" + packageSymbol.fullname);
+                            final List<Symbol> enclosedElements = packageSymbol.getEnclosedElements();
+                            enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(e -> {
+                                final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) e;
+                                System.out.println("find in " + classSymbol + "[" + classSymbol.getClass());
+                                classSymbol.members().getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream().anyMatch(annotation -> annotation.type.toString().equals(clazzName)))
+                                        .forEach(symbol -> {
+                                            Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
+                                            System.out.println("find method " + method + "[" + method.getSimpleName());
+                                            final List<Symbol.MethodSymbol> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
+                                            redirectMethodSymbolMap.put(method.getSimpleName(), list.append(method));
+                                        });
+                            });
+                        });
+            }
             System.out.println("======search end");
             System.out.println(redirectMethodSymbolMap.values());
+            System.out.println("扫描耗时:"+(System.currentTimeMillis()-startTime)+"ms");
         }
         return redirectMethodSymbolMap.get(methodName);
     }
 
+    public static List<Attribute.Class> getMethodStaticExType(Names names, Symbol.MethodSymbol symbol) {
+        final String clazz = "zircon.ExMethod";
+        final Optional<Attribute.Compound> exMethod = symbol.getAnnotationMirrors().stream().filter(annotation -> annotation.type.toString().equals(clazz)).findFirst();
+        if (exMethod.isPresent()) {
+            final Attribute.Compound compound = exMethod.get();
+            final Attribute ex = compound.member(names.fromString("ex"));
+            if (ex != null) {
+                System.out.println("ex.getValue().class=" + ex.getValue().getClass());
+                @SuppressWarnings("unchecked") final List<Attribute.Class> value = (List<Attribute.Class>) ex.getValue();
+                return value;
+            }
+        }
+        return List.nil();
+    }
 
-    public static class NeedRedirectMethod extends RuntimeException{
+
+    public static class NeedRedirectMethod extends RuntimeException {
         public NeedRedirectMethod(Symbol bestSoFar) {
             this.bestSoFar = bestSoFar;
         }
@@ -217,6 +234,38 @@ public class ZrResolve extends Resolve {
         Symbol bestSoFar;
     }
 
+    Symbol selectBestFromList(List<Symbol.MethodSymbol> methodSymbolList, Env<AttrContext> env,
+                              Type site,
+                              List<Type> argtypes,
+                              List<Type> typeargtypes,
+                              boolean allowBoxing,
+                              boolean useVarargs) {
+        Symbol bestSoFar = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
+        try {
+
+            for (Symbol.MethodSymbol methodSymbol : methodSymbolList) {
+                final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
+                if (methodStaticExType.isEmpty()) {
+                    final List<Type> newTypeArgTypes = typeargtypes.prepend(site);
+                    final List<Type> newargTypes = argtypes.prepend(site);
+                    bestSoFar = selectBest(env, site, newargTypes, newTypeArgTypes, methodSymbol,
+                            bestSoFar, allowBoxing, useVarargs);
+                } else {
+                    System.out.println("class=" + methodStaticExType.get(0).classType + " site=" + site);
+                    if (methodStaticExType.stream().anyMatch(a -> a.classType.equals(site))) {
+                        System.out.println("ex type="+site.toString());
+                        bestSoFar = selectBest(env, site, argtypes, typeargtypes, methodSymbol,
+                                bestSoFar, allowBoxing, useVarargs);
+                    }
+                }
+
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        }
+        return bestSoFar;
+    }
 
     @Override
     Symbol findMethod(Env<AttrContext> env,
@@ -226,20 +275,23 @@ public class ZrResolve extends Resolve {
                       List<Type> typeargtypes,
                       boolean allowBoxing,
                       boolean useVarargs) {
-        System.out.println("====findMethod name=" + name + ";" + "site=" + site + ";" + "argtypes=" + argtypes + ";" + "typeargtypes=" + typeargtypes);
+        System.out.println("====findMethod name=" + name + ";" + "site=" + site + "[" + site.getClass() + ";" + "argtypes=" + argtypes + ";" + "typeargtypes=" + typeargtypes);
         Symbol bestSoFar = super.findMethod(env, site, name, argtypes, typeargtypes, allowBoxing, useVarargs);
         if (bestSoFar instanceof SymbolNotFoundError) {
-            System.out.println("======methodNotFound：" + name);
             final List<Symbol.MethodSymbol> redirectMethod = findRedirectMethod(name);
-            if (!redirectMethod.isEmpty()){
-                throw new NeedRedirectMethod(redirectMethod.get(0));
-            }
+            System.out.println("======methodNotFound but find in " + redirectMethod);
+            if (redirectMethod != null && !redirectMethod.isEmpty()) {
+                if (typeargtypes == null) typeargtypes = List.nil();
+                final Symbol symbol = selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, allowBoxing, useVarargs);
+                if (!(symbol instanceof ResolveError)) {
+                    throw new NeedRedirectMethod(symbol);
+                }
+            } else return bestSoFar;
             System.out.println("======method Found：" + redirectMethod);
             System.out.println("======env：" + env + "[" + env.getClass());
             System.out.println("======env.next：" + env.next + "[" + env.next.getClass());
             System.out.println("======env.outer：" + env.outer + "[" + env.outer.getClass());
             System.out.println("======env.tree：" + env.tree + "[" + env.tree.getClass());
-            new Exception().printStackTrace();
             if (env.tree instanceof JCTree.JCMethodInvocation) {
                 final JCTree.JCMethodInvocation methodInvocation = (JCTree.JCMethodInvocation) env.tree;
                 System.out.println("======Arguments：" + methodInvocation.getArguments());

@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 
 
 public class TextStringFormat {
+
 //    static String test = "532";
 //    public static String test2 = "532";
 //    public static String test3 = "532";

@@ -1,5 +1,6 @@
 package com.sun.tools.javac.comp;
 
+import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.parser.ReflectionUtil;
@@ -10,6 +11,9 @@ import com.sun.tools.javac.util.*;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+
+import static com.sun.tools.javac.code.Kinds.Kind.ABSENT_MTH;
+import static com.sun.tools.javac.code.Kinds.Kind.ERR;
 
 public class ZrAttr extends Attr {
     private final Context context;
@@ -78,54 +82,6 @@ public class ZrAttr extends Attr {
         return super.attribTree(tree, env, resultInfo);
     }
 
-
-
-//    @Override
-//    public void visitApply(JCTree.JCMethodInvocation that) {
-//        System.out.println("---ZrAttr-visitApply = " + that.toString());
-//        System.out.println("----class = " + that.getClass().toString());
-//        final JCTree.JCExpression meth = that.meth;
-//        System.out.println("----meth = " + meth.toString());
-//        Name identifier = null;
-//        if (JCTree.JCIdent.class.equals(meth.getClass())) {
-//            super.visitApply(that);
-//            return;
-//        } else if (JCTree.JCFieldAccess.class.equals(meth.getClass())) {
-//            final JCTree.JCFieldAccess methFA = (JCTree.JCFieldAccess) meth;
-//            identifier = methFA.getIdentifier();
-//            if (identifier.toString().equals("add")) {
-//                System.out.println("meth=" + meth.getClass().getName());
-//                System.out.println("selected=" + methFA.selected);
-//                System.out.println("selected=" + methFA.selected.getClass().getName());
-////                super.visitApply(that);
-////                return;
-//            }
-//            System.out.println("----selected = " + identifier);
-//            if (identifier.toString().equals("add23") && that.meth instanceof JCTree.JCFieldAccess) {
-//                final Name name = (Name) ReflectionUtil.getDeclaredField(methFA, JCTree.JCFieldAccess.class, "name");
-//                System.out.println("-----name = " + name.getClass());
-//                final Names names = Names.instance(context);
-//                final TreeMaker maker = TreeMaker.instance(context);
-//                final ArrayList<JCTree.JCExpression> args = new ArrayList<>();
-//                final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) that.meth).selected;
-//                System.out.println("-------------name=" + TreeInfo.name(selected));
-//                args.add(selected);
-//                args.addAll(that.args);
-//                final JCTree.JCFieldAccess add = maker.Select(maker.Ident(names.fromString("Test")), names.fromString("add"));
-////                that = maker.Apply(List.nil(), add, List.from(args));
-//                that.meth = add;
-//                that.args = List.from(args);
-//                System.out.println("--------=>" + that.toString());
-//                super.visitApply(that);
-//                System.out.println("--------type=" + result);
-//                return;
-//            }
-//        }
-//
-//        super.visitApply(that);
-//        System.out.println("----tree = " + TreeInfo.symbol(that.getTree()));
-//    }
-
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
         try {
@@ -133,8 +89,11 @@ public class ZrAttr extends Attr {
         } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
             final Symbol bestSoFar = redirectMethod.bestSoFar;
             final TreeMaker maker = TreeMaker.instance(context);
+            System.out.println("use method :" + bestSoFar);
             final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
-            that.args = that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected);
+            final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
+            System.out.println("use method ez:" + methodStaticExType);
+            that.args = methodStaticExType.isEmpty() ? that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected) : that.args;
             that.meth = add;
             System.out.println("--------=>" + that.toString());
             super.visitApply(that);

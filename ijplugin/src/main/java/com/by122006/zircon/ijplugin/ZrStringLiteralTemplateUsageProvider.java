@@ -3,9 +3,14 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.codeInsight.daemon.ImplicitUsageProvider;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.psi.*;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
+import com.intellij.psi.util.CachedValueProvider;
+import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.psi.util.PsiModificationTracker;
 import org.jetbrains.annotations.NotNull;
 
 public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvider {
@@ -26,19 +31,19 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
 
     private boolean checkReferencedFromZrStringLiteral(PsiElement elem) {
         if (elem.getLanguage() != JavaLanguage.INSTANCE) return false;
-
         PsiNamedElement namedElement = this.findNamedElement(elem);
         if (namedElement != null) {
             PsiFile containingFile = elem.getContainingFile();
             if (containingFile instanceof PsiJavaFile) {
-                try {
-                    return !ReferencesSearch.search(namedElement, new LocalSearchScope(containingFile))
-                            .forEach((e) -> !this.isInStringLiteral(e.getElement()));
-                } catch (Throwable e) {
-                    if (!(e instanceof ProcessCanceledException)) {
-                        e.printStackTrace();
-                    }
-                }
+                return CachedValuesManager.getCachedValue(elem, () -> {
+                    final Boolean aBoolean = ProgressManager.getInstance().runProcess(() -> {
+                        return !ReferencesSearch.search(namedElement, new LocalSearchScope(containingFile))
+                                .forEach((e) -> !this.isInStringLiteral(e.getElement()));
+                    }, new ProgressIndicatorBase());
+                    return CachedValueProvider.Result
+                            .create(aBoolean, PsiModificationTracker.MODIFICATION_COUNT);
+                });
+
             }
         }
 
@@ -57,9 +62,9 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
         if (elem == null) {
             return null;
         } else {
-            for(int offset = elem.getTextOffset(); elem != null && elem.getTextOffset() == offset && !(elem instanceof PsiNamedElement); elem = elem.getParent()) {
+            for (int offset = elem.getTextOffset(); elem != null && elem.getTextOffset() == offset && !(elem instanceof PsiNamedElement); elem = elem.getParent()) {
             }
-            return (PsiNamedElement)elem;
+            return (PsiNamedElement) elem;
         }
     }
 }

@@ -2,13 +2,24 @@ plugins {
     id 'java'
     id 'maven-publish'
 }
+
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
+}
+dependencies {
+
 }
 
-dependencies {
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
+
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava
     archiveClassifier = "sources"
@@ -17,9 +28,9 @@ task sourceJar(type: Jar) {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId "com.by122006.zircon"
-            artifactId "impl"
-            version "0.2"
+            groupId "com.github.122006.Zircon"
+            artifactId "zircon"
+            version rootProject.ext.version
             from components.java
             artifact sourceJar
         }
@@ -31,3 +42,5 @@ publishing {
     }
 
 }
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8

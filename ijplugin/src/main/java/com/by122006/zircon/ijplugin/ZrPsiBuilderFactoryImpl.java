@@ -15,7 +15,6 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.reflect.Method;
 
 public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
-
     @NotNull
     public PsiBuilder createBuilder(@NotNull Project project, @NotNull ASTNode chameleon, @Nullable Lexer lexer, @NotNull Language lang, @NotNull CharSequence seq) {
 //            PsiBuilder var10000 = super.createBuilder(project, chameleon, (Lexer)lexer, lang, seq);

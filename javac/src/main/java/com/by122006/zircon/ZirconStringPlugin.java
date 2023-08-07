@@ -21,6 +21,7 @@ import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Names;
+import zircon.ExMethod;
 
 import javax.naming.Name;
 import java.io.File;

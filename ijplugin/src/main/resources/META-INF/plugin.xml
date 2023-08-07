@@ -70,5 +70,6 @@
         <projectService serviceInterface="com.intellij.psi.codeStyle.JavaCodeStyleManager"
                         serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
                         overrides="true"/>
+        <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
     </extensions>
 </idea-plugin>

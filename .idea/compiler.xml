@@ -10,6 +10,7 @@
         <processorPath useClasspath="false">
           <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
+          <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
       </profile>

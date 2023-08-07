@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.intellij' version '1.13.2'
 }
 group 'com.by122006.zircon'
-version '2.3'
+version '2.4'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -27,6 +27,7 @@ patchPluginXml{
 }
 dependencies {
     implementation project(":base")
+    implementation project(":zircon")
 }
 //IU-202.7319.50
 intellij  {

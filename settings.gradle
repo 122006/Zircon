@@ -1,6 +1,6 @@
 rootProject.name = 'Zircon'
 include ':javac'
-//include ':impl'
+include ':zircon'
 include ':base'
 include ':gradle_plugin'
 if (System.getProperty("user.dir").contains(":\\")) {

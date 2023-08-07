@@ -266,3 +266,7 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 
 ### idea插件2.3
 1. 修复启动后一段时间代码异常检查失效的问题
+
+### idea插件2.4
+1. 支持拓展方法
+2. 在未引入该项目的代码中，不再提示模板字符串功能
