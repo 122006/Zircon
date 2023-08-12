@@ -92,12 +92,17 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             reloadClass("com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);
             reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
             reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
+
+
             final Class<?> OOMemberClass = reloadClassJavacVersion("com.sun.tools.javac.parser.ZrMemberEnter", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.parser.MyTreeTranslator", pcl, classLoader);
             getInstance(OOMemberClass, context);
             final Class<?> OOEnterClass = reloadClassJavacVersion("com.sun.tools.javac.parser.ZrEnter", pcl, classLoader);
             getInstance(OOEnterClass, context);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedRedirectMethod", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedLowerLambda", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$MyBasicLookupHelper", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrMethodReferenceLookupHelper", pcl, classLoader);
 
 
             final Class<?> OOZrAttrClass = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr", pcl, classLoader);

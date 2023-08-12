@@ -17,14 +17,24 @@ public class TestExMethod {
         return a + b + c;
     }
 
-    @ExMethod(ex = {Integer.class, Long.class})
+    @ExMethod(ex = {Integer.class, Long.class,TestClass2.Test.class})
     public static String addStatic(String a) {
         System.out.println("success hook static method:" + a + "=" + (a));
         return a;
     }
+    @ExMethod(ex = {Integer.class, Long.class,TestClass2.Test.class})
+    public static String addStatic(Integer a) {
+        System.out.println("success hook static method:" + a + "=" + (a));
+        return "";
+    }
 
     @ExMethod(ex = {TestClass2.Test.class})
     public static String addStatic(String a, String b) {
+        System.out.println("success hook static method:" + a + "=" + (a));
+        return a;
+    }
+    @ExMethod(ex = {TestClass2.Test.class})
+    public static String addStatic(String a, Integer b) {
         System.out.println("success hook static method:" + a + "=" + (a));
         return a;
     }
@@ -34,7 +44,12 @@ public class TestExMethod {
         return a + b;
     }
     @ExMethod
-    public static String addList(List<String> test, String a) {
+    public static String add(Integer a, String b) {
+        System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
+        return a + b;
+    }
+    @ExMethod
+    public static String addList(List test, String a) {
         System.out.println("success hook method:" + a  + "=" + (a));
         return a ;
     }

@@ -1,5 +1,6 @@
 package com.sun.tools.javac.comp;
 
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
@@ -12,6 +13,8 @@ import com.sun.tools.javac.util.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 
+import static com.sun.tools.javac.code.Flags.PARAMETER;
+import static com.sun.tools.javac.code.Flags.SYNTHETIC;
 import static com.sun.tools.javac.code.Kinds.Kind.ABSENT_MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.ERR;
 
@@ -60,9 +63,10 @@ public class ZrAttr extends Attr {
 
     @Override
     public void visitReference(JCTree.JCMemberReference that) {
-        System.out.println("-ZrAttr visitReference " + that);
+        System.out.println("-ZrAttr visitReference " + that + " class:" + that.getClass());
         super.visitReference(that);
     }
+
 
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
@@ -78,7 +82,75 @@ public class ZrAttr extends Attr {
                 System.out.println("----typeArguments = " + resultInfo.pt.getReturnType());
             }
             return super.attribTree(tree, env, resultInfo);
+        } else if (tree instanceof JCTree.JCMemberReference) {
+            int prevPos = make.pos;
+            final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
+            System.out.println("memberReference: class:" + memberReference.getClass().getName() + " sym:" + memberReference);
+            System.out.println("pt :" + resultInfo.pt);
+            if (resultInfo.pt!=null) System.out.println("ptClass :" + resultInfo.pt.getClass());
+            try {
+                return super.attribTree(memberReference, env, resultInfo);
+            } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
+                make.at(prevPos);
+                final Symbol.MethodSymbol bestSoFar = (Symbol.MethodSymbol) redirectMethod.bestSoFar;
+                final TreeMaker maker = TreeMaker.instance(context);
+                System.out.println("use lambda method :" + bestSoFar + " class:" + bestSoFar.getClass());
+                final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
+                add.sym = bestSoFar;
+                add.type = bestSoFar.type;
+                final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
+                System.out.println("use lambda method ex:" + methodStaticExType);
+                if (methodStaticExType.isEmpty()) {
+                    final Name nameA = names.fromString("$zr$a");
+                    Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
+                            , bestSoFar.params.get(1).type, syms.noSymbol);
+                    System.out.println("VarSymbol:" + symA);
+                    final JCTree.JCIdent idA = maker.Ident(symA);
+                    final JCTree.JCMethodInvocation apply = maker.Apply(List.nil(), add, List.of(memberReference.getQualifierExpression(), idA));
+                    System.out.println("JCMethodInvocation:" + apply);
+                    JCTree.JCVariableDecl a = make.VarDef(symA, null);
+                    final JCTree.JCLambda lambda = maker.Lambda(List.of(a), apply);
+                    lambda.target = memberReference.target;
+                    lambda.type = memberReference.type;
+                    lambda.pos = memberReference.pos;
+                    System.out.println("--------lambda=>" + lambda.toString());
+//                    super.resultInfo = super.resultInfo.dup(bestSoFar.getReturnType());
+                    super.resultInfo = resultInfo.dup(resultInfo.pt);
+                    System.out.println("--------next.tree==" + env.next.tree + "   [" + env.next.tree.getClass());
+                    final Env<AttrContext> envDup = env.dup(lambda);
+                    envDup.next = env.next;
+                    final Type type = super.attribTree(lambda, envDup, super.resultInfo);
+                    System.out.println("--------lambda type=" + type);
+                    return type;
+                }
+//                } else {
+////                    final Name nameA = names.fromString("a");
+////                    Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
+////                            , methodStaticExType.head.type, syms.noSymbol);
+////                    System.out.println("VarSymbol:" + symA);
+////                    final JCTree.JCIdent idA = maker.Ident(symA);
+////                    final JCTree.JCMethodInvocation apply = maker.App(add, List.of(idA));
+////                    System.out.println("JCMethodInvocation:" + apply);
+////                    JCTree.JCVariableDecl a = make.VarDef(symA, null);
+////                    final JCTree.JCLambda lambda = maker.Reference(List.of(a), apply);
+////                    lambda.target = memberReference.target;
+////                    lambda.type = memberReference.type;
+////                    lambda.pos = memberReference.pos;
+////                    System.out.println("--------lambda=>" + lambda.toString());
+//////                    super.resultInfo = super.resultInfo.dup(bestSoFar.getReturnType());
+////                    final Type type = super.attribTree(lambda, env, resultInfo);
+////                    System.out.println("--------lambda type=" + result);
+//                    final JCTree.JCMemberReference reference = maker.Reference(memberReference.mode, bestSoFar.name, maker.Ident(methodStaticExType.head.getValue().tsym), null);
+//                    System.out.println("--------lambda=>" + reference.toString());
+//                    final Type type = super.attribTree(reference, env, resultInfo);
+//                    System.out.println("--------lambda type=" + result);
+//                    return type;
+//                }
+
+            }
+
         }
+        System.out.println("attribTree " + tree + "    class:" + tree.getClass().getName());
         return super.attribTree(tree, env, resultInfo);
     }
 
