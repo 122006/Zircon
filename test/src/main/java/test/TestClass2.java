@@ -18,31 +18,37 @@ public class TestClass2 {
         System.out.println(("2131" + "12312").add("123"));
         System.out.println(("2131".toString()).add("123", "456"));
         System.out.println(("2131").add("123", BigDecimal.ZERO));
-        System.out.println("2131".add("12").add("123type2").add("123type3"));
+        System.out.println("2131".add("12").add("123type2").add("4112").add(1).add("123type3"));
 //        System.out.println("2131".add(1));
         System.out.println(Integer.addStatic("a"));
         ("2131" + "12312").add("123");
 //        Function<String, String> function = a -> Integer.addStatic(a);
 //        function.apply("function");
-        (new ArrayList<String>()).addList("1");
-        Integer testString=456;
-        final List<String> collect2 = Stream.of(123, 543).map(Test::addStatic).collect(Collectors.toList());
-        System.out.println("lambda2="+collect2);
-        BiFunction<String,Integer,?> a= Test::addStatic;
-        System.out.println("lambda3="+a.apply("12",3));
+        new ArrayList<String>().addList("12","32");
+        (new String[1]).addList("12");
+        Integer testString = 456;
+        final List<String> collect2 = Stream.of(123, 543).map(Test::add).collect(Collectors.toList());
+        System.out.println("lambda2=" + collect2);
+        BiFunction<String, Integer, ?> a = Test::addStatic;
+        System.out.println("lambda3=" + a.apply("12", 3));
         final List<Object> collect4 = Stream.of("12", "13").map(System.out::append).collect(Collectors.toList());
-        System.out.println("lambda4="+collect4);
-        final List<String> collect = Stream.of("12", "13").map(testString::add).collect(Collectors.toList());
-        System.out.println("lambda1="+collect);
-        final List<String> collect5 = Stream.of("12", "13").map("concat"::concat).collect(Collectors.toList());
-        System.out.println("lambda5="+collect5);
+        System.out.println("lambda4=" + collect4);
+//        Function<String, String> b = testString::add;
+//        System.out.println("test lambda b=" + b);
+        final Stream<String> stringStream = Stream.of("12", "13");
+//        final Stream<String> mapStream = stringStream.map(testString::add);
+//        final List<String> collect = mapStream.collect(Collectors.toList());
+//        System.out.println("lambda1="+collect);
+        final Stream<String> mapStream2 = stringStream.map((String str) -> "concat".concat(str));
+        final List<String> collect5 = mapStream2.collect(Collectors.toList());
+        System.out.println("lambda5=" + collect5);
     }
 
     private static String apply(String a) {
         return a.add("12");
     }
 
-    public static class TestChildren extends Test{
+    public static class TestChildren extends Test {
 
     }
 
@@ -64,7 +70,7 @@ public class TestClass2 {
 
     public static void d() {
         String b = "";
-        Function<String, String> function = a -> a.concat("12");
+        Function<String, String> function = (String a) -> a.concat("12");
     }
 
     public static class Test {

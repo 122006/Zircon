@@ -101,6 +101,7 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             getInstance(OOEnterClass, context);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedRedirectMethod", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedLowerLambda", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$CoverTree", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$MyBasicLookupHelper", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrMethodReferenceLookupHelper", pcl, classLoader);
 

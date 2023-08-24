@@ -44,14 +44,29 @@ public class TestExMethod {
         return a + b;
     }
     @ExMethod
+    public static <T> T addList(List<T> test, T a) {
+        System.out.println("success hook List:" + a  + "=" + (a));
+        return a ;
+    }
+    @ExMethod
+    public static <T> T addList(List<T> test, T a,T b) {
+        System.out.println("success hook List:" + a  + "=" + (a));
+        return a ;
+    }
+    @ExMethod
+    public static <T> T addList(T[] test, T a) {
+        System.out.println("success hook Array:" + a  + "=" + (a));
+        return a ;
+    }
+    @ExMethod
+    public static <T> T addList(String[] test, T a) {
+        System.out.println("success hook Array:" + a  + "=" + (a));
+        return a ;
+    }
+    @ExMethod
     public static String add(Integer a, String b) {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
         return a + b;
-    }
-    @ExMethod
-    public static String addList(List test, String a) {
-        System.out.println("success hook method:" + a  + "=" + (a));
-        return a ;
     }
     
     @ExMethod

@@ -17,14 +17,24 @@ public class ZrTransTypes  extends TransTypes {
     }
 
     @Override
+    public void visitReference(JCTree.JCMemberReference tree) {
+        super.visitReference(tree);
+    }
+
+    @Override
     public void visitClassDef(JCTree.JCClassDecl tree) {
 //        System.out.println("visitClassDef:"+tree);
         super.visitClassDef(tree);
     }
 
     @Override
+    public void visitTree(JCTree tree) {
+        System.out.println(tree);
+        super.visitTree(tree);
+    }
+
+    @Override
     public void visitApply(JCTree.JCMethodInvocation tree) {
         super.visitApply(tree);
-        System.out.println(tree.meth);
     }
 }

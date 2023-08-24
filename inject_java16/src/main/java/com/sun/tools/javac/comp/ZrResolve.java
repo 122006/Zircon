@@ -2,6 +2,7 @@ package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.parser.ReflectionUtil;
+import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.*;
@@ -11,8 +12,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.sun.tools.javac.code.Flags.PUBLIC;
 import static com.sun.tools.javac.code.Flags.SIGNATURE_POLYMORPHIC;
 import static com.sun.tools.javac.code.Kinds.Kind.AMBIGUOUS;
+import static com.sun.tools.javac.code.TypeTag.FORALL;
 import static com.sun.tools.javac.comp.Resolve.MethodResolutionPhase.BASIC;
 
 public class ZrResolve extends Resolve {
@@ -103,28 +106,16 @@ public class ZrResolve extends Resolve {
         }
 
         @Override
+        @SuppressWarnings({"unchecked", "rawtypes"})
         final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+            System.out.println("lookup :" + env.tree + " phase:" + phase);
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(), phase.isVarargsRequired());
             final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
+            System.out.println("symbol:" + symbol);
+            System.out.println("attr.pt():" + attr.pt() + "[" + (attr.pt().getTag() != TypeTag.NONE));
             if (symbol != null) {
-                System.out.println("TreeInfo.symbol :" + symbol + "   [" + symbol.getClass());
-                if (symbol instanceof Symbol.VarSymbol) {
-//                    return method;
-//                    final List<Symbol.MethodSymbol> redirectMethod = findRedirectMethod(name);
-//                    System.out.println("env.info:" + env.info);
-//                    final java.util.List<Symbol.MethodSymbol> collect = redirectMethod.stream().filter(methodSymbol -> {
-//                        final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
-//                        return methodStaticExType.isEmpty();
-//                    }).filter(methodSymbol -> {
-//                        return methodSymbol.getParameters().size() > 0 && symbol.isInheritedIn(methodSymbol.getParameters().get(0), types);
-//                    })/*.filter(methodSymbol -> {
-//                        return methodSymbol.getParameters().size() == pt.getReceiverType().getTypeArguments().size() + 1;
-//                    })*/.collect(Collectors.toList());
-//                    final Symbol method2 = collect.isEmpty() ? methodNotFound : collect.get(0);
-////                    if (method instanceof SymbolNotFoundError&&!(method2 instanceof SymbolNotFoundError)){
-////
-////                    }
+                if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                     Symbol method2 = method;
                     for (Symbol.MethodSymbol methodSymbol : findRedirectMethod(name)) {
                         final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
@@ -136,16 +127,15 @@ public class ZrResolve extends Resolve {
                             continue;
                         }
                         ListBuffer listBuffer = new ListBuffer();
-                        Symbol.MethodSymbol nMethodSymbol = methodSymbol.clone(site.tsym);
-                        nParams.stream().skip(1).forEach(listBuffer::append);
-                        nMethodSymbol.params = listBuffer.toList();
-                        System.out.println("start Check=" + nMethodSymbol);
+                        nParams.stream().skip(1).map(a -> a.type).forEach(listBuffer::append);
+                        final Type returnType = ((Symbol.MethodSymbol) methodSymbol).type.getReturnType();
+                        Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
+                        Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
+                        System.out.println("start Check=" + tempSymbol);
+                        System.out.println("returnResult=" + env.info.returnResult.checkContext.inferenceContext());
+//                        currentResolutionContext = new Resolve.MethodResolutionContext();
+//                        currentResolutionContext.step = methodResolutionSteps.head;
                         throw new NeedRedirectMethod(methodSymbol);
-//                        if (methodStaticExType.isEmpty()) {
-//                            method2 = selectBest(env, nMethodSymbol.owner.type, newArgTypes, newTypeArgTypes, nMethodSymbol,
-//                                    method2, phase.isBoxingRequired(), phase.isVarargsRequired());
-//                            if (method2 == nMethodSymbol) method2 = methodSymbol;
-//                        }
                     }
 
                     if (method instanceof AmbiguityError) {
@@ -161,6 +151,8 @@ public class ZrResolve extends Resolve {
 //                        throw new NeedRedirectMethod(method2);
 //                    }
                     return method2;
+                } else {
+                    System.out.println("TreeInfo.symbol :" + symbol + "   [" + symbol.getClass());
                 }
             }
             System.out.println("oSite: " + oSite);
@@ -169,10 +161,41 @@ public class ZrResolve extends Resolve {
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
             System.out.println("method : " + method + " best? " + method2);
-
-            if (method2.kind == AMBIGUOUS || method.kind == AMBIGUOUS) {
-
+            if (!method.exists() && method2.exists() && env.tree.toString().startsWith("testString")) {
+                if (method2 instanceof Symbol.MethodSymbol) {
+                    if (attr.pt().getTag() == TypeTag.NONE && env.tree.toString().startsWith("testString")) {
+                        Type.MethodType methodType = new Type.MethodType(argtypes, ((Symbol.MethodSymbol) method2).type.getReturnType(), List.nil(), oSite.tsym);
+                        Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
+                        System.out.println("temp symbol:" + methodType);
+                        return tempSymbol;
+                    }
+                    throw new NeedRedirectMethod(method2);
+                }
+                if (method2 instanceof AmbiguityError) {
+                    for (Symbol methodSymbolItem : ((AmbiguityError) method2).ambiguousSyms) {
+                        Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol) methodSymbolItem;
+                        final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
+                        List<Type> newTypeArgTypes = typeargtypes;
+                        List<Type> newArgTypes = argtypes;
+                        final List<Symbol.VarSymbol> nParams = methodSymbol.params();
+                        if (nParams.size() == 0) continue;
+                        if (!types.isSubtype(site, nParams.get(0).type)) {
+                            continue;
+                        }
+                        ListBuffer listBuffer = new ListBuffer();
+                        nParams.stream().skip(1).map(a -> a.type).forEach(listBuffer::append);
+                        if (attr.pt().getTag() == TypeTag.NONE && env.tree.toString().startsWith("testString")) {
+                            final Type returnType = ((Symbol.MethodSymbol) methodSymbol).type.getReturnType();
+                            Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
+                            Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
+                            System.out.println("temp symbol2:" + methodType);
+                            return tempSymbol;
+                        }
+                        throw new NeedRedirectMethod(methodSymbol);
+                    }
+                }
             }
+
 
             if (!method2.exists() && !(method2 instanceof AmbiguityError)) method2 = method;
             if (method2 instanceof AmbiguityError) {
@@ -188,15 +211,19 @@ public class ZrResolve extends Resolve {
             final Symbol symbol = TreeInfo.symbol(qualifierExpression);
             if (symbol != null) {
                 System.out.println("TreeInfo.symbol :" + symbol + "   [" + symbol.getClass());
-                if (sym == methodNotFound && symbol instanceof Symbol.VarSymbol) {
+                if (sym == methodNotFound && !TreeInfo.isStaticSelector(referenceTree.expr, names)) {
 //                    throw new NeedLowerLambda(site, qualifierExpression, name);
                 }
+            } else {
+                System.out.println("TreeInfo.symbol :" + symbol);
+
             }
             return super.access(env, pos, location, sym);
         }
 
         @Override
         ReferenceLookupHelper unboundLookup(InferenceContext inferenceContext) {
+            System.out.println("unboundLookup:" + inferenceContext.inferenceVars());
             return helper.unboundLookup(inferenceContext);
         }
 
@@ -210,6 +237,7 @@ public class ZrResolve extends Resolve {
     Pair<Symbol, ReferenceLookupHelper> resolveMemberReference(Env<AttrContext> env, JCTree.JCMemberReference referenceTree, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Type descriptor, MethodCheck methodCheck, InferenceContext inferenceContext, ReferenceChooser referenceChooser) {
         System.out.println("env:" + env + "  referenceTree:" + referenceTree + "  site:" + site + "  argtypes:" + argtypes + "  typeargtypes:" + typeargtypes + "  descriptor:" + descriptor);
         System.out.println("resolveMemberReference:" + env.tree);
+        System.out.println("resolveMemberReference inferenceVars:" + inferenceContext.inferenceVars());
         return super.resolveMemberReference(env, referenceTree, site, name, argtypes, typeargtypes, descriptor, methodCheck, inferenceContext, referenceChooser);
     }
 
@@ -289,7 +317,7 @@ public class ZrResolve extends Resolve {
 
         @Override
         Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-            System.out.println("==============doLookup  site:" + site + " name:" + name);
+            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
             final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
@@ -297,6 +325,16 @@ public class ZrResolve extends Resolve {
                     bestSoFar,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
+            if (bestSoFar instanceof AmbiguityError) {
+                System.out.println("method1: " + ((AmbiguityError) bestSoFar).ambiguousSyms + " [" + bestSoFar.kind.isValid());
+            } else
+                System.out.println("method1: " + bestSoFar + " [" + bestSoFar.kind.isValid());
+
+            if (newSymbol instanceof AmbiguityError) {
+                System.out.println("method2: " + ((AmbiguityError) newSymbol).ambiguousSyms + " [" + newSymbol.kind.isValid());
+            } else
+                System.out.println("method2: " + newSymbol + " [" + newSymbol.kind.isValid());
+
             if ((newSymbol.kind.isValid() && !bestSoFar.kind.isValid())
                     || (newSymbol.kind.isValid() && bestSoFar.kind.isValid() && newSymbol != bestSoFar)) {
                 throw new NeedRedirectMethod(newSymbol);
@@ -307,17 +345,21 @@ public class ZrResolve extends Resolve {
 
         @Override
         Symbol access(Env<AttrContext> env, JCDiagnostic.DiagnosticPosition pos, Symbol location, Symbol sym) {
-            System.out.println("==============access  location:" + location+"  env:"+env.tree+"  location:" + location + " sym:" + sym);
-            System.out.println("argtypes  :"+argtypes);
-            System.out.println("typeargtypes  :"+typeargtypes);
+            System.out.println("==============access  location:" + location + "  env:" + env.tree + "  location:" + location + " sym:" + sym);
+            System.out.println("argtypes  :" + argtypes);
+            System.out.println("typeargtypes  :" + typeargtypes);
+            System.out.println("sym  :" + sym);
+            System.out.println("sym.kind  :" + sym.kind);
 
             try {
                 sym = super.access(env, pos, location, sym);
             } catch (Exception e) {
-                System.err.println("error "+e.getMessage());
+                System.err.println("tree " + env.tree);
+                System.err.println("error " + e.getMessage());
                 e.printStackTrace();
+                throw e;
             }
-            System.out.println("access result  " + sym);
+            System.out.println("access result  " + sym + " [" + sym.type + " [" + sym.type.getClass());
             return sym;
         }
     }
@@ -351,7 +393,7 @@ public class ZrResolve extends Resolve {
                                 classSymbol.members().getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream().anyMatch(annotation -> annotation.type.toString().equals(clazzName)))
                                         .forEach(symbol -> {
                                             Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
-                                            System.out.println("find method " + method + "[" + method.getSimpleName());
+                                            System.out.println("find method " + method + "[" + method.getSimpleName() + "[" + method.type);
                                             final List<Symbol.MethodSymbol> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
                                             redirectMethodSymbolMap.put(method.getSimpleName(), list.append(method));
                                         });
@@ -381,6 +423,15 @@ public class ZrResolve extends Resolve {
         return List.nil();
     }
 
+    public static class CoverTree extends RuntimeException {
+        public CoverTree(Env<AttrContext> env, Attr.ResultInfo resultInfo) {
+            this.env = env;
+            this.resultInfo = resultInfo;
+        }
+
+        Env<AttrContext> env;
+        Attr.ResultInfo resultInfo;
+    }
 
     public static class NeedRedirectMethod extends RuntimeException {
         public NeedRedirectMethod(Symbol bestSoFar) {
@@ -388,6 +439,12 @@ public class ZrResolve extends Resolve {
         }
 
         Symbol bestSoFar;
+        Attr.ResultInfo resultInfo;
+
+        public NeedRedirectMethod(Symbol bestSoFar, Attr.ResultInfo resultInfo) {
+            this.bestSoFar = bestSoFar;
+            this.resultInfo = resultInfo;
+        }
     }
 
     public static class NeedLowerLambda extends RuntimeException {
@@ -416,32 +473,104 @@ public class ZrResolve extends Resolve {
                               Symbol bestSoFar,
                               boolean allowBoxing,
                               boolean useVarargs) {
-        try {
-            for (Symbol.MethodSymbol methodSymbol : methodSymbolList) {
-                final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
-                List<Type> newTypeArgTypes = typeargtypes;
-                List<Type> newArgTypes = argtypes;
-                if (methodStaticExType.isEmpty()) {
-                    if (typeargtypes == null) newTypeArgTypes = List.nil();
-                    newTypeArgTypes = newTypeArgTypes.prepend(site);
-                    newArgTypes = newArgTypes.prepend(site);
-                    bestSoFar = selectBest(env, methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodSymbol,
+        for (Symbol.MethodSymbol methodSymbol : methodSymbolList) {
+            final List<Attribute.Class> methodStaticExType = getMethodStaticExType(names, methodSymbol);
+            List<Type> newTypeArgTypes = typeargtypes;
+            List<Type> newArgTypes = argtypes;
+            if (methodStaticExType.isEmpty()) {
+                if (typeargtypes == null) newTypeArgTypes = List.nil();
+                newArgTypes = newArgTypes.prepend(site);
+                bestSoFar = selectBest(env, methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodSymbol,
+                        bestSoFar, allowBoxing, useVarargs);
+            } else {
+                System.out.println("class=" + methodStaticExType.head.classType + " site=" + site);
+                if (methodStaticExType.stream().anyMatch(a -> a.classType.equals(site))) {
+                    System.out.println("ex type=" + site.toString());
+                    bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodSymbol,
                             bestSoFar, allowBoxing, useVarargs);
-                } else {
-                    System.out.println("class=" + methodStaticExType.get(0).classType + " site=" + site);
-                    if (methodStaticExType.stream().anyMatch(a -> a.classType.equals(site))) {
-                        System.out.println("ex type=" + site.toString());
-                        bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodSymbol,
-                                bestSoFar, allowBoxing, useVarargs);
-                    }
                 }
-
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
+
         }
         return bestSoFar;
+    }
+
+    @Override
+    Type rawInstantiate(Env<AttrContext> env,
+                        Type site,
+                        Symbol m,
+                        Attr.ResultInfo resultInfo,
+                        List<Type> argtypes,
+                        List<Type> typeargtypes,
+                        boolean allowBoxing,
+                        boolean useVarargs,
+                        Warner warn) throws Infer.InferenceException {
+        Type mt = types.memberType(site, m);
+        // tvars is the list of formal type variables for which type arguments
+        // need to inferred.
+        List<Type> tvars = List.nil();
+        if (typeargtypes == null) typeargtypes = List.nil();
+        if (!mt.hasTag(FORALL) && typeargtypes.nonEmpty()) {
+            // This is not a polymorphic method, but typeargs are supplied
+            // which is fine, see JLS 15.12.2.1
+        } else if (mt.hasTag(FORALL) && typeargtypes.nonEmpty()) {
+            Type.ForAll pmt = (Type.ForAll) mt;
+            if (typeargtypes.length() != pmt.tvars.length()) {
+                new Exception().printStackTrace();
+                System.out.println("InapplicableMethodException:" + env.tree + "  typeargtypes:" + typeargtypes + "  typeargtypes.length():" + typeargtypes.length());
+                System.out.println("InapplicableMethodException:  pmt:" + pmt);
+                System.out.println("InapplicableMethodException:  pmt.tvars:" + pmt.tvars);
+                // not enough args
+                throw new InapplicableMethodException(diags.fragment(CompilerProperties.Fragments.WrongNumberTypeArgs(Integer.toString(pmt.tvars.length()))));
+            }
+            // Check type arguments are within bounds
+            List<Type> formals = pmt.tvars;
+            List<Type> actuals = typeargtypes;
+            while (formals.nonEmpty() && actuals.nonEmpty()) {
+                List<Type> bounds = types.subst(types.getBounds((Type.TypeVar) formals.head),
+                        pmt.tvars, typeargtypes);
+                for (; bounds.nonEmpty(); bounds = bounds.tail) {
+                    if (!types.isSubtypeUnchecked(actuals.head, bounds.head, warn)) {
+                        throw new InapplicableMethodException(diags.fragment(CompilerProperties.Fragments.ExplicitParamDoNotConformToBounds(actuals.head, bounds)));
+                    }
+                }
+                formals = formals.tail;
+                actuals = actuals.tail;
+            }
+            mt = types.subst(pmt.qtype, pmt.tvars, typeargtypes);
+        } else if (mt.hasTag(FORALL)) {
+            Type.ForAll pmt = (Type.ForAll) mt;
+            List<Type> tvars1 = types.newInstances(pmt.tvars);
+            tvars = tvars.appendList(tvars1);
+            mt = types.subst(pmt.qtype, pmt.tvars, tvars1);
+        }
+
+        // find out whether we need to go the slow route via infer
+        boolean instNeeded = tvars.tail != null; /*inlined: tvars.nonEmpty()*/
+        for (List<Type> l = argtypes;
+             l.tail != null/*inlined: l.nonEmpty()*/ && !instNeeded;
+             l = l.tail) {
+            if (l.head.hasTag(FORALL)) instNeeded = true;
+        }
+
+        if (instNeeded) {
+            return infer.instantiateMethod(env,
+                    tvars,
+                    (Type.MethodType) mt,
+                    resultInfo,
+                    (Symbol.MethodSymbol) m,
+                    argtypes,
+                    allowBoxing,
+                    useVarargs,
+                    currentResolutionContext,
+                    warn);
+        }
+
+        DeferredAttr.DeferredAttrContext dc = currentResolutionContext.deferredAttrContext(m, infer.emptyContext, resultInfo, warn);
+        currentResolutionContext.methodCheck.argumentsAcceptable(env, dc,
+                argtypes, mt.getParameterTypes(), warn);
+        dc.complete();
+        return mt;
     }
 
     protected Symbol findMethod(Env<AttrContext> env,

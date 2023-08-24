@@ -1,11 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
-import com.intellij.codeInsight.daemon.impl.analysis.JavaModuleGraphUtil;
-import com.intellij.ide.util.projectWizard.AbstractStepWithProgress;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.jvm.JvmParameter;
-import com.intellij.lang.jvm.annotation.JvmAnnotationAttributeValue;
-import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
@@ -14,16 +10,11 @@ import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.augment.PsiExtensionMethod;
 import com.intellij.psi.impl.light.LightMethodBuilder;
-import com.intellij.psi.impl.source.PsiClassReferenceType;
-import com.intellij.psi.impl.source.PsiJavaCodeReferenceElementImpl;
-import com.intellij.psi.impl.source.PsiMethodImpl;
-import com.intellij.psi.impl.source.tree.java.PsiAnnotationImpl;
 import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
+import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.PsiShortNamesCache;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.*;
-import com.intellij.util.containers.ConcurrentFactoryMap;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,23 +22,10 @@ import zircon.ExMethod;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     private static final Logger LOG = Logger.getInstance(ZrPsiAugmentProvider.class.getName());
 
-    //    @Override
-//    @NotNull
-//    protected <Psi extends PsiElement> List<Psi> getAugments(@NotNull PsiElement psiElement, @NotNull Class<Psi> type) {
-//        final List<Psi> emptyResult = Collections.emptyList();
-//
-//        if ((psiElement instanceof PsiClass) == false) {
-//            return emptyResult;
-//        }
-//        PsiClass psiClass = (PsiClass) psiElement;
-//
-//
-//    }
 
     public static class CacheMethodInfo {
         List<PsiType> targetType = new ArrayList<>();
@@ -56,8 +34,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         PsiMethod method;
     }
 
-
-    public static List<CacheMethodInfo> recoverCache(Project project) {
+    public static synchronized List<CacheMethodInfo> recoverCache(Project project) {
         return ProgressManager.getInstance().runProcess(() -> {
             final String qualifiedName = ExMethod.class.getName();
             PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(qualifiedName, GlobalSearchScope.projectScope(project));
@@ -93,7 +70,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     })
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
-            LOG.info("find ExtensionMethods size:" + collect.size());
+            System.out.println("find ExtensionMethods size:" + collect.size());
             return collect;
         }, new ProgressIndicatorBase());
     }
@@ -102,42 +79,45 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     protected <Psi extends PsiElement> List<Psi> getAugments(@NotNull PsiElement psiElement,
                                                              @NotNull Class<Psi> eleType) {
         final List<Psi> emptyResult = Collections.emptyList();
+
         if (PsiMethod.class.isAssignableFrom(eleType)) {
-            final List<CacheMethodInfo> psiMethods = getCachedAllMethod(psiElement, psiElement.getProject());
+            final List<CacheMethodInfo> psiMethods = getCachedAllMethod(psiElement.getProject());
             if (psiElement instanceof PsiClass) {
                 PsiClass psiClass = (PsiClass) psiElement;
                 final String type2Str = psiClass.getQualifiedName();
                 if (type2Str == null) {
                     return Collections.emptyList();
                 }
+                if (Objects.equals(type2Str, "_Dummy_.__Array__")) {
+                    final List<PsiMethod> collect = psiMethods.stream()
+                            .map(methodInfo -> {
+                                return methodInfo.targetType.stream()
+                                        .filter(type1 -> type1 instanceof PsiArrayType)
+                                        .map(type -> {
+                                            return new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass, methodInfo.method);
+                                        })
+                                        .filter(Objects::nonNull)
+                                        .collect(Collectors.toList());
+                            })
+                            .flatMap(Collection::stream)
+                            .collect(Collectors.toList());
+
+                    return (List<Psi>) collect;
+                }
 
                 PsiType type2 = PsiTypesUtil.getClassType(psiClass);
                 final List<PsiMethod> collect = psiMethods.stream()
-//                        .filter(methodInfo -> nameHint == null || (methodInfo.name.startsWith(nameHint) && !Objects.equals(methodInfo.name, nameHint)))
                         .map(methodInfo -> {
                             return methodInfo.targetType.stream()
-                                    .filter(type -> type.equals(type2))
-                                    .map(type -> {
-//                                        LightMethodBuilder method = new LightMethodBuilder(psiElement.getManager(), JavaLanguage.INSTANCE, methodInfo.name);
-//                                        method.setModifiers("public");
-//                                        if (methodInfo.isStatic){
-//                                            method.addModifier("static");
-//                                        }
-//                                        method.setContainingClass(PsiTypesUtil.getPsiClass(type));
-//                                        method.setNavigationElement(methodInfo.method);
-//                                        final PsiParameter[] parameters = methodInfo.method.getParameterList().getParameters();
-//                                        for (int i = methodInfo.isStatic ? 0 : 1; i < parameters.length; i++) {
-//                                            final PsiParameter parameter = parameters[i];
-//                                            method.addParameter(parameter.getName(), parameter.getType());
-//                                        }
-//                                        method.setMethodReturnType(methodInfo.method.getReturnType());
-//                                        return method;
-                                        return new ZrPsiExtensionMethod(methodInfo.isStatic, PsiTypesUtil.getPsiClass(type), methodInfo.method);
-                                    })
+                                    .filter(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), psiClass))
+                                    .map(type -> new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass, methodInfo.method))
+                                    .filter(Objects::nonNull)
                                     .collect(Collectors.toList());
                         })
                         .flatMap(Collection::stream)
                         .collect(Collectors.toList());
+
+                System.out.println("type2 :" + type2 + " QualifiedName:" + type2Str + "   found:" + collect.stream().map(PsiMethod::toString).collect(Collectors.joining(",")));
                 return (List<Psi>) collect;
             }
         }
@@ -149,37 +129,29 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 //    protected List<PsiExtensionMethod> getExtensionMethods(@NotNull PsiClass aClass, @NotNull String nameHint, @NotNull PsiElement context) {//PsiMethodCallExpression:("2131" + "12312").add("123")
 //        return getPsiExtensionMethods(aClass, context);
 //    }
-//
+
 //    @NotNull
 //    private List<PsiExtensionMethod> getPsiExtensionMethods(@NotNull PsiClass aClass, @NotNull PsiElement context) {
 //        long startTime = System.currentTimeMillis();
 //        @NotNull Project project = aClass.getProject();
-//        final List<CacheMethodInfo> psiMethods = getCachedAllMethod(aClass, project);
+//        final List<CacheMethodInfo> psiMethods = getCachedAllMethod(project);
 //        final String type2Str = aClass.getQualifiedName();
 //        if (type2Str == null) {
 //            return Collections.emptyList();
 //        }
 //        System.out.println("getPsiExtensionMethods aClass:" + aClass.getName() + " text:" + context.getText());
-//        PsiType type2 = PsiClassType.getTypeByName(type2Str, aClass.getProject(), GlobalSearchScope.allScope(aClass.getProject()));
-//        final String name;
-//        if (context instanceof PsiMethodCallExpression) {
-//            name = ((PsiMethodCallExpression) context).getMethodExpression().getLastChild().getText();
-//        } else {
-//            name = context.getText();
-//        }
+////        PsiType type2 = PsiClassType.getTypeByName(type2Str, aClass.getProject(), GlobalSearchScope.allScope(aClass.getProject()));
 //        final List<PsiExtensionMethod> collect = psiMethods.stream()
-//                .filter(methodInfo -> name != null && methodInfo.name != null && methodInfo.name.startsWith(name)
-//                        && methodInfo.targetType.stream().anyMatch(type -> methodInfo.isStatic ? type.equals(type2) : type.isConvertibleFrom(type2)))
-//                .map(methodInfo -> new ZrPsiExtensionMethod(methodInfo.isStatic, methodInfo.method))
+//                .filter(methodInfo -> methodInfo.name != null
+//                        && methodInfo.targetType.stream().anyMatch(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), aClass)))
+//                .map(methodInfo -> new ZrPsiExtensionMethod(methodInfo.isStatic, aClass, methodInfo.method))
 //                .collect(Collectors.toList());
 //        System.out.println("use " + (System.currentTimeMillis() - startTime) + "ms");
-//
 //        return collect;
 //    }
 
-    private List<CacheMethodInfo> getCachedAllMethod(@NotNull PsiElement aClass, @NotNull Project project) {
-        final PsiJavaModule descriptorByElement = JavaModuleGraphUtil.findDescriptorByElement(aClass);
-        return CachedValuesManager.getCachedValue(descriptorByElement == null ? aClass : descriptorByElement
+    private List<CacheMethodInfo> getCachedAllMethod(@NotNull Project project) {
+        return CachedValuesManager.getManager(project).getCachedValue(project
                 , () -> CachedValueProvider.Result.create(recoverCache(project), PsiModificationTracker.MODIFICATION_COUNT));
     }
 
@@ -192,37 +164,40 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (o instanceof ZrPsiExtensionMethod) {
-                final ZrPsiExtensionMethod that = (ZrPsiExtensionMethod) o;
-                return isStatic == that.isStatic && targetMethod.equals(that.targetMethod);
-            }
-            if (o instanceof PsiMethod) {
-                final PsiMethod that = (PsiMethod) o;
-                return targetMethod.equals(that);
-            }
-            return false;
+            if (o == null || getClass() != o.getClass()) return false;
+            if (!super.equals(o)) return false;
+
+            ZrPsiExtensionMethod that = (ZrPsiExtensionMethod) o;
+
+            if (isStatic != that.isStatic) return false;
+            if (targetClass != null ? !targetClass.equals(that.targetClass) : that.targetClass != null) return false;
+            return targetMethod.equals(that.targetMethod);
         }
 
         @Override
         public int hashCode() {
-            int result = targetMethod.hashCode();
+            int result = super.hashCode();
+            result = 31 * result + (targetClass != null ? targetClass.hashCode() : 0);
+            result = 31 * result + targetMethod.hashCode();
             result = 31 * result + (isStatic ? 1 : 0);
             return result;
         }
 
         public ZrPsiExtensionMethod(boolean isStatic, PsiClass targetClass, PsiMethod targetMethod) {
-            super(targetClass.getManager(),JavaLanguage.INSTANCE,targetMethod.getName());
+            super(targetClass.getManager(), JavaLanguage.INSTANCE, targetMethod.getName());
             this.isStatic = isStatic;
             this.targetClass = targetClass;
             this.targetMethod = targetMethod;
         }
 
         @Override
+        public PsiDocComment getDocComment() {
+            return targetMethod.getDocComment();
+        }
+
+        @Override
         public PsiTypeParameter @NotNull [] getTypeParameters() {
-            return isStatic ?
-                    targetMethod.getTypeParameters()
-                    : Arrays.stream(targetMethod.getTypeParameters()).skip(1)
-                    .toArray(PsiTypeParameter[]::new);
+            return targetMethod.getTypeParameters();
         }
 
         @Override
@@ -251,17 +226,28 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
         @Override
         public PsiTypeParameterList getTypeParameterList() {
-            final PsiTypeParameterList typeParameterList = targetMethod.getTypeParameterList();
-            if (typeParameterList == null) return null;
-            if (isStatic) return typeParameterList;
-            else {
-                final PsiTypeParameter[] parameters = typeParameterList.getTypeParameters();
-                final PsiTypeParameterList returnList = PsiElementFactory.getInstance(targetMethod.getProject()).createTypeParameterList();
-                for (int i = 1; i < parameters.length; i++) {
-                    returnList.add(parameters[i]);
-                }
-                return returnList;
-            }
+//            final PsiTypeParameterList typeParameterList = targetMethod.getTypeParameterList();
+//            if (typeParameterList == null) return null;
+//            if (isStatic) return typeParameterList;
+//            else {
+//                final PsiTypeParameter[] parameters = typeParameterList.getTypeParameters();
+//                final PsiTypeParameterList returnList = PsiElementFactory.getInstance(targetMethod.getProject()).createTypeParameterList();
+//                for (int i = 1; i < parameters.length; i++) {
+//                    returnList.add(parameters[i]);
+//                }
+//                return returnList;
+//            }
+            return targetMethod.getTypeParameterList();
+        }
+
+        @Override
+        public PsiCodeBlock getBody() {
+            return targetMethod.getBody();
+        }
+
+        @Override
+        public @NotNull PsiElement getNavigationElement() {
+            return targetMethod;
         }
 
         @Override
@@ -303,20 +289,15 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             return targetMethod;
         }
 
-//        @Override
-//        public PsiClass getContainingClass() {
-//            return targetMethod.getContainingClass();
-//        }
-
 
         @Override
         public @Nullable PsiParameter getTargetReceiverParameter() {
-            return targetMethod.getParameterList().getParameter(0);
+            return isStatic ? null : targetMethod.getParameterList().getParameter(0);
         }
 
         @Override
         public @Nullable PsiParameter getTargetParameter(int index) {
-            return targetMethod.getParameterList().getParameter(index + 1);
+            return targetMethod.getParameterList().getParameter(isStatic ? index : (index + 1));
         }
     }
 }
