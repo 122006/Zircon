@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.jvm.JvmParameter;
 import com.intellij.openapi.diagnostic.Logger;
@@ -10,11 +11,15 @@ import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.augment.PsiExtensionMethod;
 import com.intellij.psi.impl.light.LightMethodBuilder;
+import com.intellij.psi.impl.light.LightParameterListBuilder;
+import com.intellij.psi.impl.light.LightParameterListWrapper;
+import com.intellij.psi.impl.light.LightParameterWrapper;
 import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.*;
+import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -111,7 +116,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                             return methodInfo.targetType.stream()
                                     .filter(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), psiClass))
                                     .map(type -> new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass, methodInfo.method))
-                                    .filter(Objects::nonNull)
                                     .collect(Collectors.toList());
                         })
                         .flatMap(Collection::stream)
@@ -160,6 +164,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         private final PsiClass targetClass;
         public PsiMethod targetMethod = null;
         public boolean isStatic = false;
+        private ASTNode myASTNode;
 
         @Override
         public boolean equals(Object o) {
@@ -201,28 +206,33 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }
 
         @Override
-        public JvmParameter @NotNull [] getParameters() {
-            return isStatic ?
-                    targetMethod.getParameters()
-                    : Arrays.stream(targetMethod.getParameters()).skip(1)
-                    .toArray(JvmParameter[]::new);
-        }
-
-        @Override
         public @NotNull PsiParameterList getParameterList() {
 
             if (isStatic) return targetMethod.getParameterList();
             else {
-                final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
-                String[] names = new String[parameters.length - 1];
-                PsiType[] types = new PsiType[parameters.length - 1];
-                for (int i = 1; i < parameters.length; i++) {
-                    names[i - 1] = parameters[i].getName();
-                    types[i - 1] = parameters[i].getType();
+                final PsiParameterList parameterList = targetMethod.getParameterList();
+                final LightParameterListBuilder lightParameterListBuilder = new LightParameterListBuilder(getManager(), getLanguage());
+                for (int i = 1; i < parameterList.getParameters().length; i++) {
+                    lightParameterListBuilder.addParameter(parameterList.getParameter(i));
                 }
-                return PsiElementFactory.getInstance(targetMethod.getProject()).createParameterList(names, types);
+                return lightParameterListBuilder;
+//                final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
+//                String[] names = new String[parameters.length - 1];
+//                PsiType[] types = new PsiType[parameters.length - 1];
+//                for (int i = 1; i < parameters.length; i++) {
+//                    names[i - 1] = parameters[i].getName();
+//                    types[i - 1] = EmptySubstitutor.getInstance().substitute(parameters[i].getType());
+//                }
+//                final PsiParameterList parameterList = PsiElementFactory.getInstance(targetMethod.getProject()).createParameterList(names, types);
+//                return parameterList;
             }
         }
+
+        @Override
+        public boolean isEquivalentTo(final PsiElement another) {
+            return targetMethod.isEquivalentTo(another);
+        }
+
 
         @Override
         public PsiTypeParameterList getTypeParameterList() {
@@ -282,6 +292,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
         @Override
         public PsiClass getContainingClass() {
+            return targetClass;
+        }
+
+        public PsiClass getTargetClass() {
             return targetClass;
         }
 

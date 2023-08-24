@@ -43,13 +43,19 @@ public class TestExMethod {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
         return a + b;
     }
+
     @ExMethod
-    public static <T> T addList(List<T> test, T a) {
+    public static <T> String add(String test,T a,T b) {
+        System.out.println("success hook method:" + a + "+" + b + "=" );
+        return String.valueOf(a);
+    }
+    @ExMethod
+    public static <T> T addList(List<String> test, T a) {
         System.out.println("success hook List:" + a  + "=" + (a));
         return a ;
     }
     @ExMethod
-    public static <T> T addList(List<T> test, T a,T b) {
+    public static <T extends String> T addList(List<String> test, T a,T b) {
         System.out.println("success hook List:" + a  + "=" + (a));
         return a ;
     }
@@ -58,11 +64,7 @@ public class TestExMethod {
         System.out.println("success hook Array:" + a  + "=" + (a));
         return a ;
     }
-    @ExMethod
-    public static <T> T addList(String[] test, T a) {
-        System.out.println("success hook Array:" + a  + "=" + (a));
-        return a ;
-    }
+
     @ExMethod
     public static String add(Integer a, String b) {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));

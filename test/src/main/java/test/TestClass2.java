@@ -22,12 +22,13 @@ public class TestClass2 {
 //        System.out.println("2131".add(1));
         System.out.println(Integer.addStatic("a"));
         ("2131" + "12312").add("123");
+        ("2131" + "12312").add(123,123);
 //        Function<String, String> function = a -> Integer.addStatic(a);
 //        function.apply("function");
         new ArrayList<String>().addList("12","32");
-        (new String[1]).addList("12");
+        (new String[1]).addList(123);
         Integer testString = 456;
-        final List<String> collect2 = Stream.of(123, 543).map(Test::add).collect(Collectors.toList());
+        final List<String> collect2 = Stream.of(123, 543).map(Test::addStatic).collect(Collectors.toList());
         System.out.println("lambda2=" + collect2);
         BiFunction<String, Integer, ?> a = Test::addStatic;
         System.out.println("lambda3=" + a.apply("12", 3));
