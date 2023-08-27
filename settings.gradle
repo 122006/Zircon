@@ -5,12 +5,12 @@ include ':base'
 include ':gradle_plugin'
 if (System.getProperty("user.dir").contains(":\\")) {
     include ':test'
-    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
+    def version = Integer.parseInt(System.getProperty("java.version").split("\\.")[0])
+    if (version >= 16) {
         include ':inject_java16'
     } else {
         include ':inject_java7'
     }
-    include ':ijplugin'
+    if (version >= 11)
+        include ':ijplugin'
 }
-
-include ':androidTest'

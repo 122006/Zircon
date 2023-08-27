@@ -1,6 +1,5 @@
 package test;
 
-import org.junit.Test;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -261,7 +260,6 @@ public class TextStringFormat {
     }
 
 
-    @Test
     public void test1() {
 
         System.out.println(f"[${%-7s:12} \n${%-5s:"null"}]");

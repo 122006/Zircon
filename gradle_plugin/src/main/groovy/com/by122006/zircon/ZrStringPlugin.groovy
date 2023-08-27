@@ -11,6 +11,7 @@ class ZrStringPlugin implements Plugin<Project> {
         project.getTasks().withType(JavaCompile) { JavaCompile it ->
             it.options.compilerArgs
                     << "-Xplugin:ZrString"
+                    << "-Xplugin:ZrExMethod"
             if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
                 it.options.fork = true
                 it.options.forkOptions.jvmArgs

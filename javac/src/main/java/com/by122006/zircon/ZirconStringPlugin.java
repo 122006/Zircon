@@ -1,40 +1,23 @@
 package com.by122006.zircon;
 
-import com.sun.org.apache.xerces.internal.util.SymbolTable;
-import com.sun.source.tree.LiteralTree;
-import com.sun.source.tree.MethodInvocationTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.Tree;
 import com.sun.source.util.*;
 import com.sun.tools.javac.api.BasicJavacTask;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.Attr;
-import com.sun.tools.javac.comp.MemberEnter;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.UnicodeReader;
-import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Names;
-import zircon.ExMethod;
 
-import javax.naming.Name;
-import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-
-import static com.sun.tools.javac.code.Flags.PUBLIC;
-import static com.sun.tools.javac.code.Flags.STATIC;
 
 public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugin {
 
@@ -94,35 +77,25 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
             reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
 
 
-            final Class<?> OOMemberClass = reloadClassJavacVersion("com.sun.tools.javac.parser.ZrMemberEnter", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.parser.MyTreeTranslator", pcl, classLoader);
-            getInstance(OOMemberClass, context);
-            final Class<?> OOEnterClass = reloadClassJavacVersion("com.sun.tools.javac.parser.ZrEnter", pcl, classLoader);
-            getInstance(OOEnterClass, context);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedRedirectMethod", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$CoverTree", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ExMethodInfo", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$MyBasicLookupHelper", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrMethodReferenceLookupHelper", pcl, classLoader);
-
-
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrLookupHelper", pcl, classLoader);
+//            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$1", pcl, classLoader);
             final Class<?> OOZrAttrClass = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr", pcl, classLoader);
             set(compiler, "attr", getInstance(OOZrAttrClass, context));
-            {
-                final Class<?> OOZrClass = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrArgumentAttr", pcl, classLoader);
-                getInstance(OOZrClass, context);
-            }
+            final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
+            resolve = (Resolve) getInstance(ZrResolve, context);
+
 
 
             reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer$JavaCException", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrLookupHelper", pcl, classLoader);
 
 
 
 
             reloadClassJavacVersion("com.sun.tools.javac.parser.ZrJavaTokenizer", pcl, classLoader);
-            final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
-            final Class<?> ZrTransTypes = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrTransTypes", pcl, classLoader);
+
 
             reloadClassJavacVersion("com.sun.tools.javac.parser.ZrParserFactory", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.util.ZrJavadocTokenizer", pcl, classLoader);
@@ -131,10 +104,8 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
 //            ((Map)get(context, "ht")).remove(OOMemberClass,"memberEnterKey");
             ScannerFactory var1 = (ScannerFactory) context.get(ScannerFactory.scannerFactoryKey);
             ParserFactory parserFactory = (ParserFactory) get(compiler, "parserFactory");
-            resolve = (Resolve) getInstance(ZrResolve, context);
             Object instance = getInstance(OOScannerFactoryClass, context);
             set(parserFactory, "scannerFactory", instance);
-            set(compiler, "transTypes", getInstance(ZrTransTypes, context));
             treeMaker = (TreeMaker) get(parserFactory, "F");
             types = (Types) get(treeMaker, "types");
             names = (Names) get(treeMaker, "names");
@@ -151,28 +122,6 @@ public class ZirconStringPlugin extends TreeScanner<Void, Void> implements Plugi
     Types types;
     Names names;
     Symtab syms;
-
-    @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
-        System.out.println(getClass().getSuperclass().getName());
-        System.out.println("=======visitMethodInvocation:" + node.toString());
-        if (node.getMethodSelect() instanceof com.sun.tools.javac.tree.JCTree.JCFieldAccess) {
-            final JCTree.JCFieldAccess methodSelect = (JCTree.JCFieldAccess) node.getMethodSelect();
-            final String identifier = methodSelect.getIdentifier().toString();
-            final Type selected = methodSelect.selected.type;
-            if ((identifier.equals("add23")||identifier.equals("concat")) && selected.toString().equals("java.lang.String")) {
-                System.out.println("code:" + node);
-                System.out.println("selected:" + selected);
-                System.out.println("identifier:" + identifier);
-                final Tree.Kind kind = ((JCTree) node.getMethodSelect()).getKind();
-                System.out.println("selected:" + methodSelect.selected.getClass());
-//                ((JCTree.JCFieldAccess)node.getMethodSelect()).selected=treeMaker.Ident(names.fromString("test.TestClass2.Test.add")
-//                        , new Symbol.MethodSymbol(PUBLIC|STATIC,names.fromString("add"),new Type.MethodType(of, ((JCTree.JCFieldAccess)node.getMethodSelect()).selected.type,
-//                        List.nil(), syms.methodClass),null));
-            }
-        }
-        return super.visitMethodInvocation(node, unused);
-    }
 
     public static Object get(Object obj, String field) {
         try {

@@ -11,20 +11,21 @@ repositories {
     }
 }
 dependencies {
+    compileOnly files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation project(":base")
+    implementation project(":zircon")
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
+    options.compilerArgs << "-Xlint:deprecation" << "-XDignore:symbol.file"
 
 
 }
 task copyJavacClass(type: Copy) {
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
     into "${rootDir}/javac/src/main/resources/clazz/java7"
     rename ~/(.*)\.class/, '$1.clazz'
 }
-sourceCompatibility = JavaVersion.VERSION_11
-targetCompatibility = JavaVersion.VERSION_11
