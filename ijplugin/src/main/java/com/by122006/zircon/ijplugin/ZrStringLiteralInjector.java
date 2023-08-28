@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.core.CoreJavaCodeStyleManager;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
@@ -20,24 +21,25 @@ public class ZrStringLiteralInjector implements LanguageInjector {
 
     @Override
     public void getLanguagesToInject(@NotNull PsiLanguageInjectionHost host, @NotNull InjectedLanguagePlaces places) {
+        if (!ZrPluginUtil.hasZrPlugin(host.getProject())) return;
         if (!(host instanceof PsiLiteralExpressionImpl)) return;
         if (!(host.getLanguage().isKindOf(JavaLanguage.INSTANCE))) return;
         if (InjectedLanguageManager.getInstance(host.getProject()).isInjectedFragment(host.getContainingFile())) return;
         PsiLiteralExpressionImpl impl = (PsiLiteralExpressionImpl) host;
         if (!(impl.getLiteralElementType() == JavaTokenType.STRING_LITERAL)) return;
         String text = impl.getCanonicalText();
-        if (text.startsWith( "\"" )) return;
+        if (text.startsWith("\"")) return;
         List<Formatter> allFormatters = Formatter.getAllFormatters();
-        int endIndex = text.indexOf( "\"" );
+        int endIndex = text.indexOf("\"");
         if (endIndex == -1) {
-            LOG.error( "字符串前缀无法识别" );
+            LOG.error("字符串前缀无法识别");
             return;
         }
         String prefix = text.substring(0, endIndex);
         Formatter formatter = allFormatters.stream()
                 .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
         if (formatter == null) {
-            LOG.error( "未识别的字符串前缀" );
+            LOG.error("未识别的字符串前缀");
             return;
         }
         final ZrStringModel model = formatter.build(text);
@@ -51,7 +53,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
 //                    LOG.info("addPlace "+a.stringVal);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
-                            "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}" );
+                            "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}");
 
                 });
 

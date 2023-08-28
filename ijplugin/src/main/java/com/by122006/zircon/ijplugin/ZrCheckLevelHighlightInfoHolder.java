@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.ExceptionUtil;
 import com.intellij.codeInsight.daemon.impl.CheckLevelHighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
@@ -46,7 +47,8 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
     @Override
     public boolean add(@Nullable HighlightInfo info) {
         if (info == null) return false;
-        if (psiElement==null) return false;
+        if (psiElement == null) return false;
+        if (!ZrPluginUtil.hasZrPlugin(psiElement.getProject())) return false;
 //        LOG.info("visit:"+psiElement.getText());
 
         if (info.type == HighlightInfoType.UNHANDLED_EXCEPTION) {

@@ -1,22 +1,9 @@
 package com.by122006.zircon.ijplugin;
 
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiExpression;
 import com.intellij.psi.PsiType;
-import com.intellij.psi.impl.source.resolve.JavaResolveCache;
 import com.intellij.psi.impl.source.tree.java.PsiPolyadicExpressionImpl;
-import com.intellij.psi.impl.source.tree.java.PsiReferenceExpressionImpl;
-import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.TypeConversionUtil;
-import com.intellij.util.NullableFunction;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.Objects;
-import java.util.function.Function;
 
 public class ZrPsiPolyadicExpressionImpl extends PsiPolyadicExpressionImpl {
     private static final Logger LOG = Logger.getInstance(ZrPsiPolyadicExpressionImpl.class.getName());

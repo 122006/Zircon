@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.by122006.zircon.util.ZrUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.folding.FoldingBuilderEx;
@@ -28,6 +29,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
     @NotNull
     @Override
     public FoldingDescriptor[] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
+        if (!ZrPluginUtil.hasZrPlugin(root.getProject())) return FoldingDescriptor.EMPTY;
         if (root.getLanguage() != JavaLanguage.INSTANCE || quick) {
             return FoldingDescriptor.EMPTY;
         }

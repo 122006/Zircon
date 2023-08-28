@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.by122006.zircon.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
@@ -53,6 +54,7 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
 
     @Override
     public PsiImportList prepareOptimizeImportsResult(@NotNull PsiJavaFile file) {
+        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return super.prepareOptimizeImportsResult(file);
         try {
             return prepareOptimizeImportsResult(file, __ -> true);
         } catch (InvocationTargetException | IllegalAccessException | NoSuchMethodException e) {

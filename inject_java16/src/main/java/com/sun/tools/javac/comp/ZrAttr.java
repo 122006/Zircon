@@ -146,7 +146,6 @@ public class ZrAttr extends Attr {
             final TreeMaker maker = TreeMaker.instance(context);
             final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
             final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
-            System.out.println("choose method :" + methodStaticExType+" "+bestSoFar);
             that.args = methodStaticExType.isEmpty() ? that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected) : that.args;
             that.meth = add;
             super.visitApply(that);

@@ -16,17 +16,15 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
-      <module name="Zircon.ijplugin" target="17" />
-      <module name="Zircon.ijplugin.main" target="11" />
-      <module name="Zircon.ijplugin.test" target="17" />
-      <module name="Zircon.inject_java16" target="17" />
-      <module name="Zircon.inject_java16.main" target="1.8" />
-      <module name="Zircon.inject_java16.test" target="17" />
+      <module name="Zircon.inject_java7" target="1.8" />
+      <module name="Zircon.inject_java7.main" target="1.8" />
+      <module name="Zircon.inject_java7.test" target="1.8" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="Zircon.base.main" options="-Xlint:unchecked --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
+      <module name="Zircon.ijplugin.main" options="--add-modules java.base" />
     </option>
   </component>
 </project>

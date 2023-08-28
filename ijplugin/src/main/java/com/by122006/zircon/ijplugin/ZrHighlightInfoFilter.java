@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.HighlightInfoFilter;
 import com.intellij.lang.Language;
@@ -14,6 +15,7 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
     @Override
     public boolean accept(@NotNull HighlightInfo highlightInfo, @Nullable PsiFile file) {
         if (file == null || file.getLanguage() != JavaLanguage.INSTANCE) return true;
+        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return true;
         if (highlightInfo.getSeverity().getName().equalsIgnoreCase("INJECTED_FRAGMENT"))
             return false;
         else return true;

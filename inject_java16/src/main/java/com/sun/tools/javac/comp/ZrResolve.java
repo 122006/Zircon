@@ -187,7 +187,6 @@ public class ZrResolve extends Resolve {
 
         @Override
         ReferenceLookupHelper unboundLookup(InferenceContext inferenceContext) {
-            System.out.println("unboundLookup:" + inferenceContext.inferenceVars());
             return helper.unboundLookup(inferenceContext);
         }
 

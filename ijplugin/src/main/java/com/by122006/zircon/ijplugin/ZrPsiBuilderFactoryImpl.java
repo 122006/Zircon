@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.lang.*;
 import com.intellij.lang.impl.PsiBuilderFactoryImpl;
 import com.intellij.lang.impl.PsiBuilderImpl;
@@ -17,9 +18,6 @@ import java.lang.reflect.Method;
 public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
     @NotNull
     public PsiBuilder createBuilder(@NotNull Project project, @NotNull ASTNode chameleon, @Nullable Lexer lexer, @NotNull Language lang, @NotNull CharSequence seq) {
-//            PsiBuilder var10000 = super.createBuilder(project, chameleon, (Lexer)lexer, lang, seq);
-//            return var10000;
-
         ParserDefinition parserDefinition = (ParserDefinition) LanguageParserDefinitions.INSTANCE.forLanguage(lang);
         if (lexer instanceof JavaLexer) {
             LanguageLevel level = LanguageLevelProjectExtension.getInstance(project).getLanguageLevel();

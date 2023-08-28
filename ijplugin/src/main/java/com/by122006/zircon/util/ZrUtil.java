@@ -12,11 +12,10 @@ public class ZrUtil {
     public static Formatter checkPsiLiteralExpression(ASTNode psiElement) {
         if (psiElement == null) return null;
         final String text = psiElement.getText();
-        final Formatter formatter = Formatter.getAllFormatters().stream()
+        return Formatter.getAllFormatters().stream()
                 .filter(a -> text.startsWith(a.prefix() + "\"" ))
                 .findFirst()
                 .orElse(null);
-        return formatter;
     }
     public static Formatter checkPsiLiteralExpression(PsiLiteralExpression psiElement) {
         return checkPsiLiteralExpression(psiElement.getNode());

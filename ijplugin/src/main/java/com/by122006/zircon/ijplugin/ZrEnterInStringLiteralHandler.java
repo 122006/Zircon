@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.by122006.zircon.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.editorActions.EnterHandler;
@@ -38,7 +39,7 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
     }
 
     public Result preprocessEnter(@NotNull PsiFile file, @NotNull Editor editor, @NotNull Ref<Integer> caretOffsetRef, @NotNull Ref<Integer> caretAdvanceRef, @NotNull DataContext dataContext, EditorActionHandler originalHandler) {
-
+        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return Result.Continue;
         Language language = EnterHandler.getLanguage(dataContext);
         if (language == null) {
             return Result.Continue;

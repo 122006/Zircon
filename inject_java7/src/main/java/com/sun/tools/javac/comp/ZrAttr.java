@@ -56,10 +56,8 @@ public class ZrAttr extends Attr {
 
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-        System.out.println("attribTree:" + tree);
         try {
             if (tree instanceof JCTree.JCMethodInvocation) {
-                System.out.println("---ZrAttr-attribTree = " + tree.toString());
                 return super.attribTree(tree, env, resultInfo);
             } else if (tree instanceof JCTree.JCMemberReference) {
                 final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
@@ -138,10 +136,8 @@ public class ZrAttr extends Attr {
         } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
             final Symbol bestSoFar = redirectMethod.bestSoFar;
             final TreeMaker maker = TreeMaker.instance(context);
-            System.out.println("choose method :" +bestSoFar);
             final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
             final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
-            System.out.println("choose method :" + methodStaticExType + " " + bestSoFar);
             that.args = methodStaticExType.isEmpty() ? that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected) : that.args;
             that.meth = add;
             super.visitApply(that);

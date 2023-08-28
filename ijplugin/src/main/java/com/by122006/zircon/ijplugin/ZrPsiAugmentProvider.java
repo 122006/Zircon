@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.jvm.JvmParameter;
@@ -88,6 +89,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     protected <Psi extends PsiElement> List<Psi> getAugments(@NotNull PsiElement psiElement,
                                                              @NotNull Class<Psi> eleType) {
         final List<Psi> emptyResult = Collections.emptyList();
+        if (!ZrPluginUtil.hasZrPlugin(psiElement.getProject())) return emptyResult;
 
         if (PsiMethod.class.isAssignableFrom(eleType)) {
             final List<CacheMethodInfo> psiMethods = getCachedAllMethod(psiElement.getProject());

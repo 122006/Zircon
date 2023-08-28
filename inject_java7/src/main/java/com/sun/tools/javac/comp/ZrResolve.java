@@ -185,7 +185,6 @@ public class ZrResolve extends Resolve {
 
         @Override
         ReferenceLookupHelper unboundLookup(Infer.InferenceContext inferenceContext) {
-            System.out.println("unboundLookup:" + inferenceContext.inferenceVars());
             return helper.unboundLookup(inferenceContext);
         }
 
@@ -254,7 +253,6 @@ public class ZrResolve extends Resolve {
                                           JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env,
                                           Symbol location, Type site, Name name, List<Type> argtypes,
                                           List<Type> typeargtypes) {
-        System.out.println("resolveQualifiedMethod");
         return lookupMethod(env, pos, location, resolveContext, new ZrLookupHelper(name, site, argtypes, typeargtypes));
     }
 
@@ -314,8 +312,7 @@ public class ZrResolve extends Resolve {
                     symbols.forEach(symbol -> {
                         if (!(symbol instanceof Symbol.MethodSymbol)) return;
 //                                symbol.complete();
-                        System.out.println("find " + symbol + " in " + classSymbol + " symbol.getAnnotationMirrors()=" + ((Symbol.MethodSymbol) symbol).getAnnotationMirrors().size());
-                        if (symbol.getAnnotationMirrors().stream().peek(a -> System.out.println(a.type.toString())).noneMatch(annotation -> annotation.type.toString().equals(clazzName))) {
+                        if (symbol.getAnnotationMirrors().stream().noneMatch(annotation -> annotation.type.toString().equals(clazzName))) {
                             return;
                         }
                         Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
@@ -426,11 +423,11 @@ public class ZrResolve extends Resolve {
                                  Symbol bestSoFar,
                                  boolean allowBoxing,
                                  boolean useVarargs) {
-        System.out.println("====findMethod name=" + name
-                + "  ;env.tree:" + env.tree + "[" + env.tree.getClass()
-                + "  ;site=" + site
-                + "  ;receiver=" + site.getTypeArguments()
-                + "  ;" + "argtypes=" + argtypes + ";" + "typeargtypes=" + typeargtypes);
+//        System.out.println("====findMethod name=" + name
+//                + "  ;env.tree:" + env.tree + "[" + env.tree.getClass()
+//                + "  ;site=" + site
+//                + "  ;receiver=" + site.getTypeArguments()
+//                + "  ;" + "argtypes=" + argtypes + ";" + "typeargtypes=" + typeargtypes);
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs);

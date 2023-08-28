@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.daemon.ImplicitUsageProvider;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -31,6 +32,7 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
 
     private boolean checkReferencedFromZrStringLiteral(PsiElement elem) {
         if (elem.getLanguage() != JavaLanguage.INSTANCE) return false;
+        if (!ZrPluginUtil.hasZrPlugin(elem.getProject())) return false;
         PsiNamedElement namedElement = this.findNamedElement(elem);
         if (namedElement != null) {
             PsiFile containingFile = elem.getContainingFile();
@@ -43,7 +45,6 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
                     return CachedValueProvider.Result
                             .create(aBoolean, PsiModificationTracker.MODIFICATION_COUNT);
                 });
-
             }
         }
 

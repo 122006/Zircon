@@ -2,7 +2,7 @@
 
 -----------------
 
-## Zircon可以让你在Java语言代码中直接使用一些magic的语法
+## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
 
 ----------------  
 #### 已支持的语法特性：
@@ -17,7 +17,7 @@
    `someList.stream().filter(a->a.age==25).findFirst().get()`
     替换为=>
    `someList.find(a->a.age=25)`
-> 拓展已有代码的实现方法。可以实现诸如顶级方法、已有实现替换等功能
+> 自定义拓展已有代码的实现方法。可以实现诸如顶级方法、已有实现替换等功能
 
 ---------------
 ### 插件引入 
@@ -73,7 +73,7 @@ Step 2. 配置jitpack仓库
 
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
-Step 2. 配置javac参数 `("-Xplugin:ZrString -Xplugin:ZrExMethod")`
+Step 3. 配置javac参数 `("-Xplugin:ZrString -Xplugin:ZrExMethod")`
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -117,11 +117,7 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 --------------
 
 ## TODO 后续更新计划
-
-1. **idea插件**
-   > 监听项目使用的javac版本，以判断是否生效该功能
-   >（检测一个编译时引入的class？）
-2. **面板字符串**
+1. **面板字符串**
    > 形如`$"#{person.name}"`=`"person.name"`,或者`$"#{\.(\S+):person.name}"`=`"name"`。默认收缩
 
    > 用于调试日志输出、打印字面量等，可以考虑新建一个模板字符串类型
