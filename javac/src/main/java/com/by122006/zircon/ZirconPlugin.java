@@ -33,6 +33,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                     try {
                         compiler = JavaCompiler.instance(context);
                     } catch (Exception e) {
+                        e.printStackTrace();
                         return;
                     }
                     try {
@@ -46,9 +47,9 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
 
             @Override
             public void finished(TaskEvent e) {
-                if (e.getKind() == TaskEvent.Kind.ANALYZE) {
-                    e.getCompilationUnit().accept(ZirconPlugin.this, null);
-                }
+//                if (e.getKind() == TaskEvent.Kind.ANALYZE) {
+//                    e.getCompilationUnit().accept(ZirconPlugin.this, null);
+//                }
             }
         });
     }

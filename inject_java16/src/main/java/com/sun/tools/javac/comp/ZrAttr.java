@@ -58,56 +58,49 @@ public class ZrAttr extends Attr {
     }
 
 
-    JCTree lastTree;
-
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-//        System.out.println("attribTree " + tree + "    class:" + tree.getClass().getName());
-        try {
-            if (tree instanceof JCTree.JCMethodInvocation) {
+        if (tree instanceof JCTree.JCMethodInvocation) {
 //                System.out.println("---ZrAttr-attribTree = " + tree.toString());
-                return super.attribTree(tree, env, resultInfo);
-            } else if (tree instanceof JCTree.JCMemberReference) {
-                final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
+            return super.attribTree(tree, env, resultInfo);
+        } else if (tree instanceof JCTree.JCMemberReference) {
+            final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
 //                System.out.println("memberReference: class:" + memberReference.getClass().getName() + " sym:" + memberReference);
 //                if (resultInfo.pt != null) System.out.println("ptClass :" + resultInfo.pt.getClass());
-                final DeferredAttr.AttrMode oldDeferredAttrMode = resultInfo.checkContext.deferredAttrContext().mode;
-                final JCTree.JCExpression qualifierExpression = memberReference.getQualifierExpression();
-                final InferenceContext inferenceContext = super.resultInfo.checkContext.inferenceContext();
-                try {
-                    return super.attribTree(memberReference, env, resultInfo);
-                } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
-                    redirectMethod.printStackTrace();
+            final DeferredAttr.AttrMode oldDeferredAttrMode = resultInfo.checkContext.deferredAttrContext().mode;
+            final JCTree.JCExpression qualifierExpression = memberReference.getQualifierExpression();
+            final InferenceContext inferenceContext = super.resultInfo.checkContext.inferenceContext();
+            try {
+                return super.attribTree(memberReference, env, resultInfo);
+            } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
+                redirectMethod.printStackTrace();
 //                    System.out.println("inferenceVars=" + inferenceContext.inferenceVars());
-                    make.at(memberReference.getStartPosition());
-                    final Symbol.MethodSymbol bestSoFar = (Symbol.MethodSymbol) redirectMethod.bestSoFar;
+                make.at(memberReference.getStartPosition());
+                final Symbol.MethodSymbol bestSoFar = (Symbol.MethodSymbol) redirectMethod.bestSoFar;
 //                    System.out.println("use lambda method :" + bestSoFar + " class:" + bestSoFar.getClass());
-                    final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
+                final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
 //                    System.out.println("use lambda method ex:" + methodStaticExType);
-                    if (methodStaticExType.isEmpty()) {
-                        final JCTree.JCLambda lambda;
-                        lambda = createLambdaTree(memberReference, bestSoFar);
-                        lambda.pos = memberReference.pos;
-                        final ResultInfo newResultInfo = new ResultInfo(Kinds.KindSelector.VAL, resultInfo.pt.hasTag(NONE) ? Type.recoveryType : resultInfo.pt, resultInfo.checkContext, CheckMode.NORMAL);
-                        Env<AttrContext> fEnv = env.dup(lambda, env.info.dup());
-                        Type type = super.attribTree(lambda, fEnv, newResultInfo);
-                        lambda.type = type;
-                        result = type;
-                        if (true) {//todo
-                            final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用："+tree+"\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
-                            runtimeException.setStackTrace(new StackTraceElement[0]);
-                            throw runtimeException;
-                        }
-                        return result;
+                if (methodStaticExType.isEmpty()) {
+                    final JCTree.JCLambda lambda;
+                    lambda = createLambdaTree(memberReference, bestSoFar);
+                    lambda.pos = memberReference.pos;
+                    final ResultInfo newResultInfo = new ResultInfo(Kinds.KindSelector.VAL, resultInfo.pt.hasTag(NONE) ? Type.recoveryType : resultInfo.pt, resultInfo.checkContext, CheckMode.NORMAL);
+                    Env<AttrContext> fEnv = env.dup(lambda, env.info.dup());
+                    Type type = super.attribTree(lambda, fEnv, newResultInfo);
+                    lambda.type = type;
+                    result = type;
+                    if (true) {//todo
+                        final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + tree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
+                        runtimeException.setStackTrace(new StackTraceElement[0]);
+                        throw runtimeException;
                     }
-
+                    return result;
                 }
 
             }
-            return super.attribTree(tree, env, resultInfo);
-        } finally {
-            lastTree = tree;
+
         }
+        return super.attribTree(tree, env, resultInfo);
     }
 
     private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
@@ -128,6 +121,7 @@ public class ZrAttr extends Attr {
         lambda = maker.Lambda(List.of(a), apply);
         return lambda;
     }
+
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
         try {
@@ -142,7 +136,6 @@ public class ZrAttr extends Attr {
             super.visitApply(that);
         }
     }
-
 
 
     public static Object get(Object obj, String field) {
