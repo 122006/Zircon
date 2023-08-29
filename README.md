@@ -73,14 +73,15 @@ Step 2. 配置jitpack仓库
 
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
-Step 3. 配置javac参数 `("-Xplugin:ZrString -Xplugin:ZrExMethod")`
+Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <configuration>
             <compilerArgs>
-              <arg>-Xplugin:ZrString -Xplugin:ZrExMethod</arg>
+              <arg>-Xplugin:ZrExMethod</arg>
+              <arg>-Xplugin:ZrString</arg>
             </compilerArgs>
           </configuration>
         </plugin>

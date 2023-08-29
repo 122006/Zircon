@@ -2,11 +2,9 @@ package com.by122006.zircon
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.tasks.SourceTask
-import org.gradle.api.tasks.TaskContainer
 import org.gradle.api.tasks.compile.JavaCompile
 
-class ZrStringPlugin implements Plugin<Project> {
+class ZrPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.getTasks().withType(JavaCompile) { JavaCompile it ->
             it.options.compilerArgs
