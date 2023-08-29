@@ -3,9 +3,15 @@ package test;
 import zircon.ExMethod;
 
 import java.io.PrintStream;
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class TestExMethod {
     @ExMethod(cover = false)
@@ -39,7 +45,7 @@ public class TestExMethod {
     }
     @ExMethod(ex = {PrintStream.class},cover = true)
     public static void println(String a) {
-        System.out.print("\n ex:  success hook static method:" + a + "=" + (a));
+        System.out.print("\n ex:  success hook static method:" + a);
     }
 
     @ExMethod(ex = {TestClass2.Test.class})
@@ -61,7 +67,7 @@ public class TestExMethod {
 
     @ExMethod
     public static <T> String add(String test, T a, T b) {
-        System.out.println("success hook method:" + a + "+" + b + "=");
+        System.out.println(""+"success hook method:" + a + "+" + b + "=");
         return String.valueOf(a);
     }
 
@@ -77,11 +83,6 @@ public class TestExMethod {
         return a;
     }
 
-    @ExMethod
-    public static <T> T addList(T[] test, T a) {
-        System.out.println("success hook Array:" + a + "=" + (a));
-        return a;
-    }
 
     @ExMethod
     public static String add(Integer a, String b) {
@@ -96,9 +97,11 @@ public class TestExMethod {
     }
 
     @ExMethod
-    public static String add(String a, String b) {
-        System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
-        return a + b;
+    public static String add(String a, Object... b) {
+        for (Object o : b) {
+            a+=o;
+        }
+        return a;
     }
 
     @ExMethod
@@ -106,4 +109,41 @@ public class TestExMethod {
         System.out.println("success hook method: =" + a);
         return a;
     }
+    @ExMethod
+    public static <T> T[] add(T[] array,T... add) {
+        final T[] nArray = (T[]) Array.newInstance(array.getClass().getComponentType(), array.length + add.length);
+        System.arraycopy(array,0,nArray,0,array.length);
+        System.arraycopy(add,0,nArray,array.length,add.length);
+        return nArray;
+    }
+    @ExMethod
+    public static <T> T find(Collection<T> collection, Predicate<T> predicate) {
+        return collection.stream().filter(predicate).findFirst().orElse(null);
+    }
+
+    @ExMethod
+    public static <T> List<T> findAll(Collection<T> collection, Predicate<T> predicate) {
+        return collection.stream().filter(predicate).collect(Collectors.toList());
+    }
+
+    @ExMethod
+    public static <T> List<T> list(Stream<T> stream) {
+        return stream.collect(Collectors.toList());
+    }
+
+    @ExMethod
+    public static <T> Set<T> set(Stream<T> stream) {
+        return stream.collect(Collectors.toSet());
+    }
+
+    @ExMethod
+    public static boolean isNull(Object obj) {
+        return obj == null;
+    }
+
+    @ExMethod
+    public static <T> T or(T obj, T or) {
+        return obj == null ? or : obj;
+    }
+
 }

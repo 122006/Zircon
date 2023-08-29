@@ -83,12 +83,9 @@ public class ZrResolve extends Resolve {
         @Override
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-            System.out.println("lookup :" + env.tree + " phase:" + phase);
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(), phase.isVarargsRequired(), false);
             final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
-            System.out.println("symbol:" + symbol);
-            System.out.println("attr.pt():" + attr.pt() + "[" + (attr.pt().getTag() != TypeTag.NONE));
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
                 for (ExMethodInfo methodInfo : findRedirectMethod(name)) {
@@ -102,38 +99,35 @@ public class ZrResolve extends Resolve {
                     final Type returnType = ((Symbol.MethodSymbol) methodInfo.methodSymbol).type.getReturnType();
                     Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
                     Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                    System.out.println("start Check=" + tempSymbol);
-                    System.out.println("returnResult=" + env.info.returnResult.checkContext.inferenceContext());
+//                    System.out.println("start Check=" + tempSymbol);
+//                    System.out.println("returnResult=" + env.info.returnResult.checkContext.inferenceContext());
                     throw new NeedRedirectMethod(methodInfo.methodSymbol);
                 }
 
-                if (method instanceof AmbiguityError) {
-                    System.out.println("method1: " + ((AmbiguityError) method).ambiguousSyms);
-                } else
-                    System.out.println("method1: " + method);
-
-                if (method2 instanceof AmbiguityError) {
-                    System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
-                } else
-                    System.out.println("method2: " + method2);
+//                if (method instanceof AmbiguityError) {
+//                    System.out.println("method1: " + ((AmbiguityError) method).ambiguousSyms);
+//                } else
+//                    System.out.println("method1: " + method);
+//
+//                if (method2 instanceof AmbiguityError) {
+//                    System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
+//                } else
+//                    System.out.println("method2: " + method2);
 //                    if (method == methodNotFound && method2.exists()) {
 //                        throw new NeedRedirectMethod(method2);
 //                    }
                 return method2;
             }
 
-            System.out.println("oSite: " + oSite);
             Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes,
                     method,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
-            System.out.println("method : " + method + " best? " + method2);
             if (!method.exists() && method2.exists() && env.tree.toString().startsWith("testString")) {
                 if (method2 instanceof Symbol.MethodSymbol) {
                     if (attr.pt().getTag() == TypeTag.NONE && env.tree.toString().startsWith("testString")) {
                         Type.MethodType methodType = new Type.MethodType(argtypes, ((Symbol.MethodSymbol) method2).type.getReturnType(), List.nil(), oSite.tsym);
                         Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                        System.out.println("temp symbol:" + methodType);
                         return tempSymbol;
                     }
                     throw new NeedRedirectMethod(method2);
@@ -152,7 +146,6 @@ public class ZrResolve extends Resolve {
                             final Type returnType = ((Symbol.MethodSymbol) methodSymbol).type.getReturnType();
                             Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
                             Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                            System.out.println("temp symbol2:" + methodType);
                             return tempSymbol;
                         }
                         throw new NeedRedirectMethod(methodSymbol);
@@ -162,10 +155,10 @@ public class ZrResolve extends Resolve {
 
 
             if (!method2.exists() && !(method2 instanceof AmbiguityError)) method2 = method;
-            if (method2 instanceof AmbiguityError) {
-                System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
-            } else
-                System.out.println("method2: " + method2);
+//            if (method2 instanceof AmbiguityError) {
+//                System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
+//            } else
+//                System.out.println("method2: " + method2);
             return method2;
         }
 

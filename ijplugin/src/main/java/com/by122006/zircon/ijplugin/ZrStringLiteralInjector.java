@@ -51,6 +51,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
                 .filter(a -> a.startIndex != a.endIndex)
                 .forEach(a -> {
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
+                    if (textRange.getLength()==0) return;
 //                    LOG.info("addPlace "+a.stringVal);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
                             "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}");

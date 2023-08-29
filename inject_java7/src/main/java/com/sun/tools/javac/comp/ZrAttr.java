@@ -70,12 +70,12 @@ public class ZrAttr extends Attr {
                     return super.attribTree(memberReference, env, resultInfo);
                 } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
                     redirectMethod.printStackTrace();
-                    System.out.println("inferenceVars=" + inferenceContext.inferenceVars());
+//                    System.out.println("inferenceVars=" + inferenceContext.inferenceVars());
                     make.at(memberReference.getStartPosition());
                     final Symbol.MethodSymbol bestSoFar = (Symbol.MethodSymbol) redirectMethod.bestSoFar;
-                    System.out.println("use lambda method :" + bestSoFar + " class:" + bestSoFar.getClass());
+//                    System.out.println("use lambda method :" + bestSoFar + " class:" + bestSoFar.getClass());
                     final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
-                    System.out.println("use lambda method ex:" + methodStaticExType);
+//                    System.out.println("use lambda method ex:" + methodStaticExType);
                     if (methodStaticExType.isEmpty()) {
                         final JCTree.JCLambda lambda;
                         lambda = createLambdaTree(memberReference, bestSoFar);

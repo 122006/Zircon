@@ -4,17 +4,16 @@ import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.lang.jvm.JvmParameter;
+import com.intellij.lang.jvm.types.JvmReferenceType;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.augment.PsiExtensionMethod;
-import com.intellij.psi.impl.light.LightMethodBuilder;
-import com.intellij.psi.impl.light.LightParameterListBuilder;
-import com.intellij.psi.impl.light.LightParameterListWrapper;
-import com.intellij.psi.impl.light.LightParameterWrapper;
+import com.intellij.psi.impl.light.*;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
 import com.intellij.psi.javadoc.PsiDocComment;
@@ -45,7 +44,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     public static synchronized List<CacheMethodInfo> recoverCache(Project project) {
         return ProgressManager.getInstance().runProcess(() -> {
             final String qualifiedName = ExMethod.class.getName();
-            PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(qualifiedName, GlobalSearchScope.projectScope(project));
+            PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(qualifiedName, GlobalSearchScope.allScope(project));
             if (psiClass == null) return Collections.emptyList();
             final List<CacheMethodInfo> collect = ReferencesSearch.search(psiClass).findAll().stream()
                     .map(element -> {
@@ -68,13 +67,23 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                             cacheMethodInfo.targetType = Arrays.stream(initializers).map(a -> {
                                 final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
                                 if (childOfType == null) return null;
-                                return childOfType.getType();
+                                final PsiType type = childOfType.getType();
+                                return type;
                             }).filter(Objects::nonNull).collect(Collectors.toList());
                         } else {
                             final PsiParameterList parameterList = method.getParameterList();
                             if (parameterList.isEmpty()) return null;
-                            if (parameterList.getParameter(0) == null) return null;
-                            cacheMethodInfo.targetType = List.of(parameterList.getParameter(0).getType());
+                            final PsiParameter parameter = parameterList.getParameter(0);
+                            if (parameter == null) return null;
+                            final List<PsiTypeParameter> typeParameters = Arrays.stream(method.getTypeParameters())
+                                    .filter(a -> Objects.equals(a.getName(), parameter.getType().getCanonicalText())).collect(Collectors.toList());
+                            if (typeParameters.isEmpty()) {
+                                cacheMethodInfo.targetType = List.of(parameter.getType());
+                            } else {
+                                final PsiClassType[] referencedTypes = typeParameters.get(0).getExtendsList().getReferencedTypes();
+                                final PsiClassType typeByName = PsiClassType.getJavaLangObject(annotation.getManager(),GlobalSearchScope.projectScope(project));
+                                cacheMethodInfo.targetType = referencedTypes.length==0? List.of(typeByName) :Arrays.asList(referencedTypes);
+                            }
                         }
                         return cacheMethodInfo;
                     })
@@ -110,7 +119,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                             })
                             .flatMap(Collection::stream)
                             .collect(Collectors.toList());
-
                     return (List<Psi>) collect;
                 }
 
@@ -119,8 +127,20 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 final List<PsiMethod> collect = psiMethods.stream()
                         .map(methodInfo -> {
                             return methodInfo.targetType.stream()
-                                    .filter(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), psiClass))
-                                    .map(type -> new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass, methodInfo.method))
+                                    .filter(type -> {
+                                        try {
+                                            return type.getCanonicalText().split("<")[0].equals(type2.getCanonicalText().split("<")[0]);
+                                        } catch (Exception e) {
+                                            e.printStackTrace();
+                                            return false;
+                                        }
+                                    })
+                                    .map(type -> {
+                                        final PsiClass psiClass2 = PsiTypesUtil.getPsiClass(type);
+                                        if (psiClass2==null) return new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass, methodInfo.method);
+                                        return new ZrPsiExtensionMethod(methodInfo.isStatic, psiClass2, methodInfo.method);
+                                    })
+                                    .filter(Objects::nonNull)
                                     .filter(method -> ownMethods.stream().noneMatch(om ->
                                             Objects.equals(om.getName(), method.getName())
                                                     && Arrays.stream(method.getParameterList().getParameters()).allMatch(a -> a.isVarArgs() == om.isVarArgs() && Arrays.stream(om.getParameterList().getParameters()).anyMatch(b -> a.getType().equals(b.getType())))
@@ -130,7 +150,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         .flatMap(Collection::stream)
                         .collect(Collectors.toList());
 
-                System.out.println("type2 :" + type2 + " QualifiedName:" + type2Str + "   found:" + collect.stream().map(PsiMethod::toString).collect(Collectors.joining(",")));
                 return (List<Psi>) collect;
             }
         }
@@ -142,7 +161,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 //    protected List<PsiExtensionMethod> getExtensionMethods(@NotNull PsiClass aClass, @NotNull String nameHint, @NotNull PsiElement context) {//PsiMethodCallExpression:("2131" + "12312").add("123")
 //        return getPsiExtensionMethods(aClass, context);
 //    }
-
+//
 //    @NotNull
 //    private List<PsiExtensionMethod> getPsiExtensionMethods(@NotNull PsiClass aClass, @NotNull PsiElement context) {
 //        long startTime = System.currentTimeMillis();
@@ -157,7 +176,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 //        final List<PsiExtensionMethod> collect = psiMethods.stream()
 //                .filter(methodInfo -> methodInfo.name != null
 //                        && methodInfo.targetType.stream().anyMatch(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), aClass)))
-//                .map(methodInfo -> new ZrPsiExtensionMethod(methodInfo.isStatic, aClass, methodInfo.method))
+//                .map(methodInfo -> {
+//                    final List<PsiType> psiTypes = methodInfo.targetType.stream().filter(type -> Objects.equals(PsiTypesUtil.getPsiClass(type), aClass)).collect(Collectors.toList());
+//                    return new ZrPsiExtensionMethod(methodInfo.isStatic, PsiTypesUtil.getPsiClass(psiTypes.get(0)), methodInfo.method);
+//                })
 //                .collect(Collectors.toList());
 //        System.out.println("use " + (System.currentTimeMillis() - startTime) + "ms");
 //        return collect;
@@ -165,7 +187,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
     private List<CacheMethodInfo> getCachedAllMethod(@NotNull Project project) {
         return CachedValuesManager.getManager(project).getCachedValue(project
-                , () -> CachedValueProvider.Result.create(recoverCache(project), PsiModificationTracker.MODIFICATION_COUNT));
+                , () -> CachedValueProvider.Result.create(recoverCache(project), ProjectRootManager.getInstance(project)));
     }
 
 

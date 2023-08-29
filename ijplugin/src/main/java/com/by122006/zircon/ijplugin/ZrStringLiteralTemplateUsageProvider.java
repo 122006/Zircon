@@ -42,8 +42,7 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
                         return !ReferencesSearch.search(namedElement, new LocalSearchScope(containingFile))
                                 .forEach((e) -> !this.isInStringLiteral(e.getElement()));
                     }, new ProgressIndicatorBase());
-                    return CachedValueProvider.Result
-                            .create(aBoolean, PsiModificationTracker.MODIFICATION_COUNT);
+                    return CachedValueProvider.Result.create(aBoolean, elem);
                 });
             }
         }

@@ -16,6 +16,8 @@ import zircon.ExMethod;
 
 public class ZrPluginUtil {
     public static boolean hasZrPlugin(Project project) {
+        if (true)
+            return true;
         if (project.isDefault() || !project.isInitialized()) {
             return false;
         }
