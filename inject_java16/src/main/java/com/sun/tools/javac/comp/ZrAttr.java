@@ -24,7 +24,6 @@ public class ZrAttr extends Attr {
     }
 
     public static ZrAttr instance(Context context) {
-        System.out.println("ZrAttr instance");
         Attr res = context.get(attrKey);
         if (res instanceof ZrAttr) return (ZrAttr) res;
         context.put(attrKey, (Attr) null);
@@ -71,7 +70,7 @@ public class ZrAttr extends Attr {
             } else if (tree instanceof JCTree.JCMemberReference) {
                 final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
 //                System.out.println("memberReference: class:" + memberReference.getClass().getName() + " sym:" + memberReference);
-                if (resultInfo.pt != null) System.out.println("ptClass :" + resultInfo.pt.getClass());
+//                if (resultInfo.pt != null) System.out.println("ptClass :" + resultInfo.pt.getClass());
                 final DeferredAttr.AttrMode oldDeferredAttrMode = resultInfo.checkContext.deferredAttrContext().mode;
                 final JCTree.JCExpression qualifierExpression = memberReference.getQualifierExpression();
                 final InferenceContext inferenceContext = super.resultInfo.checkContext.inferenceContext();
@@ -89,19 +88,11 @@ public class ZrAttr extends Attr {
                         final JCTree.JCLambda lambda;
                         lambda = createLambdaTree(memberReference, bestSoFar);
                         lambda.pos = memberReference.pos;
-                        System.out.println("--------lambda=>" + lambda.toString());
-                        System.out.println("--------next.tree==ignorexxxx   [" + env.next.tree.getClass());
-                        System.out.println("new mode:" + oldDeferredAttrMode);
-                        System.out.println("resultInfo.pt:" + resultInfo.pt + "[" + resultInfo.pt.getClass().getName());
-                        System.out.println("resultInfo inferenceContext:" + resultInfo.checkContext.inferenceContext());
                         final ResultInfo newResultInfo = new ResultInfo(Kinds.KindSelector.VAL, resultInfo.pt.hasTag(NONE) ? Type.recoveryType : resultInfo.pt, resultInfo.checkContext, CheckMode.NORMAL);
                         Env<AttrContext> fEnv = env.dup(lambda, env.info.dup());
                         Type type = super.attribTree(lambda, fEnv, newResultInfo);
                         lambda.type = type;
                         result = type;
-                        System.out.println("--------lambda type=" + type);
-                        System.out.println("--------lambda TypeArguments=" + type.getTypeArguments());
-                        System.out.println("--------lambda type.isErroneous()=" + type.isErroneous());
                         if (true) {//todo
                             final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用："+tree+"\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
                             runtimeException.setStackTrace(new StackTraceElement[0]);

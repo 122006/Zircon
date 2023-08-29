@@ -25,10 +25,8 @@ public class ZrAttr extends Attr {
     }
 
     public static ZrAttr instance(Context context) {
-        System.out.println("ZrAttr instance");
         Attr res = context.get(attrKey);
         if (res instanceof ZrAttr) return (ZrAttr) res;
-        System.out.println("res:"+res);
 //        if (res != null) {
 //            System.out.println();
 //        }
@@ -62,7 +60,7 @@ public class ZrAttr extends Attr {
             } else if (tree instanceof JCTree.JCMemberReference) {
                 final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
 //                System.out.println("memberReference: class:" + memberReference.getClass().getName() + " sym:" + memberReference);
-                if (resultInfo.pt != null) System.out.println("ptClass :" + resultInfo.pt.getClass());
+//                if (resultInfo.pt != null) System.out.println("ptClass :" + resultInfo.pt.getClass());
                 final DeferredAttr.AttrMode oldDeferredAttrMode = resultInfo.checkContext.deferredAttrContext().mode;
                 final JCTree.JCExpression qualifierExpression = memberReference.getQualifierExpression();
                 final Infer.InferenceContext inferenceContext = super.resultInfo.checkContext.inferenceContext();

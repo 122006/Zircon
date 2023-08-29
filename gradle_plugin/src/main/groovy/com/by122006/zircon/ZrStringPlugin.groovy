@@ -7,9 +7,8 @@ import org.gradle.api.tasks.compile.JavaCompile
 class ZrPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.getTasks().withType(JavaCompile) { JavaCompile it ->
-            it.options.compilerArgs
-                    << "-Xplugin:ZrString"
-                    << "-Xplugin:ZrExMethod"
+            it.options.compilerArgs << "-Xplugin:ZrExMethod"
+            it.options.compilerArgs << "-Xplugin:ZrString"
             if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
                 it.options.fork = true
                 it.options.forkOptions.jvmArgs
@@ -24,6 +23,9 @@ class ZrPlugin implements Plugin<Project> {
 //            annotationProcessor "com.github.122006.Zircon:javac:2.+"
 //        }
         project.dependencies.add("annotationProcessor"
-                , project.dependencies.create("com.github.122006.Zircon:javac:2.8"))
+                , project.dependencies.create("com.github.122006.Zircon:javac:3.0"))
+
+        project.dependencies.add("implementation"
+                , project.dependencies.create("com.github.122006.Zircon:zircon:3.0"))
     }
 }

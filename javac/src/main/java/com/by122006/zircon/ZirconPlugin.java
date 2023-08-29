@@ -46,7 +46,6 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
 
             @Override
             public void finished(TaskEvent e) {
-                System.out.println("end: TaskEvent.Kind." + e.getKind());
                 if (e.getKind() == TaskEvent.Kind.ANALYZE) {
                     e.getCompilationUnit().accept(ZirconPlugin.this, null);
                 }

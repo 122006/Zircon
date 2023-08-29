@@ -95,7 +95,11 @@ public class TestExMethod {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
         return a + b;
     }
-
+    @ExMethod
+    public static String add(String a) {
+        System.out.println("success hook method: =" + a);
+        return a;
+    }
     @ExMethod
     public static String add(String a, Object... b) {
         for (Object o : b) {
@@ -104,11 +108,7 @@ public class TestExMethod {
         return a;
     }
 
-    @ExMethod
-    public static String add(String a) {
-        System.out.println("success hook method: =" + a);
-        return a;
-    }
+
     @ExMethod
     public static <T> T[] add(T[] array,T... add) {
         final T[] nArray = (T[]) Array.newInstance(array.getClass().getComponentType(), array.length + add.length);
