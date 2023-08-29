@@ -1,19 +1,19 @@
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.resources.CompilerProperties;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Name;
 
 import java.lang.reflect.Field;
 
-import static com.sun.tools.javac.code.Flags.*;
-import static com.sun.tools.javac.code.Flags.INTERFACE;
-import static com.sun.tools.javac.code.Kinds.Kind.*;
-import static com.sun.tools.javac.code.Kinds.kindName;
-import static com.sun.tools.javac.code.TypeTag.*;
+import static com.sun.tools.javac.code.Flags.PARAMETER;
+import static com.sun.tools.javac.code.TypeTag.NONE;
 
 public class ZrAttr extends Attr {
     private final Context context;

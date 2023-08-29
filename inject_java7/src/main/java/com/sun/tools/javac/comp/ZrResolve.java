@@ -1,7 +1,10 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.ReflectionUtil;
@@ -9,7 +12,6 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
-import zircon.ExMethod;
 
 import java.util.*;
 import java.util.stream.Stream;

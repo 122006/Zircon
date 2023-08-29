@@ -2,21 +2,15 @@ package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.parser.ReflectionUtil;
-import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.sun.tools.javac.code.Flags.PUBLIC;
-import static com.sun.tools.javac.code.Flags.SIGNATURE_POLYMORPHIC;
-import static com.sun.tools.javac.code.Kinds.Kind.AMBIGUOUS;
-import static com.sun.tools.javac.code.TypeTag.FORALL;
-import static com.sun.tools.javac.comp.Resolve.MethodResolutionPhase.BASIC;
 
 public class ZrResolve extends Resolve {
 

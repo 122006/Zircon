@@ -1,23 +1,9 @@
 package com.by122006.zircon;
 
-import com.sun.source.util.*;
-import com.sun.tools.javac.api.BasicJavacTask;
-import com.sun.tools.javac.code.Symtab;
-import com.sun.tools.javac.code.Types;
-import com.sun.tools.javac.comp.Attr;
-import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.parser.UnicodeReader;
-import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Names;
-
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 public class ZirconStringPlugin extends ZirconPlugin {
 
@@ -37,7 +23,6 @@ public class ZirconStringPlugin extends ZirconPlugin {
     public void startTask(Context context, JavaCompiler compiler, ClassLoader pcl, ClassLoader classLoader) throws Exception {
 
             reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
-            reloadClass("com.sun.tools.javac.parser.ReflectionUtil", pcl, classLoader);
             reloadClass("com.sun.tools.javac.parser.Formatter", pcl, classLoader);
             reloadClass("com.sun.tools.javac.parser.SStringFormatter", pcl, classLoader);
             reloadClass("com.sun.tools.javac.parser.FStringFormatter", pcl, classLoader);

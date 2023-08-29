@@ -1,10 +1,8 @@
 package com.sun.tools.javac.parser;
 
-import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ZrScanner;
 
-import java.lang.reflect.Field;
 import java.nio.CharBuffer;
 
 public class ZrParserFactory extends ParserFactory {

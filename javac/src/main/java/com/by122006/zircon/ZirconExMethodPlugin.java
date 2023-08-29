@@ -1,8 +1,6 @@
 package com.by122006.zircon;
 
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.util.Context;
 
 public class ZirconExMethodPlugin extends ZirconPlugin {
