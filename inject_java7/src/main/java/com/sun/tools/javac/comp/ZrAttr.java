@@ -8,6 +8,7 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
@@ -24,15 +25,9 @@ public class ZrAttr extends Attr {
     public static ZrAttr instance(Context context) {
         Attr res = context.get(attrKey);
         if (res instanceof ZrAttr) return (ZrAttr) res;
-//        if (res != null) {
-//            System.out.println();
-//        }
         context.put(attrKey, (Attr) null);
         final ZrAttr zrAttr = new ZrAttr(context);
-        context.put(attrKey, zrAttr);
-
         ReflectionUtil.setDeclaredField(MemberEnter.instance(context), MemberEnter.class, "attr", zrAttr);
-
         ReflectionUtil.setDeclaredField(JavacTrees.instance(context), JavacTrees.class, "attr", zrAttr);
         ReflectionUtil.setDeclaredField(JavaCompiler.instance(context), JavaCompiler.class, "attr", zrAttr);
         ReflectionUtil.setDeclaredField(DeferredAttr.instance(context), DeferredAttr.class, "attr", zrAttr);
@@ -43,6 +38,7 @@ public class ZrAttr extends Attr {
 
         return zrAttr;
     }
+
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
         if (tree instanceof JCTree.JCMemberReference) {

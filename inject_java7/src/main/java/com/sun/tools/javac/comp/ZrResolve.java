@@ -34,7 +34,6 @@ public class ZrResolve extends Resolve {
         if (res instanceof ZrResolve) return (ZrResolve) res;
         context.put(resolveKey, (Resolve) null);
         final ZrResolve zrResolve = new ZrResolve(context);
-        context.put(resolveKey, zrResolve);
         zrResolve.classReader = ClassReader.instance(context);
         ReflectionUtil.setDeclaredField(Attr.instance(context), Attr.class, "rs", zrResolve);
         ReflectionUtil.setDeclaredField(Check.instance(context), Check.class, "rs", zrResolve);
@@ -285,10 +284,6 @@ public class ZrResolve extends Resolve {
 //        System.out.println("======findRedirectMethod：" + super.attr.enter.uncompleted);
 //        if (super.attr.enter.uncompleted==null) return List.nil();
         if (redirectMethodSymbolMap == null) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-            }
             redirectMethodSymbolMap = new HashMap<>();
             long startTime = System.currentTimeMillis();
             final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
@@ -351,15 +346,7 @@ public class ZrResolve extends Resolve {
         return List.nil();
     }
 
-    public static class CoverTree extends RuntimeException {
-        public CoverTree(Env<AttrContext> env, Attr.ResultInfo resultInfo) {
-            this.env = env;
-            this.resultInfo = resultInfo;
-        }
 
-        Env<AttrContext> env;
-        Attr.ResultInfo resultInfo;
-    }
 
     public static class NeedRedirectMethod extends RuntimeException {
         public NeedRedirectMethod(Symbol bestSoFar) {

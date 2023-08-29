@@ -8,34 +8,48 @@ import com.sun.tools.javac.parser.JavaTokenizer;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.UnicodeReader;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Iterator;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Plugin {
 
     public abstract String getName();
 
     public abstract String getCName();
 
+    boolean isLoad = false;
+    JavaCompiler compiler = null;
+
+    Context context;
+
     @Override
     public void init(JavacTask task, String... args) {
         System.out.println("inject [" + getCName() + "] jdk:" + System.getProperty("java.version"));
         BasicJavacTask javacTask = (BasicJavacTask) task;
-        Context context = javacTask.getContext();
         task.addTaskListener(new TaskListener() {
             @Override
             public void started(TaskEvent event) {
-                if (event.getKind() == TaskEvent.Kind.PARSE) {
-                    JavaCompiler compiler = null;
+//                System.out.println("event:" + event.getSourceFile() + " " + event.getKind());
+                if (context != javacTask.getContext()) {
+                    System.out.println(javacTask.getContext());
+                    context = javacTask.getContext();
+                    isLoad=false;
+                }
+                if (!isLoad) {
                     try {
                         compiler = JavaCompiler.instance(context);
                     } catch (Exception e) {
                         e.printStackTrace();
                         return;
                     }
+                    isLoad = true;
                     try {
                         reloadClass("com.sun.tools.javac.parser.ReflectionUtil", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                         startTask(context, compiler, ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
@@ -45,10 +59,12 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                     }
                 }
 
+
             }
 
             @Override
             public void finished(TaskEvent e) {
+
 //                if (e.getKind() == TaskEvent.Kind.ANALYZE) {
 //                    e.getCompilationUnit().accept(ZirconPlugin.this, null);
 //                }
@@ -57,7 +73,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
     }
 
 
-    public abstract void startTask(Context context, JavaCompiler compiler, ClassLoader classLoader, ClassLoader classLoader1) throws Exception ;
+    public abstract void startTask(Context context, JavaCompiler compiler, ClassLoader classLoader, ClassLoader classLoader1) throws Exception;
 
 
     public static Object get(Object obj, String field) {
@@ -92,6 +108,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
 
         }
     }
+
 
     public static Object getInstance(Class<?> clas, Context context) throws ReflectiveOperationException {
         return clas.getDeclaredMethod("instance", Context.class).invoke(null, context);

@@ -25,7 +25,6 @@ public class ZrResolve extends Resolve {
         if (res instanceof ZrResolve) return (ZrResolve) res;
         context.put(resolveKey, (Resolve) null);
         final ZrResolve zrResolve = new ZrResolve(context);
-        context.put(resolveKey, zrResolve);
         {
             final Attr instance = Attr.instance(context);
             if (ReflectionUtil.getDeclaredField(instance, Attr.class, "rs") != null) {
