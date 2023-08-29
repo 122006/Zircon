@@ -13,6 +13,7 @@ repositories {
 dependencies {
     compileOnly files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation project(":base")
+    compileOnly project(":base")
     implementation project(":zircon")
 }
 jar {
