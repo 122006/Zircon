@@ -281,7 +281,6 @@ public class ZrResolve extends Resolve {
                             }
                             enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(e -> {
                                 final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) e;
-                                System.out.println("find in " + classSymbol + "[" + classSymbol.getClass());
                                 classSymbol.members().getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream().anyMatch(annotation -> annotation.type.toString().equals(clazzName)))
                                         .forEach(symbol -> {
                                             Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
