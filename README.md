@@ -39,7 +39,7 @@ buildscript {
 ````
 当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 
-Step 2.在需要使用插件的module的`build.gradle`首行引入插件`apply plugin: 'ZrString'`
+Step 2.在需要使用插件的module的`build.gradle`首行引入插件`apply plugin: 'ZrPlugin'`
 
 </details>
 <details>

@@ -6,11 +6,11 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-//        classpath 'com.github.122006.Zircon:gradle:2.8'
+//        classpath 'com.github.122006.Zircon:gradle:2.8t'
     }
 }
 apply plugin: 'java'
-//apply plugin: 'ZrString'
+//apply plugin: 'zircon'
 
 
 repositories {
@@ -34,6 +34,9 @@ dependencies {
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
+    implementation 'com.github.122006:LinearHttp:1.2.8'
+    implementation 'com.alibaba:fastjson:1.1.72.android'
+    implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
 }
 tasks.withType(JavaCompile) {
     if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
@@ -41,16 +44,16 @@ tasks.withType(JavaCompile) {
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+                << "--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED"
-
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Types=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Names=ALL-UNNAMED"
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.code.Symtab=ALL-UNNAMED"
-
                 << "--add-opens=jdk.compiler/com.sun.tools.javac.processing.JavacProcessingEnvironment=ALL-UNNAMED"
+        it.options.fork = true
     }
 }

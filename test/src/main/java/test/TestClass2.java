@@ -1,5 +1,9 @@
 package test;
 
+import lombok.val;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +14,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class TestClass2 {
+    @SpringBootApplication
+    public static class GradleDemoApplication {
+        public static void main(String[] args) {
+            SpringApplication.run(GradleDemoApplication.class, args);
+        }
+    }
     public static void main(String[] args) {
         System.out.println(("2131" + "12312").concat("123"));
         System.out.println(Test.addStatic("test", "test2"));
@@ -28,7 +38,7 @@ public class TestClass2 {
         new ArrayList<String>().addList("12", "32");
         System.out.println((new String[1]).add("123")[1]);
         Integer testString = 456;
-        final List<String> collect2 = Stream.of(123, 543).map(Test::addStatic).list();
+        val collect2 = Stream.of(123, 543).map(Test::addStatic).list();
         System.out.println("lambda2=" + collect2);
         BiFunction<String, Integer, ?> a = Test::addStatic;
         System.out.println("lambda3=" + a.apply("12", 3));

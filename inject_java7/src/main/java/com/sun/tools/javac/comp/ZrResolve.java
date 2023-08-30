@@ -49,11 +49,6 @@ public class ZrResolve extends Resolve {
         return zrResolve;
     }
 
-    @Override
-    Symbol resolveSelf(JCDiagnostic.DiagnosticPosition diagnosticPosition, Env<AttrContext> env, Symbol.TypeSymbol typeSymbol, Name name) {
-        System.out.println("resolveSelf");
-        return super.resolveSelf(diagnosticPosition, env, typeSymbol, name);
-    }
 
     ReferenceLookupHelper makeReferenceLookupHelper(JCTree.JCMemberReference referenceTree,
                                                     Type site,
@@ -287,26 +282,29 @@ public class ZrResolve extends Resolve {
             redirectMethodSymbolMap = new HashMap<>();
             long startTime = System.currentTimeMillis();
             final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
-            System.out.println("======allPackages：" + allPackages);
+            System.out.println("======allPackages：" + allPackages.keySet());
             final String clazzName = "zircon.ExMethod";
             for (Symbol.PackageSymbol packageSymbol : new ArrayList<>(allPackages.values())) {
                 if (Stream.of("java.util", "com.sun", "sun", "jdk", "org.junit", "java.math", "java.text", "java.io", "java.nio", "java.lang", "java.security", "java.net")
                         .anyMatch(a -> packageSymbol.fullname.toString().startsWith(a))) continue;
-//                packageSymbol.complete();
-                final java.util.List<Symbol> enclosedElements = packageSymbol.getEnclosedElements();
-                enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(e -> {
+                final java.util.List<Symbol> enclosedElements;
+                try {
+                    enclosedElements = packageSymbol.getEnclosedElements();
+                } catch (Exception e) {
+                    System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
+                    continue;
+                }
+                enclosedElements.stream().filter(e -> (e instanceof Symbol.ClassSymbol)).forEach(e -> {
                     final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) e;
-//                    classSymbol.complete();
-                    java.util.List<Symbol> symbols = new ArrayList<>();
-                    classSymbol.getEnclosedElements().forEach(symbols::add);
+                    java.util.List<Symbol> symbols = new ArrayList<>(classSymbol.getEnclosedElements());
                     symbols.forEach(symbol -> {
                         if (!(symbol instanceof Symbol.MethodSymbol)) return;
-//                                symbol.complete();
-                        if (symbol.getAnnotationMirrors().stream().noneMatch(annotation -> annotation.type.toString().equals(clazzName))) {
+                        final List<Attribute.Compound> annotationMirrors = symbol.getAnnotationMirrors();
+                        if (annotationMirrors.stream().noneMatch(annotation -> annotation.type.toString().equals(clazzName))) {
                             return;
                         }
                         Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
-                        symbol.getAnnotationMirrors().stream().filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst()
+                        annotationMirrors.stream().filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst()
                                 .ifPresent(compound -> {
                                     final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
                                     final Attribute ex = compound.member(names.fromString("ex"));
@@ -345,7 +343,6 @@ public class ZrResolve extends Resolve {
         }
         return List.nil();
     }
-
 
 
     public static class NeedRedirectMethod extends RuntimeException {

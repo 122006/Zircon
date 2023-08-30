@@ -196,7 +196,6 @@ public class ZrResolve extends Resolve {
 
         @Override
         Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-//            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
             final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
@@ -273,7 +272,13 @@ public class ZrResolve extends Resolve {
                         .filter(packageSymbol -> Stream.of("java.util", "com.sun", "sun", "jdk", "org.junit", "java.io", "java.nio", "java.lang", "java.security", "java.net")
                                 .noneMatch(a -> packageSymbol.fullname.toString().startsWith(a)))
                         .forEach(packageSymbol -> {
-                            final List<Symbol> enclosedElements = packageSymbol.getEnclosedElements();
+                            final java.util.List<Symbol> enclosedElements;
+                            try {
+                                enclosedElements = packageSymbol.getEnclosedElements();
+                            } catch (Exception e) {
+                                System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
+                                return;
+                            }
                             enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(e -> {
                                 final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) e;
                                 System.out.println("find in " + classSymbol + "[" + classSymbol.getClass());

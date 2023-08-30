@@ -38,9 +38,9 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             public void started(TaskEvent event) {
 //                System.out.println("event:" + event.getSourceFile() + " " + event.getKind());
                 if (context != javacTask.getContext()) {
-                    System.out.println(javacTask.getContext());
+                    System.out.println("context change:" + context + "=>" + javacTask.getContext());
                     context = javacTask.getContext();
-                    isLoad=false;
+                    isLoad = false;
                 }
                 if (!isLoad) {
                     try {
