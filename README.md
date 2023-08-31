@@ -17,7 +17,7 @@
    `someList.stream().filter(a->a.age==25).findFirst().get()`
     替换为=>
    `someList.find(a->a.age=25)`
-> 自定义拓展已有代码的实现方法。可以实现诸如顶级方法、已有实现替换等功能
+> 自定义拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
 
 ---------------
 ### 插件引入 
@@ -121,7 +121,7 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 1. **面板字符串**
    > 形如`$"#{person.name}"`=`"person.name"`,或者`$"#{\.(\S+):person.name}"`=`"name"`。默认收缩
 
-   > 用于调试日志输出、打印字面量等，可以考虑新建一个模板字符串类型
+   > 用于调试日志输出、打印字面量、sql等，可以考虑新建一个模板字符串类型
 
 --------------
 
@@ -141,6 +141,9 @@ For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd>
 1. 不再支持使用单引号转义双引号语法
 2. 支持使用gradle插件配置项目
 3. 重构以支持jdk16、jdk17
+
+### v3.0
+1. 支持拓展方法
 
 
 ### idea插件2.0

@@ -8,6 +8,8 @@ if (System.getProperty("user.dir").contains(":\\")) {
     def version = Integer.parseInt(System.getProperty("java.version").split("\\.")[0])
     if (version >= 16) {
         include ':inject_java16'
+    } else if (version >= 11) {
+        include ':inject_java11'
     } else {
         include ':inject_java7'
     }

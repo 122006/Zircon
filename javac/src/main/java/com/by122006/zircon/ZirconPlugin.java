@@ -122,10 +122,22 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
         return reloadClass(claz, incl, outcl, null);
     }
 
+    static String dir;
+
     static <T> Class<T> reloadClassJavacVersion(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
         final String[] split = claz.split("\\.");
         final String simpleClassName = split[split.length - 1];
-        return reloadClass(claz, incl, outcl, "clazz/" + (checkJavaTokenizerVersionNew() ? "java16" : "java7") + "/" + simpleClassName + ".clazz");
+        if (dir == null) {
+            final String version = System.getProperty("java.version");
+            if (Integer.parseInt(version.split("\\.")[0]) >= 16) {
+                dir = "java16";
+            } else if (Integer.parseInt(version.split("\\.")[0]) >= 11) {
+                dir = "java11";
+            } else {
+                dir = "java7";
+            }
+        }
+        return reloadClass(claz, incl, outcl, "clazz/" + dir + "/" + simpleClassName + ".clazz");
     }
 
     // <editor-fold defaultstate="collapsed" desc="reloadClass">

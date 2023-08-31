@@ -19,7 +19,7 @@ dependencies {
 jar {
     manifest {
         attributes(
-                'Add-Exports': "jdk.compiler/com.sun.tools.javac.api jdk.compiler/com.sun.tools.javac.util jdk.compiler/com.sun.tools.javac.comp",
+                'Add-Exports': "jdk.compiler/com.sun.tools.javac.api jdk.compiler/com.sun.tools.javac.code jdk.compiler/com.sun.tools.javac.util jdk.compiler/com.sun.tools.javac.comp",
                 'Add-Opens': "jdk.compiler/com.sun.tools.javac.main jdk.compiler/com.sun.tools.javac.parser",
         )
     }

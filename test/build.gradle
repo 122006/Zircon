@@ -39,7 +39,7 @@ dependencies {
     implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
 }
 tasks.withType(JavaCompile) {
-    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
+    if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 11) {
         it.options.forkOptions.jvmArgs
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"

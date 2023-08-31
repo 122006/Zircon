@@ -13,7 +13,7 @@ class ZrPlugin implements Plugin<Project> {
         project.tasks.withType(JavaCompile) { JavaCompile it ->
             it.options.compilerArgs << "-Xplugin:ZrExMethod"
             it.options.compilerArgs << "-Xplugin:ZrString"
-            if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 16) {
+            if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 11) {
                 it.options.forkOptions.jvmArgs
                         << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
                         << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
