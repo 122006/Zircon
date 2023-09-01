@@ -21,12 +21,13 @@ class ZrPlugin implements Plugin<Project> {
                         << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED"
                         << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
                 it.options.fork = true
-
             }
         }
         project.dependencies.add("annotationProcessor"
                 , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
         project.dependencies.add("implementation"
                 , project.dependencies.create("com.github.122006.Zircon:zircon:3.+"))
+        project.dependencies.add("androidTestImplementation"
+                , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
     }
 }

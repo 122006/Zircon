@@ -20,6 +20,7 @@
     <option name="originalFiles">
       <list>
         <option value="$PROJECT_DIR$/base/pom.xml" />
+        <option value="$PROJECT_DIR$/maven_plugin/pom.xml" />
       </list>
     </option>
   </component>
