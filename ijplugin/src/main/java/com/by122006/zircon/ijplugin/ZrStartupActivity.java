@@ -10,7 +10,6 @@ public class ZrStartupActivity implements StartupActivity {
 
     @Override
     public void runActivity(@NotNull Project project) {
-        LOG.info("runActivity");
 //        Util.setJavaElementConstructor(JavaElementType.POLYADIC_EXPRESSION, ZrPsiPolyadicExpressionImpl::new);
     }
 }

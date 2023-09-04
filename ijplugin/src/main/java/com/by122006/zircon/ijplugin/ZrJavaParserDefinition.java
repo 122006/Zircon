@@ -20,14 +20,12 @@ public class ZrJavaParserDefinition extends JavaParserDefinition {
     @NotNull
     @Override
     public Lexer createLexer(@Nullable Project project) {
-        LOG.info( "createLexer" );
         LanguageLevel level = project != null ? LanguageLevelProjectExtension.getInstance(project).getLanguageLevel() : LanguageLevel.HIGHEST;
         return createLexer(level);
     }
 
     @NotNull
     public static Lexer createLexer(@NotNull LanguageLevel level) {
-        LOG.info( "createLexer" );
         return new ZrJavaLexer(level);
     }
 }

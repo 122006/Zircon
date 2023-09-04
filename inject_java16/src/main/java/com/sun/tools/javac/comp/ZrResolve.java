@@ -4,20 +4,23 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
 import java.util.*;
 import java.util.stream.Stream;
 
+import static com.sun.tools.javac.code.Flags.PARAMETER;
 import static com.sun.tools.javac.code.Flags.PUBLIC;
 
 public class ZrResolve extends Resolve {
 
     private Symbol methodNotFound = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
-
+    Context context;
     protected ZrResolve(Context context) {
         super(context);
+        this.context=context;
     }
 
     public static ZrResolve instance(Context context) {
@@ -89,70 +92,18 @@ public class ZrResolve extends Resolve {
                     if (!types.isCastable(site, nParams.get(0).type)) {
                         continue;
                     }
-                    ListBuffer listBuffer = new ListBuffer();
-                    nParams.stream().skip(1).map(a -> a.type).forEach(listBuffer::append);
-                    final Type returnType = ((Symbol.MethodSymbol) methodInfo.methodSymbol).type.getReturnType();
-                    Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
-                    Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                    throw new NeedRedirectMethod(methodInfo.methodSymbol);
+                    String lambda = createLambdaTree(referenceTree, methodInfo.methodSymbol).toString();
+                    final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + referenceTree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
+                    runtimeException.setStackTrace(new StackTraceElement[0]);
+                    throw runtimeException;
                 }
-
-//                if (method instanceof AmbiguityError) {
-//                    System.out.println("method1: " + ((AmbiguityError) method).ambiguousSyms);
-//                } else
-//                    System.out.println("method1: " + method);
-//
-//                if (method2 instanceof AmbiguityError) {
-//                    System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
-//                } else
-//                    System.out.println("method2: " + method2);
-//                    if (method == methodNotFound && method2.exists()) {
-//                        throw new NeedRedirectMethod(method2);
-//                    }
                 return method2;
             }
-
             Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes,
                     method,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
-//            System.out.println("method : " + method + " best? " + method2);
-            if (!method.exists() && method2.exists() && env.tree.toString().startsWith("testString")) {
-                if (method2 instanceof Symbol.MethodSymbol) {
-                    if (attr.pt().getTag() == TypeTag.NONE && env.tree.toString().startsWith("testString")) {
-                        Type.MethodType methodType = new Type.MethodType(argtypes, ((Symbol.MethodSymbol) method2).type.getReturnType(), List.nil(), oSite.tsym);
-                        Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                        return tempSymbol;
-                    }
-                    throw new NeedRedirectMethod(method2);
-                }
-                if (method2 instanceof AmbiguityError) {
-                    for (Symbol methodSymbolItem : ((AmbiguityError) method2).ambiguousSyms) {
-                        Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol) methodSymbolItem;
-                        final List<Symbol.VarSymbol> nParams = methodSymbol.params();
-                        if (nParams.size() == 0) continue;
-                        if (!types.isSubtype(site, nParams.get(0).type)) {
-                            continue;
-                        }
-                        ListBuffer listBuffer = new ListBuffer();
-                        nParams.stream().skip(1).map(a -> a.type).forEach(listBuffer::append);
-                        if (attr.pt().getTag() == TypeTag.NONE && env.tree.toString().startsWith("testString")) {
-                            final Type returnType = ((Symbol.MethodSymbol) methodSymbol).type.getReturnType();
-                            Type.MethodType methodType = new Type.MethodType(listBuffer.toList(), returnType, List.nil(), oSite.tsym);
-                            Symbol.MethodSymbol tempSymbol = new Symbol.MethodSymbol(PUBLIC, name, methodType, oSite.tsym);
-                            return tempSymbol;
-                        }
-                        throw new NeedRedirectMethod(methodSymbol);
-                    }
-                }
-            }
-
-
             if (!method2.exists() && !(method2 instanceof AmbiguityError)) method2 = method;
-//            if (method2 instanceof AmbiguityError) {
-//                System.out.println("method2: " + ((AmbiguityError) method2).ambiguousSyms);
-//            } else
-//                System.out.println("method2: " + method2);
             return method2;
         }
 
@@ -160,13 +111,6 @@ public class ZrResolve extends Resolve {
         Symbol access(Env<AttrContext> env, JCDiagnostic.DiagnosticPosition pos, Symbol location, Symbol sym) {
             final JCTree.JCExpression qualifierExpression = ((JCTree.JCMemberReference) env.tree).getQualifierExpression();
             final Symbol symbol = TreeInfo.symbol(qualifierExpression);
-            if (symbol != null) {
-                if (sym == methodNotFound && !TreeInfo.isStaticSelector(referenceTree.expr, names)) {
-//                    throw new NeedLowerLambda(site, qualifierExpression, name);
-                }
-            } else {
-
-            }
             return super.access(env, pos, location, sym);
         }
 
@@ -179,6 +123,21 @@ public class ZrResolve extends Resolve {
         JCTree.JCMemberReference.ReferenceKind referenceKind(Symbol sym) {
             return helper.referenceKind(sym);
         }
+    }
+    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
+        final JCTree.JCLambda lambda;
+        final TreeMaker maker = TreeMaker.instance(context);
+        final Name nameA = names.fromString("$zr$a");
+        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
+                , bestSoFar.params.get(1).type, syms.noSymbol);
+        final JCTree.JCIdent idA = maker.Ident(symA);
+        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
+        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
+        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
+//                        apply.setType(bestSoFar.getReturnType());
+        JCTree.JCVariableDecl a = maker.VarDef(symA, null);
+        lambda = maker.Lambda(List.of(a), apply);
+        return lambda;
     }
 
     @Override
@@ -203,15 +162,6 @@ public class ZrResolve extends Resolve {
                     bestSoFar,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired());
-//            if (bestSoFar instanceof AmbiguityError) {
-//                System.out.println("method1: " + ((AmbiguityError) bestSoFar).ambiguousSyms + " [" + bestSoFar.kind.isValid());
-//            } else
-//                System.out.println("method1: " + bestSoFar + " [" + bestSoFar.kind.isValid());
-//
-//            if (newSymbol instanceof AmbiguityError) {
-//                System.out.println("method2: " + ((AmbiguityError) newSymbol).ambiguousSyms + " [" + newSymbol.kind.isValid());
-//            } else
-//                System.out.println("method2: " + newSymbol + " [" + newSymbol.kind.isValid());
 
             if ((newSymbol.kind.isValid() && !bestSoFar.kind.isValid())
                     || (newSymbol.kind.isValid() && bestSoFar.kind.isValid() && newSymbol != bestSoFar)) {

@@ -21,10 +21,14 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.editor.markup.EffectType;
 import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
+import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
 import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
+import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
@@ -32,6 +36,7 @@ import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.ExMethod;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -50,70 +55,190 @@ public class ZrAnnotator implements Annotator {
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        if (!ZrPluginUtil.hasZrPlugin(element.getProject())) return;
-        if (element.getLanguage() != JavaLanguage.INSTANCE) return;
-        if (element instanceof PsiPolyadicExpression && Arrays.stream(element.getChildren()).anyMatch(ZrUtil::isJavaStringLiteral)) {
-            registerChange2SStringIntentionAction((PsiPolyadicExpression) element, holder);
-            return;
+        try {
+            if (!ZrPluginUtil.hasZrPlugin(element.getProject())) return;
+            if (element.getLanguage() != JavaLanguage.INSTANCE) return;
+            if (element instanceof PsiMethodReferenceExpression) {
+                registerLimitMemberReference(element, holder);
+                return;
+            }
+            if (element instanceof PsiPolyadicExpression && Arrays.stream(element.getChildren()).anyMatch(ZrUtil::isJavaStringLiteral)) {
+                registerChange2SStringIntentionAction((PsiPolyadicExpression) element, holder);
+                return;
+            }
+            if (ZrUtil.isJavaStringLiteral(element)) {
+                registerBackfStringIntentionAction(element, holder);
+                return;
+            }
+            if (element instanceof PsiMethod) {
+                registerCheckZrExMethod((PsiMethod) element, holder);
+                return;
+            }
+            if (element instanceof PsiMethodCallExpressionImpl) {
+                if (FormatUtils.isFormatCall((PsiMethodCallExpression) element)) {
+                    registerChangeFromFormatIntentionAction((PsiMethodCallExpressionImpl) element, holder);
+                }
+                return;
+            }
+        } catch (ProcessCanceledException e) {
         }
-        if (ZrUtil.isJavaStringLiteral(element)) {
-            final String text = element.getText();
-            if (!text.startsWith("\"")) {
-                final Formatter formatter = registerChange2NormalIntentionAction(element, holder, text);
-                if (formatter != null) {
-                    final ZrStringModel model = formatter.build(text);
-                    String printOut = replace2NormalString(element, holder, text, formatter, model);
-                    foldCode(element, holder, printOut);
-                    boldSpecialChar(element, holder, formatter, model);
-                    model.getList().stream().filter(a -> a.codeStyle == 1).forEach(a -> {
-                        final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
-                                .shiftRight(element.getTextOffset());
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                .range(textRange)
-                                .highlightType(ProblemHighlightType.INFORMATION)
-                                .textAttributes(ZrStringTextCodeStyle1)
+    }
+
+    private void registerCheckZrExMethod(@NotNull PsiMethod method, @NotNull AnnotationHolder holder) {
+        if (!method.isValid()) return;
+        final PsiAnnotation[] annotations = method.getAnnotations();
+        final List<PsiAnnotation> collect = Arrays.stream(annotations).filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class.getName())).collect(Collectors.toList());
+        if (collect.isEmpty()) return;
+        if (collect.size() > 1) {
+            collect.stream().skip(1)
+                    .forEach(annotation -> {
+                        holder.newAnnotation(HighlightSeverity.WARNING, "Duplicate annotation")
+                                .range(annotation)
+                                .highlightType(ProblemHighlightType.WARNING)
                                 .create();
                     });
-                    final String previewString = model.getList().stream().map(a -> {
-                        if (a.codeStyle == 0) {
-                            return model.getOriginalString().substring(a.startIndex, a.endIndex);
-                        } else if (a.codeStyle == 1) {
-                            return "__";
-                        }
-                        return "";
-                    }).collect(Collectors.joining());
-                    holder.newAnnotation(HighlightSeverity.INFORMATION, previewString)
-                            .range(element)
+            return;
+        }
+        final PsiAnnotation annotation = annotations[0];
+        final PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
+        if (ex != null) {
+            final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
+            final List<PsiType> types = Arrays.stream(initializers).map(a -> {
+                final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                if (childOfType == null) return null;
+                return childOfType.getType();
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+            if (types.isEmpty()) {
+                holder.newAnnotation(HighlightSeverity.WARNING, "需要指定至少一个静态代理类")
+                        .range(method)
+                        .highlightType(ProblemHighlightType.WARNING)
+                        .create();
+            }
+        }else{
+            final PsiParameterList parameterList = method.getParameterList();
+            if (parameterList.isEmpty()) {
+                holder.newAnnotation(HighlightSeverity.WARNING, "非静态拓展方法需要设置首个入参作为代理类")
+                        .range(method)
+                        .highlightType(ProblemHighlightType.WARNING)
+                        .create();
+            }else {
+                holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                        .range(parameterList.getParameter(0))
+                        .tooltip("代理类")
+                        .highlightType(ProblemHighlightType.INFORMATION)
+                        .create();
+            }
+        }
+
+    }
+
+    private void registerBackfStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+        final String text = element.getText();
+        if (!text.startsWith("\"")) {
+            final Formatter formatter = registerChange2NormalIntentionAction(element, holder, text);
+            if (formatter != null) {
+                final ZrStringModel model = formatter.build(text);
+                String printOut = replace2NormalString(element, holder, text, formatter, model);
+                foldCode(element, holder, printOut);
+                boldSpecialChar(element, holder, formatter, model);
+                model.getList().stream().filter(a -> a.codeStyle == 1).forEach(a -> {
+                    final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
+                            .shiftRight(element.getTextOffset());
+                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                            .range(textRange)
                             .highlightType(ProblemHighlightType.INFORMATION)
+                            .textAttributes(ZrStringTextCodeStyle1)
                             .create();
-                    if (formatter instanceof FStringFormatter) {
-                        try {
-                            checkFStringError(element, model, holder);
-                        } catch (Exception e) {
-                            LOG.warn(e);
-                        }
+                });
+                final String previewString = model.getList().stream().map(a -> {
+                    if (a.codeStyle == 0) {
+                        return model.getOriginalString().substring(a.startIndex, a.endIndex);
+                    } else if (a.codeStyle == 1) {
+                        return "__";
                     }
-                    if (formatter instanceof SStringFormatter) {
-                        try {
-                            final ZrStringModel build = new FStringFormatter().build(text);
-                            checkSStringChange2FString(element, build, holder);
-                        } catch (Exception e) {
-                            LOG.warn(e);
-                        }
+                    return "";
+                }).collect(Collectors.joining());
+                holder.newAnnotation(HighlightSeverity.INFORMATION, previewString)
+                        .range(element)
+                        .highlightType(ProblemHighlightType.INFORMATION)
+                        .create();
+                if (formatter instanceof FStringFormatter) {
+                    try {
+                        checkFStringError(element, model, holder);
+                    } catch (Exception e) {
+                        LOG.warn(e);
                     }
                 }
+                if (formatter instanceof SStringFormatter) {
+                    try {
+                        final ZrStringModel build = new FStringFormatter().build(text);
+                        checkSStringChange2FString(element, build, holder);
+                    } catch (Exception e) {
+                        LOG.warn(e);
+                    }
+                }
+            }
 
-            } else {
-                checkNeedChange2SString(element, holder, text);
-            }
-            return;
+        } else {
+            checkNeedChange2SString(element, holder, text);
         }
-        if (element instanceof PsiMethodCallExpressionImpl) {
-            if (FormatUtils.isFormatCall((PsiMethodCallExpression) element)) {
-                registerChangeFromFormatIntentionAction((PsiMethodCallExpressionImpl) element, holder);
-            }
-            return;
+    }
+
+    private boolean registerLimitMemberReference(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+        final PsiMethodReferenceExpressionImpl expression = (PsiMethodReferenceExpressionImpl) ((PsiMethodReferenceExpression) element).getReference();
+        if (expression == null) return true;
+        final PsiReference reference = expression.getReference();
+        if (reference == null) return true;
+        final PsiElement resolve;
+        try {
+            resolve = reference.resolve();
+        } catch (ProcessCanceledException e) {
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return true;
         }
+        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
+            holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]:暂不支持拓展方法应用于非静态成员方法引用")
+                    .range(element)
+                    .highlightType(ProblemHighlightType.ERROR)
+                    .withFix(new IntentionAction() {
+                        @Override
+                        public @IntentionName
+                        @NotNull
+                        String getText() {
+                            return "[ZrExMethod]: replace with lambda tree";
+                        }
+
+                        @Override
+                        public @NotNull
+                        @IntentionFamilyName String getFamilyName() {
+                            return "ZrExMethod";
+                        }
+
+                        @Override
+                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                            return true;
+                        }
+
+                        @Override
+                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                            final PsiParameterList parameterList = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).getParameterList();
+                            final String collect = Arrays.stream(parameterList.getParameters()).map(PsiParameter::getName).collect(Collectors.joining(","));
+                            final String s = "(" + collect + ")->" + element.getText().replace("::", ".") + "(" + collect + ")";
+                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
+                            element.replace(codeBlockFromText);
+                        }
+
+                        @Override
+                        public boolean startInWriteAction() {
+                            return true;
+                        }
+                    })
+                    .create();
+        }
+        return false;
     }
 
     static @NotNull

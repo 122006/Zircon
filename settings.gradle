@@ -3,7 +3,6 @@ include ':javac'
 include ':zircon'
 include ':base'
 include ':gradle_plugin'
-include ':maven_plugin'
 if (System.getProperty("user.dir").contains(":\\")) {
     include ':test'
     def version = Integer.parseInt(System.getProperty("java.version").split("\\.")[0])
@@ -14,7 +13,7 @@ if (System.getProperty("user.dir").contains(":\\")) {
     } else {
         include ':inject_java7'
     }
-    if (version >= 11)
+    if (version >= 8)
         include ':ijplugin'
 }
 

@@ -1,9 +1,9 @@
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.api.JavacTrees;
+import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
@@ -28,92 +28,18 @@ public class ZrAttr extends Attr {
         if (res instanceof ZrAttr) return (ZrAttr) res;
         context.put(attrKey, (Attr) null);
         final ZrAttr zrAttr = new ZrAttr(context);
-        {
-            final TypeEnter instance = TypeEnter.instance(context);
-            if (get(instance, "attr") != null) {
-                set(instance, "attr", zrAttr);
-            }
-        }
-        {
-            final ArgumentAttr instance = ArgumentAttr.instance(context);
-            if (get(instance, "attr") != null) {
-                set(instance, "attr", zrAttr);
-            }
-        }
-        {
-            final Resolve instance = Resolve.instance(context);
-            if (get(instance, "attr") != null) {
-                set(instance, "attr", zrAttr);
-            }
-        }
-        {
-            final DeferredAttr instance = DeferredAttr.instance(context);
-            if (get(instance, "attr") != null) {
-                set(instance, "attr", zrAttr);
-            }
-        }
-        context.put(attrKey, zrAttr);
-
+        ReflectionUtil.setDeclaredField(MemberEnter.instance(context), MemberEnter.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(JavacTrees.instance(context), JavacTrees.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(TypeEnter.instance(context), TypeEnter.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(JavaCompiler.instance(context), JavaCompiler.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(DeferredAttr.instance(context), DeferredAttr.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(ArgumentAttr.instance(context), ArgumentAttr.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(Resolve.instance(context), Resolve.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(TypeAnnotations.instance(context), TypeAnnotations.class, "attr", zrAttr);
+        ReflectionUtil.setDeclaredField(Annotate.instance(context), Annotate.class, "attr", zrAttr);
         return zrAttr;
     }
 
-
-    @Override
-    Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-        if (tree instanceof JCTree.JCMethodInvocation) {
-            return super.attribTree(tree, env, resultInfo);
-        } else if (tree instanceof JCTree.JCMemberReference) {
-            final JCTree.JCMemberReference memberReference = (JCTree.JCMemberReference) tree;
-            final DeferredAttr.AttrMode oldDeferredAttrMode = resultInfo.checkContext.deferredAttrContext().mode;
-            final JCTree.JCExpression qualifierExpression = memberReference.getQualifierExpression();
-            final InferenceContext inferenceContext = super.resultInfo.checkContext.inferenceContext();
-            try {
-                return super.attribTree(memberReference, env, resultInfo);
-            } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
-                redirectMethod.printStackTrace();
-                make.at(memberReference.getStartPosition());
-                System.out.println("tree0:"+memberReference);
-                final Symbol.MethodSymbol bestSoFar = (Symbol.MethodSymbol) redirectMethod.bestSoFar;
-                System.out.println("tree:"+bestSoFar);
-                final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
-                System.out.println("tree2:"+bestSoFar);
-                if (methodStaticExType.isEmpty()) {
-                    final JCTree.JCLambda lambda;
-                    lambda = createLambdaTree(memberReference, bestSoFar);
-                    lambda.pos = memberReference.pos;
-                    final ResultInfo newResultInfo = new ResultInfo(Kinds.KindSelector.VAL, resultInfo.pt.hasTag(NONE) ? Type.recoveryType : resultInfo.pt, resultInfo.checkContext, CheckMode.NORMAL);
-                    Env<AttrContext> fEnv = env.dup(lambda, env.info.dup());
-                    Type type = super.attribTree(lambda, fEnv, newResultInfo);
-                    lambda.type = type;
-                    result = type;
-                    if (true) {//todo
-                        final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + tree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
-                        runtimeException.setStackTrace(new StackTraceElement[0]);
-                        throw runtimeException;
-                    }
-                    return result;
-                }
-
-            }
-
-        }
-        return super.attribTree(tree, env, resultInfo);
-    }
-
-    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
-        final JCTree.JCLambda lambda;
-        final TreeMaker maker = TreeMaker.instance(context);
-        final Name nameA = names.fromString("$zr$a");
-        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
-                , bestSoFar.params.get(1).type, syms.noSymbol);
-        final JCTree.JCIdent idA = maker.Ident(symA);
-        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
-        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
-        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
-        JCTree.JCVariableDecl a = make.VarDef(symA, null);
-        lambda = maker.Lambda(List.of(a), apply);
-        return lambda;
-    }
 
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {

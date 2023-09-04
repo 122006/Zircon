@@ -27,7 +27,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     HighlightInfoHolder holder;
 
     public HighlightVisitorImpl getHighlightVisitor(Project project) {
-        final HighlightVisitor[] extensions = HighlightVisitorImpl.EP_HIGHLIGHT_VISITOR.getExtensions(project);
+        final HighlightVisitor[] extensions = HighlightVisitor.EP_HIGHLIGHT_VISITOR.getExtensions(project);
         HighlightVisitorImpl highlightVisitor = (HighlightVisitorImpl) Arrays.stream(extensions).filter(a -> a instanceof HighlightVisitorImpl).findFirst().orElse(null);
         return highlightVisitor;
     }
