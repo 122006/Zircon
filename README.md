@@ -19,7 +19,7 @@
 
 `someList.stream().filter(a->a.age==25).findFirst().get()`
 替换为=>
-`someList.find(a->a.age=25)`
+`someList.find(a->a.age==25)`
 > 自定义拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
 
 ---------------
