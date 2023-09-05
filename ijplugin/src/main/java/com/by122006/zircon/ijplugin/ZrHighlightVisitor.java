@@ -59,8 +59,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                 return;
                             }
                             final HighlightVisitorImpl highlightVisitor = getHighlightVisitor(psiElement.getProject());
-                            Consumer<PsiElement> consumer = null;
-                            consumer = new Consumer<>() {
+                            Consumer<PsiElement> consumer = new Consumer<PsiElement>() {
                                 @Override
                                 public void accept(PsiElement elem) {
                                     final PsiElement[] children = elem.getChildren();

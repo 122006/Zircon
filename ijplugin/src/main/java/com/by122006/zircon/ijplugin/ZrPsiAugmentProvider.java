@@ -213,7 +213,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         private final PsiClass targetClass;
         public PsiMethod targetMethod = null;
         public boolean isStatic = false;
-        private ASTNode myASTNode;
 
         @Override
         public boolean equals(Object o) {

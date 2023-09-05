@@ -107,7 +107,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 ### 安装IDEA插件
 
-#### 手动安装
+#### 手动安装（推荐）
 
 1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.5.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
@@ -129,7 +129,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ### 其他注意事项
 
-1. 请注意保持idea插件更新到最新
+1. 请注意保持idea插件更新到最新。插件仓库审核有可能有滞后，请优先手动安装
 
 --------------
 
