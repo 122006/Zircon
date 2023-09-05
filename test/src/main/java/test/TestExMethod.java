@@ -5,10 +5,7 @@ import zircon.ExMethod;
 import java.io.PrintStream;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.util.Collection;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -139,6 +136,11 @@ public class TestExMethod {
     @ExMethod
     public static boolean isNull(Object obj) {
         return obj == null;
+    }
+
+    @ExMethod(ex = {List.class})
+    public static <T> List<T> synchronizedList(T... data){
+        return Collections.synchronizedList(Arrays.asList(data));
     }
 
     @ExMethod

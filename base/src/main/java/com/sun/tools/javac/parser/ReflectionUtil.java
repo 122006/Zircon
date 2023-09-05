@@ -13,6 +13,7 @@ public class ReflectionUtil {
             throw new RuntimeException(e);
         }
     }
+    @SuppressWarnings("unchecked")
     public static <T,M> M getDeclaredField(T t, Class<? super T> tClazz, String fieldName){
         try {
             Field declaredField = tClazz.getDeclaredField(fieldName);

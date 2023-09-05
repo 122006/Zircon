@@ -295,6 +295,11 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }
 
         @Override
+        public PsiElement getParent() {
+            return targetMethod.getParent();
+        }
+
+        @Override
         public PsiAnnotation @NotNull [] getAnnotations() {
             return Arrays.stream(super.getAnnotations()).filter(a -> !Objects.equals(a.getQualifiedName(), ExMethod.class.getName()))
                     .toArray(PsiAnnotation[]::new);

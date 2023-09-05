@@ -37,7 +37,7 @@ public class TestClass2 {
         new ArrayList<String>().addList("12", "32");
         System.out.println((new String[1]).add("123")[1]);
         Integer testString = 456;
-        List collect2 = Stream.of(123, 543).map(Test::addStatic).list();
+        final List<String> collect2 = Stream.of(123, 543).map(Test::addStatic).list();
         System.out.println("lambda2=" + collect2);
         BiFunction<String, Integer, ?> a = Test::addStatic;
         System.out.println("lambda3=" + a.apply("12", 3));
