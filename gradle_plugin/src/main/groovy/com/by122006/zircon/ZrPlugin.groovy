@@ -27,7 +27,11 @@ class ZrPlugin implements Plugin<Project> {
                 , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
         project.dependencies.add("implementation"
                 , project.dependencies.create("com.github.122006.Zircon:zircon:3.+"))
-        project.dependencies.add("androidTestImplementation"
-                , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
+        try {
+            project.dependencies.add("androidTestImplementation"
+                    , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
+        } catch (ignored) {
+
+        }
     }
 }
