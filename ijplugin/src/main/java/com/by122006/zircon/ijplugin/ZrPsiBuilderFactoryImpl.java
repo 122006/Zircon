@@ -7,6 +7,7 @@ import com.intellij.lang.impl.PsiBuilderImpl;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.Lexer;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
 import com.intellij.pom.java.LanguageLevel;
@@ -25,6 +26,8 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
         } else if (lexer == null) {
             try {
                 lexer=parserDefinition.createLexer(project);
+            } catch (ProcessCanceledException e) {
+                throw e;
             } catch (Exception e) {
                 e.printStackTrace();
                 throw new RuntimeException("createLexer error:"+e.getMessage());

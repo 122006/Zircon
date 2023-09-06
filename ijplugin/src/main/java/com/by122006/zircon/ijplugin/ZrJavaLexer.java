@@ -4,6 +4,7 @@ import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.LexerBase;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.TokenType;
@@ -40,6 +41,8 @@ public final class ZrJavaLexer extends LexerBase {
             Constructor<?> constructor = getFlexClazz().getConstructor(LanguageLevel.class);
             constructor.setAccessible(true);
             myFlexLexer = constructor.newInstance(level);
+        } catch (ProcessCanceledException e) {
+            throw e;
         } catch (Exception e) {
             LOG.error(e);
         }
@@ -242,6 +245,8 @@ public final class ZrJavaLexer extends LexerBase {
                 getTokenEnd.setAccessible(true);
             }
             myTokenEndOffset = (int) getTokenEnd.invoke(myFlexLexer);
+        } catch (ProcessCanceledException e) {
+            throw e;
         } catch (Exception e) {
             LOG.warn(e);
         }

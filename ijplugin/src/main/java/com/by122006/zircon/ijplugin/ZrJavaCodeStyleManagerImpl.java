@@ -9,6 +9,7 @@ import com.intellij.jsp.JspSpiUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
@@ -90,6 +91,8 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                         collectNamesToImport(names, comments, (PsiJavaFile) javaRoot, jspFile);
                     }
                 }
+            } catch (ProcessCanceledException e) {
+                throw e;
             } catch (Exception e) {
                 e.printStackTrace();
             }

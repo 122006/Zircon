@@ -11,6 +11,7 @@ import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
@@ -90,6 +91,8 @@ public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHold
                     public @IntentionName @NotNull String getText() {
                         try {
                             return action.getText();
+                        } catch (ProcessCanceledException e) {
+                            throw e;
                         } catch (Exception e) {
                             return "";
                         }

@@ -81,6 +81,7 @@ public class ZrAnnotator implements Annotator {
                 return;
             }
         } catch (ProcessCanceledException e) {
+            throw e;
         }
     }
 
@@ -165,6 +166,8 @@ public class ZrAnnotator implements Annotator {
                 if (formatter instanceof FStringFormatter) {
                     try {
                         checkFStringError(element, model, holder);
+                    } catch (ProcessCanceledException e) {
+                        throw e;
                     } catch (Exception e) {
                         LOG.warn(e);
                     }
@@ -173,6 +176,8 @@ public class ZrAnnotator implements Annotator {
                     try {
                         final ZrStringModel build = new FStringFormatter().build(text);
                         checkSStringChange2FString(element, build, holder);
+                    } catch (ProcessCanceledException e) {
+                        throw e;
                     } catch (Exception e) {
                         LOG.warn(e);
                     }
@@ -316,6 +321,8 @@ public class ZrAnnotator implements Annotator {
         constructor.setAccessible(true);
         try {
             return (TextAttributesKey) constructor.newInstance(externalName, defaultAttributes, fallbackAttributeKey);
+        } catch (ProcessCanceledException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException(new RuntimeException("不支持的idea版本"));
@@ -464,6 +471,8 @@ public class ZrAnnotator implements Annotator {
                         .highlightType(ProblemHighlightType.ERROR)
                         .create();
                 continue;
+            } catch (ProcessCanceledException e) {
+                throw e;
             } catch (Exception e) {
                 e.printStackTrace();
             }

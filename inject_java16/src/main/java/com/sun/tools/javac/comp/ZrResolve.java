@@ -18,9 +18,10 @@ public class ZrResolve extends Resolve {
 
     private Symbol methodNotFound = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
     Context context;
+
     protected ZrResolve(Context context) {
         super(context);
-        this.context=context;
+        this.context = context;
     }
 
     public static ZrResolve instance(Context context) {
@@ -49,7 +50,6 @@ public class ZrResolve extends Resolve {
         }
         return zrResolve;
     }
-
 
 
     ReferenceLookupHelper makeReferenceLookupHelper(JCTree.JCMemberReference referenceTree,
@@ -124,6 +124,7 @@ public class ZrResolve extends Resolve {
             return helper.referenceKind(sym);
         }
     }
+
     private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(context);

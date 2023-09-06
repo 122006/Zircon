@@ -1,6 +1,7 @@
 package test;
 
 import zircon.ExMethod;
+import zircon.example.ExArray;
 
 import java.io.PrintStream;
 import java.lang.reflect.Array;
@@ -106,46 +107,5 @@ public class TestExMethod {
     }
 
 
-    @ExMethod
-    public static <T> T[] add(T[] array,T... add) {
-        final T[] nArray = (T[]) Array.newInstance(array.getClass().getComponentType(), array.length + add.length);
-        System.arraycopy(array,0,nArray,0,array.length);
-        System.arraycopy(add,0,nArray,array.length,add.length);
-        return nArray;
-    }
-    @ExMethod
-    public static <T> T find(Collection<T> collection, Predicate<T> predicate) {
-        return collection.stream().filter(predicate).findFirst().orElse(null);
-    }
-
-    @ExMethod
-    public static <T> List<T> findAll(Collection<T> collection, Predicate<T> predicate) {
-        return collection.stream().filter(predicate).collect(Collectors.toList());
-    }
-
-    @ExMethod
-    public static <T> List<T> list(Stream<T> stream) {
-        return stream.collect(Collectors.toList());
-    }
-
-    @ExMethod
-    public static <T> Set<T> set(Stream<T> stream) {
-        return stream.collect(Collectors.toSet());
-    }
-
-    @ExMethod
-    public static boolean isNull(Object obj) {
-        return obj == null;
-    }
-
-    @ExMethod(ex = {List.class})
-    public static <T> List<T> synchronizedList(T... data){
-        return Collections.synchronizedList(Arrays.asList(data));
-    }
-
-    @ExMethod
-    public static <T> T or(T obj, T or) {
-        return obj == null ? or : obj;
-    }
 
 }
