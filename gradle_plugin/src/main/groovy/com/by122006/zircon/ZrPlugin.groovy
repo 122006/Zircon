@@ -33,5 +33,12 @@ class ZrPlugin implements Plugin<Project> {
         } catch (ignored) {
 
         }
+        try {
+            project.dependencies.add("testAnnotationProcessor"
+                    , project.dependencies.create("com.github.122006.Zircon:javac:3.+"))
+        } catch (ignored) {
+
+        }
+
     }
 }

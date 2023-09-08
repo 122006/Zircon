@@ -15,7 +15,7 @@ import com.intellij.psi.util.PsiModificationTracker;
 import zircon.ExMethod;
 
 public class ZrPluginUtil {
-    public static boolean hasZrPlugin(Project project) {
+    public static synchronized boolean hasZrPlugin(Project project) {
         if (project.isDefault() || !project.isInitialized()) {
             return false;
         }

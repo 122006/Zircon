@@ -255,7 +255,6 @@ public class ZrResolve extends Resolve {
                         });
             }
             System.out.println("======search end");
-            System.out.println(redirectMethodSymbolMap.values());
             System.out.println("扫描耗时:" + (System.currentTimeMillis() - startTime) + "ms");
         }
         final List<ExMethodInfo> list = redirectMethodSymbolMap.get(methodName);
