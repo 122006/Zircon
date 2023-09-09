@@ -24,7 +24,7 @@ class ZrPlugin implements Plugin<Project> {
                 it.options.forkOptions.jvmArgs << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
                 it.options.fork = true
             }
-            var version = zircon.version ? zircon : "latest.release";
+            var version = zircon.version ? zircon.version : "latest.release";
             project.dependencies.add("annotationProcessor"
                     , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
             project.dependencies.add("implementation"
