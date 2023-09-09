@@ -178,6 +178,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 <details>
   <summary>历史idea插件更新</summary>
+
 ### idea插件2.0
 1. 支持`f-string`自动提示格式符及类型匹配错误
 2. 普通字符串支持自动识别转化为`$-string`

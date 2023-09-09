@@ -52,6 +52,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                     isLoad = true;
                     try {
                         reloadClass("com.sun.tools.javac.parser.ReflectionUtil", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        reloadClass("com.sun.tools.javac.parser.ZrConstants", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                         startTask(context, compiler, ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                     } catch (Exception exception) {
                         exception.printStackTrace();

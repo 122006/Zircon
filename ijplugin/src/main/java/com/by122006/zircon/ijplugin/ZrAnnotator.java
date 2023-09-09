@@ -101,7 +101,7 @@ public class ZrAnnotator implements Annotator {
             return;
         }
         final PsiAnnotation annotation = annotations[0];
-        final PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
+        PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
         if (ex != null) {
             final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
             final List<PsiType> types = Arrays.stream(initializers).map(a -> {
@@ -109,20 +109,16 @@ public class ZrAnnotator implements Annotator {
                 if (childOfType == null) return null;
                 return childOfType.getType();
             }).filter(Objects::nonNull).collect(Collectors.toList());
-            if (types.isEmpty()) {
-                holder.newAnnotation(HighlightSeverity.WARNING, "需要指定至少一个静态代理类")
-                        .range(method)
-                        .highlightType(ProblemHighlightType.WARNING)
-                        .create();
-            }
-        }else{
+            if (types.isEmpty()) ex = null;
+        }
+        if (ex == null) {
             final PsiParameterList parameterList = method.getParameterList();
             if (parameterList.isEmpty()) {
                 holder.newAnnotation(HighlightSeverity.WARNING, "非静态拓展方法需要设置首个入参作为代理类")
                         .range(method)
                         .highlightType(ProblemHighlightType.WARNING)
                         .create();
-            }else {
+            } else {
                 holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
                         .range(parameterList.getParameter(0))
                         .tooltip("代理类")

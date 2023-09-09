@@ -18,6 +18,16 @@ public class TestExMethod {
         return a + b + c;
     }
 
+    @ExMethod(cover = true)
+    public static boolean isEmpty(String a) {
+        return a == null || a.length() == 0;
+    }
+
+    @ExMethod
+    public static boolean isEmpty(String a, int b) {
+        throw new RuntimeException("no this method");
+    }
+
     @ExMethod
     public static String add(String a, String b, BigDecimal c) {
         System.out.println("success hook method:" + a + "+" + b + "+" + c + "=" + (a + b + c));
@@ -41,7 +51,8 @@ public class TestExMethod {
         System.out.println("success hook static method:" + a + "=" + (a));
         return a;
     }
-    @ExMethod(ex = {PrintStream.class},cover = true)
+
+    @ExMethod(ex = {PrintStream.class}, cover = true)
     public static void println(String a) {
         System.out.print("\n ex:  success hook static method:" + a);
     }
@@ -57,15 +68,16 @@ public class TestExMethod {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
         return a + b;
     }
+
     @ExMethod
     public static boolean toBoolean(Number a, int b) {
-        System.out.println("success toBoolean:" + a + "," + b );
-        return !Objects.equals(a,0);
+        System.out.println("success toBoolean:" + a + "," + b);
+        return !Objects.equals(a, 0);
     }
 
     @ExMethod
     public static <T> String add(String test, T a, T b) {
-        System.out.println(""+"success hook method:" + a + "+" + b + "=");
+        System.out.println("" + "success hook method:" + a + "+" + b + "=");
         return String.valueOf(a);
     }
 
@@ -93,19 +105,20 @@ public class TestExMethod {
         System.out.println("success hook method:" + a + "+" + b + "=" + (a + b));
         return a + b;
     }
+
     @ExMethod
     public static String add(String a) {
         System.out.println("success hook method: =" + a);
         return a;
     }
+
     @ExMethod
     public static String add(String a, Object... b) {
         for (Object o : b) {
-            a+=o;
+            a += o;
         }
         return a;
     }
-
 
 
 }

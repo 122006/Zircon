@@ -5,6 +5,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.ReflectionUtil;
+import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
@@ -17,6 +18,7 @@ import java.util.stream.Stream;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
 import static com.sun.tools.javac.code.Flags.PUBLIC;
+import static com.sun.tools.javac.code.Kinds.AMBIGUOUS;
 import static com.sun.tools.javac.code.TypeTag.NONE;
 
 public class ZrResolve extends Resolve {
@@ -135,8 +137,6 @@ public class ZrResolve extends Resolve {
     }
 
 
-
-
     private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(context);
@@ -228,11 +228,10 @@ public class ZrResolve extends Resolve {
             redirectMethodSymbolMap = new HashMap<>();
             long startTime = System.currentTimeMillis();
             final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
-            System.out.println("======allPackages：" + allPackages.keySet().size());
             final String clazzName = "zircon.ExMethod";
             for (Symbol.PackageSymbol packageSymbol : new ArrayList<>(allPackages.values())) {
-                if (Stream.of("java.util", "com.sun", "sun", "jdk", "org.junit", "java.math", "java.text", "java.io", "java.nio", "java.lang", "java.security", "java.net")
-                        .anyMatch(a -> packageSymbol.fullname.toString().startsWith(a))) continue;
+                if (ZrConstants.exMethodIgnorePackages.stream().anyMatch(a -> packageSymbol.fullname.toString().startsWith(a)))
+                    continue;
                 final java.util.List<Symbol> enclosedElements;
                 try {
                     enclosedElements = packageSymbol.getEnclosedElements();
@@ -254,7 +253,7 @@ public class ZrResolve extends Resolve {
                                 .ifPresent(compound -> {
                                     final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
                                     final Attribute ex = compound.member(names.fromString("ex"));
-                                    if (ex != null) {
+                                    if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
                                         exMethodInfo.targetClass = (List<Attribute.Class>) ex.getValue();
                                     }
                                     final Attribute cover = compound.member(names.fromString("cover"));
@@ -268,7 +267,6 @@ public class ZrResolve extends Resolve {
                     });
                 });
             }
-            System.out.println("======search end");
             System.out.println("扫描耗时:" + (System.currentTimeMillis() - startTime) + "ms");
         }
         final List<ExMethodInfo> list = redirectMethodSymbolMap.get(methodName);
@@ -281,7 +279,7 @@ public class ZrResolve extends Resolve {
         if (exMethod.isPresent()) {
             final Attribute.Compound compound = exMethod.get();
             final Attribute ex = compound.member(names.fromString("ex"));
-            if (ex != null) {
+            if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
                 @SuppressWarnings("unchecked") final List<Attribute.Class> value = (List<Attribute.Class>) ex.getValue();
                 return value;
             }
@@ -311,7 +309,7 @@ public class ZrResolve extends Resolve {
                               Symbol bestSoFar,
                               boolean allowBoxing,
                               boolean useVarargs) {
-        final Symbol oBestSoFar = bestSoFar;
+        Symbol oBestSoFar = bestSoFar;
         for (ExMethodInfo methodInfo : methodSymbolList) {
             if (oBestSoFar.exists() && !methodInfo.cover) continue;
             final List<Attribute.Class> methodStaticExType = methodInfo.targetClass;
@@ -320,22 +318,34 @@ public class ZrResolve extends Resolve {
             if (methodStaticExType.isEmpty()) {
                 if (typeargtypes == null) newTypeArgTypes = List.nil();
                 newArgTypes = newArgTypes.prepend(site);
-                bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                        bestSoFar, allowBoxing, useVarargs, false);
+                if (methodInfo.cover) {
+                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
+                            bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs, false);
+                    if (bestSoFar.kind <= AMBIGUOUS) {
+                        oBestSoFar = methodNotFound;
+                    }
+                } else {
+                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
+                            bestSoFar, allowBoxing, useVarargs, false);
+                }
             } else {
                 if (methodStaticExType.stream().anyMatch(a -> Objects.equals(a.classType.toString(), site.toString()))) {
                     if (methodInfo.cover) {
                         bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
                                 bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs, false);
+                        if (bestSoFar.kind <= AMBIGUOUS) {
+                            oBestSoFar = methodNotFound;
+                        }
                     } else {
                         bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
                                 bestSoFar, allowBoxing, useVarargs, false);
                     }
                 }
             }
-
         }
-        return bestSoFar;
+        if (bestSoFar.kind > AMBIGUOUS) return oBestSoFar;
+        if (oBestSoFar.kind > AMBIGUOUS) return bestSoFar;
+        return mostSpecific(argtypes, bestSoFar, oBestSoFar, env, site, allowBoxing, useVarargs);
     }
 
 

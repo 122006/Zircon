@@ -56,20 +56,23 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             }).filter(Objects::nonNull).filter(PsiElement::isValid).map(method -> {
                 final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
                 if (annotation == null) return null;
-                final PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
+                PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
                 CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
                 cacheMethodInfo.name = method.getName();
                 cacheMethodInfo.method = method;
-                cacheMethodInfo.isStatic = ex != null;
                 if (ex != null) {
                     final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
-                    cacheMethodInfo.targetType = Arrays.stream(initializers).map(a -> {
+                    final List<PsiType> psiTypes = Arrays.stream(initializers).map(a -> {
                         final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
                         if (childOfType == null) return null;
                         final PsiType type = childOfType.getType();
                         return type;
                     }).filter(Objects::nonNull).collect(Collectors.toList());
-                } else {
+                    cacheMethodInfo.targetType = psiTypes;
+                    if (cacheMethodInfo.targetType.isEmpty()) ex = null;
+                }
+                cacheMethodInfo.isStatic = ex != null;
+                if (ex == null) {
                     final PsiParameterList parameterList = method.getParameterList();
                     if (parameterList.isEmpty()) return null;
                     final PsiParameter parameter = parameterList.getParameter(0);

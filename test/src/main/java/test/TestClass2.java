@@ -3,6 +3,7 @@ package test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +21,7 @@ public class TestClass2 {
         }
     }
     public static void main(String[] args) {
+        String nullStr=null;
         System.out.println(("2131" + "12312").concat("123"));
         System.out.println(Test.addStatic("test", "test2"));
         System.out.println(new Test().add("test", 2));
@@ -27,6 +29,8 @@ public class TestClass2 {
         System.out.println(("2131" + "12312").add("123"));
         System.out.println(("2131".toString()).add("123", "456"));
         System.out.println(("2131").add("123", BigDecimal.ZERO));
+        System.out.println("".isEmpty());
+        System.out.println(nullStr.isEmpty());
         System.out.println("2131".add("12").add("123type2").add("4112").add(1).add("123type3"));
 //        System.out.println("2131".add(1));
         System.out.println(Integer.addStatic("a"));
@@ -41,7 +45,7 @@ public class TestClass2 {
         System.out.println("lambda2=" + collect2);
         BiFunction<String, Integer, ?> a = Test::addStatic;
         System.out.println("lambda3=" + a.apply("12", 3));
-        final List<Object> collect4 = Stream.of("122", "132").map(System.out::append).list();
+        final List<PrintStream> collect4 = Stream.of("122", "132").map(System.out::append).list();
         System.out.println("lambda4=" + collect4);
 //        Function<String, String> b = testString::add;
 //        System.out.println("test lambda b=" + b);
