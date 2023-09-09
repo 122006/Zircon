@@ -7,13 +7,13 @@ import org.gradle.api.artifacts.result.DependencyResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.tasks.compile.JavaCompile
 
-class ZrPlugin implements Plugin<Project> {
-    class ZirconExt {
-        var version = 'latest.release'
-        var tempString = true
-        var exMethod = true
-    }
+class ZirconExt {
+    var version = 'latest.release'
+    var tempString = true
+    var exMethod = true
+}
 
+class ZrPlugin implements Plugin<Project> {
     void apply(Project project) {
         ZirconExt extension = project.getExtensions().create("zircon", ZirconExt)
         project.extensions.add("zircon", extension);
