@@ -2,9 +2,6 @@ package com.by122006.zircon
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.result.DependencyResult
-import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.tasks.compile.JavaCompile
 
 class ZirconExt {
@@ -24,7 +21,7 @@ class ZrPlugin implements Plugin<Project> {
                 it.options.forkOptions.jvmArgs << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
                 it.options.fork = true
             }
-            var version = zircon.version ? zircon.version : "latest.release";
+            var version = project.zircon.version != null ? project.zircon.version : "latest.release";
             project.dependencies.add("annotationProcessor"
                     , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
             project.dependencies.add("implementation"
@@ -41,7 +38,6 @@ class ZrPlugin implements Plugin<Project> {
             } catch (ignored) {
 
             }
-
         }
 
     }

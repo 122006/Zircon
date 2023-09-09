@@ -33,7 +33,7 @@ dependencies {
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
     implementation 'com.github.122006:ExMethodUtil:5dc2ce9a2f'
-    implementation 'com.github.122006.Zircon:zircon:+'
+    implementation 'com.github.122006.Zircon:zircon:3.+'
     implementation 'com.github.122006:LinearHttp:1.2.8'
     implementation 'com.alibaba:fastjson:1.1.72.android'
     implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
