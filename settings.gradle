@@ -3,7 +3,7 @@ include ':javac'
 include ':zircon'
 include ':base'
 include ':gradle_plugin'
-if (System.getProperty("user.dir").contains(":\\")) {
+if (System.getProperty("JITPACK","false").equals("false")) {
     include ':test'
     def version = Integer.parseInt(System.getProperty("java.version").split("\\.")[0])
     if (version >= 16) {
