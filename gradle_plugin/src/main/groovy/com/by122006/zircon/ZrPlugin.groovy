@@ -15,7 +15,7 @@ class ZirconExt {
 
 class ZrPlugin implements Plugin<Project> {
     void apply(Project project) {
-        project.getExtensions().create("zircon", ZirconExt)
+        project.extensions.create("zircon", ZirconExt.class)
         project.tasks.withType(JavaCompile) { JavaCompile it ->
             def zircon = project.zircon
             if (zircon == null || zircon.exMethod == null || zircon.exMethod) it.options.compilerArgs << "-Xplugin:ZrExMethod"
@@ -25,7 +25,7 @@ class ZrPlugin implements Plugin<Project> {
                 it.options.fork = true
             }
         }
-        var version = project.zircon?.version || "latest.release";
+        var version = project.zircon.version ? project.zircon.version : "latest.release";
         project.dependencies.add("annotationProcessor"
                 , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
         project.dependencies.add("implementation"
