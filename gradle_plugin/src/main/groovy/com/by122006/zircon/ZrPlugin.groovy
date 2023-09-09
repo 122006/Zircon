@@ -24,22 +24,23 @@ class ZrPlugin implements Plugin<Project> {
                 it.options.forkOptions.jvmArgs << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
                 it.options.fork = true
             }
-        }
-        var version = project.zircon.version ? project.zircon.version : "latest.release";
-        project.dependencies.add("annotationProcessor"
-                , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-        project.dependencies.add("implementation"
-                , project.dependencies.create("com.github.122006.Zircon:zircon:" + version))
-        try {
-            project.dependencies.add("androidTestImplementation"
+            var version = zircon.version ? zircon : "latest.release";
+            project.dependencies.add("annotationProcessor"
                     , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-        } catch (ignored) {
+            project.dependencies.add("implementation"
+                    , project.dependencies.create("com.github.122006.Zircon:zircon:" + version))
+            try {
+                project.dependencies.add("androidTestImplementation"
+                        , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
+            } catch (ignored) {
 
-        }
-        try {
-            project.dependencies.add("testAnnotationProcessor"
-                    , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-        } catch (ignored) {
+            }
+            try {
+                project.dependencies.add("testAnnotationProcessor"
+                        , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
+            } catch (ignored) {
+
+            }
 
         }
 
