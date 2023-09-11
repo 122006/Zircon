@@ -22,11 +22,11 @@ repositories {
 }
 
 compileJava {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xplugin:ZrExMethod"
     options.compilerArgs << "-Xplugin:ZrString"
 }
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     annotationProcessor project(":javac")
