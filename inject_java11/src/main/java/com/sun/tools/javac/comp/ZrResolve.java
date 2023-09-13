@@ -12,13 +12,14 @@ import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
-import static com.sun.tools.javac.code.Kinds.Kind.AMBIGUOUS;
 
 @SuppressWarnings("unchecked")
 public class ZrResolve extends Resolve {
@@ -52,171 +53,6 @@ public class ZrResolve extends Resolve {
 
 
         return zrResolve;
-    }
-
-
-    ReferenceLookupHelper makeReferenceLookupHelper(JCTree.JCMemberReference referenceTree,
-                                                    Type site,
-                                                    Name name,
-                                                    List<Type> argtypes,
-                                                    List<Type> typeargtypes,
-                                                    MethodResolutionPhase maxPhase) {
-        if (!name.equals(names.init)) {
-            //method reference
-            return new ZrMethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
-        }
-        return super.makeReferenceLookupHelper(referenceTree, site, name, argtypes, typeargtypes, maxPhase);
-    }
-
-    class ZrMethodReferenceLookupHelper extends ReferenceLookupHelper {
-
-        MethodReferenceLookupHelper helper;
-        Type oSite;
-
-
-        ZrMethodReferenceLookupHelper(JCTree.JCMemberReference referenceTree, Name name, Type site,
-                                      List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            super(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
-            oSite = site;
-            helper = new MethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
-        }
-
-        @Override
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-            final Symbol method = findMethod(env, site, name, argtypes, typeargtypes,
-                    phase.isBoxingRequired(), phase.isVarargsRequired());
-//            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
-            if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
-                Symbol method2 = method;
-                for (ExMethodInfo methodInfo : findRedirectMethod(name)) {
-                    final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
-                    if (nParams.size() == 0) continue;
-                    if (!types.isCastable(site, nParams.get(0).type)) {
-                        continue;
-                    }
-                    String lambda = createLambdaTree(referenceTree, methodInfo.methodSymbol).toString();
-                    final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + referenceTree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
-                    runtimeException.setStackTrace(new StackTraceElement[0]);
-                    throw runtimeException;
-                }
-                return method2;
-            }
-            Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes,
-                    method,
-                    phase.isBoxingRequired(),
-                    phase.isVarargsRequired());
-            if (!method2.exists() && !(method2 instanceof AmbiguityError)) method2 = method;
-            return method2;
-        }
-
-        @Override
-        Symbol access(Env<AttrContext> env, JCDiagnostic.DiagnosticPosition pos, Symbol location, Symbol sym) {
-            final JCTree.JCExpression qualifierExpression = ((JCTree.JCMemberReference) env.tree).getQualifierExpression();
-            final Symbol symbol = TreeInfo.symbol(qualifierExpression);
-            if (symbol != null) {
-                if (sym == methodNotFound && !TreeInfo.isStaticSelector(referenceTree.expr, names)) {
-//                    throw new NeedLowerLambda(site, qualifierExpression, name);
-                }
-            } else {
-
-            }
-            return super.access(env, pos, location, sym);
-        }
-
-        @Override
-        ReferenceLookupHelper unboundLookup(InferenceContext inferenceContext) {
-            return helper.unboundLookup(inferenceContext);
-        }
-
-        @Override
-        JCTree.JCMemberReference.ReferenceKind referenceKind(Symbol sym) {
-            return helper.referenceKind(sym);
-        }
-    }
-
-
-    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
-        final JCTree.JCLambda lambda;
-        final TreeMaker maker = TreeMaker.instance(context);
-        final Name nameA = names.fromString("$zr$a");
-        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
-                , bestSoFar.params.get(1).type, syms.noSymbol);
-        final JCTree.JCIdent idA = maker.Ident(symA);
-        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
-        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
-        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
-//                        apply.setType(bestSoFar.getReturnType());
-        JCTree.JCVariableDecl a = maker.VarDef(symA, null);
-        lambda = maker.Lambda(List.of(a), apply);
-        return lambda;
-    }
-
-    @Override
-    Symbol resolveQualifiedMethod(JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env,
-                                  Symbol location, Type site, Name name, List<Type> argtypes,
-                                  List<Type> typeargtypes) {
-        return resolveQualifiedMethod(new MethodResolutionContext(), pos, env, location, site, name, argtypes, typeargtypes);
-    }
-
-    protected class ZrLookupHelper extends BasicLookupHelper {
-
-        ZrLookupHelper(Name name, Type site, List<Type> argtypes, List<Type> typeargtypes) {
-            super(name, site, argtypes, typeargtypes);
-        }
-
-        @Override
-        Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-//            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
-            final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes,
-                    phase.isBoxingRequired(),
-                    phase.isVarargsRequired());
-            final Symbol newSymbol = findMethod2(env, site, name, argtypes, typeargtypes,
-                    bestSoFar,
-                    phase.isBoxingRequired(),
-                    phase.isVarargsRequired());
-            if ((newSymbol instanceof Symbol.MethodSymbol && !(bestSoFar instanceof Symbol.MethodSymbol))
-                    || ((newSymbol instanceof Symbol.MethodSymbol) && (bestSoFar instanceof Symbol.MethodSymbol) && newSymbol != bestSoFar)) {
-                throw new NeedRedirectMethod(newSymbol);
-            } else {
-                return newSymbol;
-            }
-        }
-
-    }
-
-    private Symbol resolveQualifiedMethod(MethodResolutionContext resolveContext,
-                                          JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env,
-                                          Symbol location, Type site, Name name, List<Type> argtypes,
-                                          List<Type> typeargtypes) {
-        return lookupMethod(env, pos, location, resolveContext, new ZrLookupHelper(name, site, argtypes, typeargtypes));
-    }
-
-    public static class ExMethodInfo {
-        Symbol.MethodSymbol methodSymbol;
-        boolean isStatic;
-        boolean cover;
-        List<Type> targetType;
-        List<Attribute.Class> targetClass;
-
-        @Override
-        public String toString() {
-            return "ExMethodInfo{" +
-                    "methodSymbol=" + methodSymbol +
-                    ", isStatic=" + isStatic +
-                    ", cover=" + cover +
-                    ", targetType=" + targetType +
-                    ", targetClass=" + targetClass +
-                    '}';
-        }
-
-        public ExMethodInfo(Symbol.MethodSymbol methodSymbol, boolean isStatic, boolean cover, List<Type> targetType, List<Attribute.Class> targetClass) {
-            this.methodSymbol = methodSymbol;
-            this.isStatic = isStatic;
-            this.cover = cover;
-            this.targetType = targetType;
-            this.targetClass = targetClass;
-        }
     }
 
     Map<Name, List<ExMethodInfo>> redirectMethodSymbolMap = null;
@@ -275,6 +111,131 @@ public class ZrResolve extends Resolve {
         return list == null ? List.nil() : list;
     }
 
+
+    ReferenceLookupHelper makeReferenceLookupHelper(JCTree.JCMemberReference referenceTree, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
+        if (!name.equals(names.init)) {
+            //method reference
+            return new ZrMethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
+        }
+        return super.makeReferenceLookupHelper(referenceTree, site, name, argtypes, typeargtypes, maxPhase);
+    }
+
+    class ZrMethodReferenceLookupHelper extends ReferenceLookupHelper {
+
+        MethodReferenceLookupHelper helper;
+        Type oSite;
+
+
+        ZrMethodReferenceLookupHelper(JCTree.JCMemberReference referenceTree, Name name, Type site, List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
+            super(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
+            oSite = site;
+            helper = new MethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
+        }
+
+        @Override
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+            final Symbol method = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired());
+//            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
+            if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
+                Symbol method2 = method;
+                for (ExMethodInfo methodInfo : findRedirectMethod(name)) {
+                    final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
+                    if (nParams.size() == 0) continue;
+                    if (!types.isCastable(site, nParams.get(0).type)) {
+                        continue;
+                    }
+                    String lambda = createLambdaTree(referenceTree, methodInfo.methodSymbol).toString();
+                    final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + referenceTree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
+                    runtimeException.setStackTrace(new StackTraceElement[0]);
+                    throw runtimeException;
+                }
+                return method2;
+            }
+            Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes, method, phase.isBoxingRequired(), phase.isVarargsRequired(), true);
+            if (!methodSymbolEnable(method2)) method2 = method;
+            return method2;
+        }
+
+
+        @Override
+        ReferenceLookupHelper unboundLookup(InferenceContext inferenceContext) {
+            return helper.unboundLookup(inferenceContext);
+        }
+
+        @Override
+        JCTree.JCMemberReference.ReferenceKind referenceKind(Symbol sym) {
+            return helper.referenceKind(sym);
+        }
+    }
+
+
+    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
+        final JCTree.JCLambda lambda;
+        final TreeMaker maker = TreeMaker.instance(context);
+        final Name nameA = names.fromString("$zr$a");
+        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, bestSoFar.params.get(1).type, syms.noSymbol);
+        final JCTree.JCIdent idA = maker.Ident(symA);
+        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
+        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
+        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
+//                        apply.setType(bestSoFar.getReturnType());
+        JCTree.JCVariableDecl a = maker.VarDef(symA, null);
+        lambda = maker.Lambda(List.of(a), apply);
+        return lambda;
+    }
+
+    @Override
+    Symbol resolveQualifiedMethod(JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+        return resolveQualifiedMethod(new MethodResolutionContext(), pos, env, location, site, name, argtypes, typeargtypes);
+    }
+
+    protected class ZrLookupHelper extends BasicLookupHelper {
+
+        ZrLookupHelper(Name name, Type site, List<Type> argtypes, List<Type> typeargtypes) {
+            super(name, site, argtypes, typeargtypes);
+        }
+
+        @Override
+        Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+//            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
+            final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired());
+            final Symbol newSymbol = findMethod2(env, site, name, argtypes, typeargtypes, bestSoFar, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
+            if ((newSymbol instanceof Symbol.MethodSymbol && !(bestSoFar instanceof Symbol.MethodSymbol)) || ((newSymbol instanceof Symbol.MethodSymbol) && (bestSoFar instanceof Symbol.MethodSymbol) && newSymbol != bestSoFar)) {
+                throw new NeedRedirectMethod(newSymbol);
+            } else {
+                return newSymbol;
+            }
+        }
+
+    }
+
+    private Symbol resolveQualifiedMethod(MethodResolutionContext resolveContext, JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+        return lookupMethod(env, pos, location, resolveContext, new ZrLookupHelper(name, site, argtypes, typeargtypes));
+    }
+
+    public static class ExMethodInfo {
+        Symbol.MethodSymbol methodSymbol;
+        boolean isStatic;
+        boolean cover;
+        List<Type> targetType;
+        List<Attribute.Class> targetClass;
+
+        @Override
+        public String toString() {
+            return "ExMethodInfo{" + "methodSymbol=" + methodSymbol + ", isStatic=" + isStatic + ", cover=" + cover + ", targetType=" + targetType + ", targetClass=" + targetClass + '}';
+        }
+
+        public ExMethodInfo(Symbol.MethodSymbol methodSymbol, boolean isStatic, boolean cover, List<Type> targetType, List<Attribute.Class> targetClass) {
+            this.methodSymbol = methodSymbol;
+            this.isStatic = isStatic;
+            this.cover = cover;
+            this.targetType = targetType;
+            this.targetClass = targetClass;
+        }
+    }
+
+
     public static List<Attribute.Class> getMethodStaticExType(Names names, Symbol.MethodSymbol symbol) {
         final String clazz = "zircon.ExMethod";
         final Optional<Attribute.Compound> exMethod = symbol.getAnnotationMirrors().stream().filter(annotation -> annotation.type.toString().equals(clazz)).findFirst();
@@ -310,62 +271,62 @@ public class ZrResolve extends Resolve {
                               List<Type> typeargtypes,
                               Symbol bestSoFar,
                               boolean allowBoxing,
-                              boolean useVarargs) {
+                              boolean useVarargs, boolean memberReference) {
         Symbol oBestSoFar = bestSoFar;
+        boolean fCover = false;
         for (ExMethodInfo methodInfo : methodSymbolList) {
-            if (oBestSoFar.exists() && !methodInfo.cover) continue;
+            if (methodSymbolEnable(oBestSoFar) && !methodInfo.cover) continue;
+            if (fCover && !methodInfo.cover) continue;
             final List<Attribute.Class> methodStaticExType = methodInfo.targetClass;
             List<Type> newTypeArgTypes = typeargtypes;
             List<Type> newArgTypes = argtypes;
+            if (typeargtypes == null) newTypeArgTypes = List.nil();
+            final Type nSite;
+            final Symbol lastSym;
             if (methodStaticExType.isEmpty()) {
-                if (typeargtypes == null) newTypeArgTypes = List.nil();
-                newArgTypes = newArgTypes.prepend(site);
-                if (methodInfo.cover) {
-                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                            bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs);
-                    if (!bestSoFar.kind.isResolutionError() || bestSoFar.kind == AMBIGUOUS) {
-                        oBestSoFar = methodNotFound;
-                    }
+                lastSym = !fCover && methodInfo.cover ? methodNotFound : bestSoFar;
+                if (memberReference) {
+                    if (methodInfo.methodSymbol.type.getParameterTypes().length() == 0) continue;
+                    final Type head = methodInfo.methodSymbol.type.getParameterTypes().head;
+                    if (!types.isAssignable(head, site)) continue;
                 } else {
-                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                            bestSoFar, allowBoxing, useVarargs);
+                    newArgTypes = newArgTypes.prepend(site);
+                }
+                nSite = memberReference ? methodInfo.methodSymbol.owner.type : site;
+            } else {
+                lastSym = !fCover && methodInfo.cover ? methodNotFound : bestSoFar;
+                final Optional<Attribute.Class> aClass = methodStaticExType.stream().filter(a -> a.classType.equals(site.baseType())).findFirst();
+                if (!aClass.isPresent()) continue;
+                nSite = aClass.get().classType;
+            }
+            final Symbol findMethod = selectBest(env, nSite, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol, lastSym, allowBoxing, useVarargs);
+            if (methodInfo.cover) {
+                if (findMethod == methodInfo.methodSymbol && methodSymbolEnable(findMethod)) {
+                    bestSoFar = findMethod;
+                    fCover = true;
                 }
             } else {
-                if (methodStaticExType.stream().anyMatch(a -> Objects.equals(a.classType.toString(), site.toString()))) {
-                    if (methodInfo.cover) {
-                        bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                                bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs);
-                        if (!bestSoFar.kind.isResolutionError() || bestSoFar.kind == AMBIGUOUS) {
-                            oBestSoFar = methodNotFound;
-                        }
-                    } else {
-                        bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                                bestSoFar, allowBoxing, useVarargs);
-                    }
-                }
+                bestSoFar = findMethod;
             }
         }
-        if (bestSoFar.kind.isResolutionError() && bestSoFar.kind != AMBIGUOUS) return oBestSoFar;
-        if (oBestSoFar.kind.isResolutionError() && oBestSoFar.kind != AMBIGUOUS) return bestSoFar;
-        return mostSpecific(argtypes, bestSoFar, oBestSoFar, env, site, useVarargs);
+        if (!methodSymbolEnable(bestSoFar)) return oBestSoFar;
+        if (!methodSymbolEnable(oBestSoFar)) return bestSoFar;
+        Symbol finalBestSoFar = bestSoFar;
+        return methodSymbolList.stream().filter(a -> a.methodSymbol == finalBestSoFar).map(a -> a.cover).findFirst().orElse(false) ? bestSoFar : oBestSoFar;
     }
 
 
-    protected Symbol findMethod2(Env<AttrContext> env,
-                                 Type site,
-                                 Name name,
-                                 List<Type> argtypes,
-                                 List<Type> typeargtypes,
-                                 Symbol bestSoFar,
-                                 boolean allowBoxing,
-                                 boolean useVarargs) {
+    protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
-            return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs);
+            return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {
             return bestSoFar;
         }
     }
 
 
+    public boolean methodSymbolEnable(Symbol bestSoFar) {
+        return bestSoFar instanceof Symbol.MethodSymbol || bestSoFar instanceof AmbiguityError;
+    }
 }

@@ -2,6 +2,8 @@ package test;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.util.StringUtils;
+import zircon.ExMethod;
 
 import java.io.PrintStream;
 import java.math.BigDecimal;
@@ -20,8 +22,9 @@ public class TestClass2 {
             SpringApplication.run(GradleDemoApplication.class, args);
         }
     }
+
     public static void main(String[] args) {
-        String nullStr=null;
+        String nullStr = null;
         System.out.println(("2131" + "12312").concat("123"));
         System.out.println(Test.addStatic("test", "test2"));
         System.out.println(new Test().add("test", 2));
@@ -42,7 +45,10 @@ public class TestClass2 {
         System.out.println((new String[1]).add("123")[1]);
         Integer testString = 456;
         final List<String> collect2 = Stream.of(123, 543).map(Test::addStatic).list();
-        System.out.println("lambda2=" + collect2);
+        Stream.of("1").map(TestExMethod::add3).collect(Collectors.toList());
+        Stream.of("1").map(String::add3).collect(Collectors.toList());
+        Stream.of("1").map(String::add2).collect(Collectors.toList());
+//        System.out.println("lambda2=" + collect2);
         BiFunction<String, Integer, ?> a = Test::addStatic;
         System.out.println("lambda3=" + a.apply("12", 3));
         final List<PrintStream> collect4 = Stream.of("122", "132").map(System.out::append).list();

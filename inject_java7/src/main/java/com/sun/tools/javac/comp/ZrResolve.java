@@ -1,7 +1,9 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.ReflectionUtil;
@@ -13,20 +15,17 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
 import java.util.*;
-import java.util.concurrent.CompletionException;
-import java.util.stream.Stream;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
-import static com.sun.tools.javac.code.Flags.PUBLIC;
-import static com.sun.tools.javac.code.Kinds.AMBIGUOUS;
-import static com.sun.tools.javac.code.TypeTag.NONE;
+
 
 public class ZrResolve extends Resolve {
 
-    private Symbol methodNotFound = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
+    private Symbol methodNotFound;
 
     protected ZrResolve(Context context) {
         super(context);
+        methodNotFound = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
     }
 
     ClassReader classReader;
@@ -42,15 +41,8 @@ public class ZrResolve extends Resolve {
         zrResolve.classReader = ClassReader.instance(context);
         ReflectionUtil.setDeclaredField(Attr.instance(context), Attr.class, "rs", zrResolve);
         ReflectionUtil.setDeclaredField(Check.instance(context), Check.class, "rs", zrResolve);
-        ReflectionUtil.setDeclaredField(Flow.instance(context), Flow.class, "rs", zrResolve);
-        ReflectionUtil.setDeclaredField(Infer.instance(context), Infer.class, "rs", zrResolve);
         ReflectionUtil.setDeclaredField(DeferredAttr.instance(context), DeferredAttr.class, "rs", zrResolve);
-        ReflectionUtil.setDeclaredField(TransTypes.instance(context), TransTypes.class, "resolve", zrResolve);
-        ReflectionUtil.setDeclaredField(LambdaToMethod.instance(context), LambdaToMethod.class, "rs", zrResolve);
-        ReflectionUtil.setDeclaredField(Gen.instance(context), Gen.class, "rs", zrResolve);
         ReflectionUtil.setDeclaredField(JavacTrees.instance(context), JavacTrees.class, "resolve", zrResolve);
-
-
         return zrResolve;
     }
 
@@ -82,11 +74,10 @@ public class ZrResolve extends Resolve {
         }
 
         @Override
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
+        @SuppressWarnings({"rawtypes"})
+        Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(), phase.isVarargsRequired(), false);
-//            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
                 for (ExMethodInfo methodInfo : findRedirectMethod(name)) {
@@ -103,11 +94,8 @@ public class ZrResolve extends Resolve {
                 return method2;
             }
 
-            Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes,
-                    method,
-                    phase.isBoxingRequired(),
-                    phase.isVarargsRequired());
-            if (!method2.exists() && !(method2 instanceof AmbiguityError)) method2 = method;
+            Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes, method, phase.isBoxingRequired(), phase.isVarargsRequired(), true);
+            if (!methodSymbolEnable(method2)) method2 = method;
             return method2;
         }
 
@@ -136,7 +124,6 @@ public class ZrResolve extends Resolve {
         }
     }
 
-
     private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(context);
@@ -160,6 +147,7 @@ public class ZrResolve extends Resolve {
         return resolveQualifiedMethod(new MethodResolutionContext(), pos, env, location, site, name, argtypes, typeargtypes);
     }
 
+
     protected class ZrLookupHelper extends BasicLookupHelper {
 
         ZrLookupHelper(Name name, Type site, List<Type> argtypes, List<Type> typeargtypes) {
@@ -168,14 +156,13 @@ public class ZrResolve extends Resolve {
 
         @Override
         Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-//            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
             final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes,
                     phase.isBoxingRequired(),
                     phase.isVarargsRequired(), false);
             final Symbol newSymbol = findMethod2(env, site, name, argtypes, typeargtypes,
                     bestSoFar,
                     phase.isBoxingRequired(),
-                    phase.isVarargsRequired());
+                    phase.isVarargsRequired(), false);
             if ((newSymbol instanceof Symbol.MethodSymbol && !(bestSoFar instanceof Symbol.MethodSymbol))
                     || ((newSymbol instanceof Symbol.MethodSymbol) && (bestSoFar instanceof Symbol.MethodSymbol) && newSymbol != bestSoFar)) {
                 throw new NeedRedirectMethod(newSymbol);
@@ -260,7 +247,8 @@ public class ZrResolve extends Resolve {
                                     if (cover != null) {
                                         exMethodInfo.cover = (boolean) cover.getValue();
                                     }
-                                    System.out.println("find method " + method + "[" + method.getSimpleName() + "[" + method.type);
+                                    exMethodInfo.isStatic = exMethodInfo.targetClass != null && !exMethodInfo.targetClass.isEmpty();
+                                    System.out.println("find method " + (exMethodInfo.isStatic ? "static " : "") + method + "[" + exMethodInfo.targetClass + "[" + method.type);
                                     final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
                                     redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
                                 });
@@ -308,44 +296,52 @@ public class ZrResolve extends Resolve {
                               List<Type> typeargtypes,
                               Symbol bestSoFar,
                               boolean allowBoxing,
-                              boolean useVarargs) {
+                              boolean useVarargs, boolean memberReference) {
         Symbol oBestSoFar = bestSoFar;
+        boolean fCover = false;
         for (ExMethodInfo methodInfo : methodSymbolList) {
-            if (oBestSoFar.exists() && !methodInfo.cover) continue;
+            if (methodSymbolEnable(oBestSoFar) && !methodInfo.cover) continue;
+            if (fCover && !methodInfo.cover) continue;
             final List<Attribute.Class> methodStaticExType = methodInfo.targetClass;
             List<Type> newTypeArgTypes = typeargtypes;
             List<Type> newArgTypes = argtypes;
+            if (typeargtypes == null) newTypeArgTypes = List.nil();
+            final Type nSite;
+            final Symbol lastSym;
             if (methodStaticExType.isEmpty()) {
-                if (typeargtypes == null) newTypeArgTypes = List.nil();
-                newArgTypes = newArgTypes.prepend(site);
-                if (methodInfo.cover) {
-                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                            bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs, false);
-                    if (bestSoFar.kind <= AMBIGUOUS) {
-                        oBestSoFar = methodNotFound;
-                    }
+                lastSym = !fCover && methodInfo.cover ? methodNotFound : bestSoFar;
+                if (memberReference) {
+                    if (methodInfo.methodSymbol.type.getParameterTypes().length() == 0) continue;
+                    final Type head = methodInfo.methodSymbol.type.getParameterTypes().head;
+                    if (!types.isAssignable(head, site)) continue;
                 } else {
-                    bestSoFar = selectBest(env, methodInfo.methodSymbol.owner.type, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                            bestSoFar, allowBoxing, useVarargs, false);
+                    newArgTypes = newArgTypes.prepend(site);
+                }
+                nSite = memberReference ? methodInfo.methodSymbol.owner.type : site;
+            } else {
+                lastSym = !fCover && methodInfo.cover ? methodNotFound : bestSoFar;
+                final Optional<Attribute.Class> aClass = methodStaticExType.stream().filter(a -> a.classType.equals(site.baseType())).findFirst();
+                if (!aClass.isPresent()) continue;
+                nSite = aClass.get().classType;
+            }
+            final Symbol findMethod = selectBest(env, nSite, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol, lastSym, allowBoxing, useVarargs, false);
+            if (methodInfo.cover) {
+                if (findMethod == methodInfo.methodSymbol && methodSymbolEnable(findMethod)) {
+                    bestSoFar = findMethod;
+                    fCover = true;
                 }
             } else {
-                if (methodStaticExType.stream().anyMatch(a -> Objects.equals(a.classType.toString(), site.toString()))) {
-                    if (methodInfo.cover) {
-                        bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                                bestSoFar == oBestSoFar ? methodNotFound : bestSoFar, allowBoxing, useVarargs, false);
-                        if (bestSoFar.kind <= AMBIGUOUS) {
-                            oBestSoFar = methodNotFound;
-                        }
-                    } else {
-                        bestSoFar = selectBest(env, site, newArgTypes, newTypeArgTypes, methodInfo.methodSymbol,
-                                bestSoFar, allowBoxing, useVarargs, false);
-                    }
-                }
+                bestSoFar = findMethod;
             }
         }
-        if (bestSoFar.kind > AMBIGUOUS) return oBestSoFar;
-        if (oBestSoFar.kind > AMBIGUOUS) return bestSoFar;
-        return mostSpecific(argtypes, bestSoFar, oBestSoFar, env, site, allowBoxing, useVarargs);
+        if (!methodSymbolEnable(bestSoFar)) return oBestSoFar;
+        if (!methodSymbolEnable(oBestSoFar)) return bestSoFar;
+        Symbol finalBestSoFar = bestSoFar;
+        return methodSymbolList.stream().filter(a -> a.methodSymbol == finalBestSoFar).map(a -> a.cover).findFirst().orElse(false) ? bestSoFar : oBestSoFar;
+    }
+
+    public boolean methodSymbolEnable(Symbol bestSoFar) {
+        return bestSoFar instanceof Symbol.MethodSymbol || bestSoFar instanceof AmbiguityError;
     }
 
 
@@ -356,14 +352,13 @@ public class ZrResolve extends Resolve {
                                  List<Type> typeargtypes,
                                  Symbol bestSoFar,
                                  boolean allowBoxing,
-                                 boolean useVarargs) {
+                                 boolean useVarargs, boolean memberReference) {
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
-            return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs);
+            return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {
             return bestSoFar;
         }
     }
-
 
 }

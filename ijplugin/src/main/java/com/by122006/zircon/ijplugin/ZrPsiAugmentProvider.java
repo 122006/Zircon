@@ -18,6 +18,7 @@ import com.intellij.psi.impl.light.LightParameterListBuilder;
 import com.intellij.psi.impl.light.LightTypeParameterListBuilder;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
+import com.intellij.psi.impl.source.tree.java.PsiClassObjectAccessExpressionImpl;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.CachedValueProvider;
@@ -61,15 +62,21 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 cacheMethodInfo.name = method.getName();
                 cacheMethodInfo.method = method;
                 if (ex != null) {
-                    final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
-                    final List<PsiType> psiTypes = Arrays.stream(initializers).map(a -> {
-                        final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
-                        if (childOfType == null) return null;
-                        final PsiType type = childOfType.getType();
-                        return type;
-                    }).filter(Objects::nonNull).collect(Collectors.toList());
-                    cacheMethodInfo.targetType = psiTypes;
+                    if (ex instanceof PsiClassObjectAccessExpression) {
+                        cacheMethodInfo.targetType.add(((PsiClassObjectAccessExpression) ex).getType());
+                    }
+                    if (ex instanceof PsiArrayInitializerMemberValueImpl) {
+                        final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
+                        final List<PsiType> psiTypes = Arrays.stream(initializers).map(a -> {
+                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                            if (childOfType == null) return null;
+                            final PsiType type = childOfType.getType();
+                            return type;
+                        }).filter(Objects::nonNull).collect(Collectors.toList());
+                        cacheMethodInfo.targetType = psiTypes;
+                    }
                     if (cacheMethodInfo.targetType.isEmpty()) ex = null;
+
                 }
                 cacheMethodInfo.isStatic = ex != null;
                 if (ex == null) {

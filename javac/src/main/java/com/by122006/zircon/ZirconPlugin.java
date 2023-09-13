@@ -11,11 +11,14 @@ import com.sun.tools.javac.parser.UnicodeReader;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.concurrent.CompletionException;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Plugin {
@@ -148,17 +151,21 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             return (Class<T>) outcl.loadClass(claz);
         } catch (ClassNotFoundException e) {
         }
-        String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
-        InputStream is = path.startsWith("/") ? ZirconPlugin.class.getResourceAsStream(path) : incl.getResourceAsStream(path);
-        if (is == null) {
-            throw new RuntimeException("找不到对应类:" + claz);
+        try {
+            String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
+            InputStream is = path.startsWith("/") ? ZirconPlugin.class.getResourceAsStream(path) : incl.getResourceAsStream(path);
+            if (is == null) {
+                throw new RuntimeException("找不到对应类:" + claz);
+            }
+            byte[] bytes = new byte[is.available()];
+            is.read(bytes);
+            Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
+                    String.class, byte[].class, int.class, int.class});
+            m.setAccessible(true);
+            return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);
+        } catch (Exception e) {
+            throw new Exception("Zircon编译错误，可能是使用了无法支持的java编译器", e);
         }
-        byte[] bytes = new byte[is.available()];
-        is.read(bytes);
-        Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
-                String.class, byte[].class, int.class, int.class});
-        m.setAccessible(true);
-        return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);
     }
     //</editor-fold>
 }

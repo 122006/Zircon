@@ -51,9 +51,18 @@ public class TestExMethod {
         System.out.println("success hook static method:" + a + "=" + (a));
         return a;
     }
+    @ExMethod(cover = true)
+    public static void println(PrintStream out, String a) {
+        System.out.print("\n ex:  success hook static method:" + a);
+    }
 
     @ExMethod(ex = {PrintStream.class}, cover = true)
-    public static void println(String a) {
+    public static void println(Integer a) {
+        System.out.print("\n ex:  success hook static method:" + a);
+    }
+
+    @ExMethod(ex = {PrintStream.class}, cover = true)
+    public static void println(Integer a, String b) {
         System.out.print("\n ex:  success hook static method:" + a);
     }
 
@@ -107,9 +116,51 @@ public class TestExMethod {
     }
 
     @ExMethod
-    public static String add(String a) {
+    public static String add3(String a) {
         System.out.println("success hook method: =" + a);
         return a;
+    }
+
+    @ExMethod
+    public static String add3(Integer a) {
+        System.out.println("success hook method: =" + a);
+        return "";
+    }
+
+    @ExMethod
+    public static String add3(Integer a, String b) {
+        System.out.println("success hook method: =" + a);
+        return "";
+    }
+
+    @ExMethod(ex = {String.class})
+    public static String add2(String a) {
+        System.out.println("success hook method: =");
+        return "";
+    }
+
+    @ExMethod(ex = {String.class})
+    public static String add2(Integer a) {
+        System.out.println("success hook method: =");
+        return "";
+    }
+
+    @ExMethod(ex = {String.class})
+    public static <T> String add2(T a) {
+        System.out.println("success hook method: =");
+        return "";
+    }
+
+    @ExMethod(ex = {String.class}, cover = true)
+    public static String add2(Double a) {
+        System.out.println("success hook method: =");
+        return "";
+    }
+
+    @ExMethod
+    public static Integer toInteger(String str) {
+        if (str == null) return null;
+        return Integer.valueOf(str);
     }
 
     @ExMethod
