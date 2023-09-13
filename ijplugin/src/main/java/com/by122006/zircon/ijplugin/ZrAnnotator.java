@@ -103,13 +103,17 @@ public class ZrAnnotator implements Annotator {
         final PsiAnnotation annotation = annotations[0];
         PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
         if (ex != null) {
-            final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValueImpl) ex).getInitializers();
-            final List<PsiType> types = Arrays.stream(initializers).map(a -> {
-                final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
-                if (childOfType == null) return null;
-                return childOfType.getType();
-            }).filter(Objects::nonNull).collect(Collectors.toList());
-            if (types.isEmpty()) ex = null;
+
+            if (ex instanceof PsiClassObjectAccessExpression) {
+            } else if (ex instanceof PsiArrayInitializerMemberValue) {
+                final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
+                List<PsiType> types = Arrays.stream(initializers).map(a -> {
+                    final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                    if (childOfType == null) return null;
+                    return childOfType.getType();
+                }).filter(Objects::nonNull).collect(Collectors.toList());
+                if (types.isEmpty()) ex = null;
+            }
         }
         if (ex == null) {
             final PsiParameterList parameterList = method.getParameterList();
@@ -186,8 +190,11 @@ public class ZrAnnotator implements Annotator {
     }
 
     private boolean registerLimitMemberReference(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        final PsiMethodReferenceExpressionImpl expression = (PsiMethodReferenceExpressionImpl) ((PsiMethodReferenceExpression) element).getReference();
+        final PsiMethodReferenceExpressionImpl expression = (PsiMethodReferenceExpressionImpl) element.getReference();
         if (expression == null) return true;
+        if ((((PsiMethodReferenceExpression) expression).getQualifier() instanceof PsiReferenceExpression)) {
+            return true;
+        }
         final PsiReference reference = expression.getReference();
         if (reference == null) return true;
         final PsiElement resolve;
@@ -199,7 +206,8 @@ public class ZrAnnotator implements Annotator {
             e.printStackTrace();
             return true;
         }
-        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
+        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod
+                && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
             holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]:暂不支持拓展方法应用于非静态成员方法引用")
                     .range(element)
                     .highlightType(ProblemHighlightType.ERROR)

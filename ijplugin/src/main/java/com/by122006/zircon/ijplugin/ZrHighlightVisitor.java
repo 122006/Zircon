@@ -68,6 +68,8 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                                     }
                                     try {
                                         highlightVisitor.visit(elem);
+                                    } catch (ProcessCanceledException e) {
+                                        throw e;
                                     } catch (Exception e) {
                                         ;
                                     }

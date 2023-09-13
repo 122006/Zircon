@@ -53,7 +53,7 @@ public class TestClass2 {
         System.out.println("lambda3=" + a.apply("12", 3));
         final List<PrintStream> collect4 = Stream.of("122", "132").map(System.out::append).list();
         System.out.println("lambda4=" + collect4);
-//        Function<String, String> b = testString::add;
+//        Function<String, String> b = ""::addStatic;
 //        System.out.println("test lambda b=" + b);
         final Stream<String> stringStream = Stream.of("12", "13");
 //        final Stream<String> mapStream = stringStream.map(testString::add);
