@@ -56,7 +56,7 @@ public class TestClass2 {
 //        Function<String, String> b = ""::addStatic;
 //        System.out.println("test lambda b=" + b);
         final Stream<String> stringStream = Stream.of("12", "13");
-//        final Stream<String> mapStream = stringStream.map(testString::add);
+        final Stream<Integer> mapStream = stringStream.map(""::toInteger);
 //        final List<String> collect = mapStream.collect(Collectors.toList());
 //        System.out.println("lambda1="+collect);
         final Stream<String> mapStream2 = stringStream.map((String str) -> "concat".concat(str));

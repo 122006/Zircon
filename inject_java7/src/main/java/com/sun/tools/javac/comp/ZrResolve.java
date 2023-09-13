@@ -15,8 +15,10 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
+import static com.sun.tools.javac.code.Flags.STATIC;
 
 
 public class ZrResolve extends Resolve {
@@ -124,28 +126,37 @@ public class ZrResolve extends Resolve {
         }
     }
 
-    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference,ExMethodInfo methodInfo) {
+    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(context);
-        final Name nameA = names.fromString("$zr$a");
+        final List<Symbol.VarSymbol> params = methodInfo.methodSymbol.params;
         if (methodInfo.isStatic) {
-            Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, methodInfo.methodSymbol.params.head.type, syms.noSymbol);
-            final JCTree.JCIdent idA = maker.Ident(symA);
-            final List<JCTree.JCExpression> of = List.of(idA);
+            ListBuffer<JCTree.JCVariableDecl> jcVariableDecls = new ListBuffer<>();
+            ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
+            for (int i = 1; i < params.size(); i++) {
+                Symbol.VarSymbol param = params.get(i);
+                final Name nameA = names.fromString("$zr$a" + i);
+                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, param.type, syms.noSymbol);
+                jcVariableDecls.add(maker.VarDef(symA, null));
+                jcIdents.add(maker.Ident(symA));
+            }
             final JCTree.JCFieldAccess add = maker.Select(maker.Ident(methodInfo.methodSymbol.owner), methodInfo.methodSymbol.name);
-            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
-//                        apply.setType(bestSoFar.getReturnType());
-            JCTree.JCVariableDecl a = maker.VarDef(symA, null);
-            lambda = maker.Lambda(List.of(a), apply);
+            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, jcIdents.toList());
+            lambda = maker.Lambda(jcVariableDecls.toList(), apply);
         } else {
-            Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, methodInfo.methodSymbol.params.get(1).type, syms.noSymbol);
-            final JCTree.JCIdent idA = maker.Ident(symA);
-            final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
+            ListBuffer<JCTree.JCVariableDecl> jcVariableDecls = new ListBuffer<>();
+            ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
+            jcIdents.add(memberReference.expr);
+            for (int i = 1; i < params.size(); i++) {
+                Symbol.VarSymbol param = params.get(i);
+                final Name nameA = names.fromString("$zr$a" + i);
+                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, param.type, syms.noSymbol);
+                jcVariableDecls.add(maker.VarDef(symA, null));
+                jcIdents.add(maker.Ident(symA));
+            }
             final JCTree.JCFieldAccess add = maker.Select(maker.Ident(methodInfo.methodSymbol.owner), methodInfo.methodSymbol.name);
-            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
-//                        apply.setType(bestSoFar.getReturnType());
-            JCTree.JCVariableDecl a = maker.VarDef(symA, null);
-            lambda = maker.Lambda(List.of(a), apply);
+            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, jcIdents.toList());
+            lambda = maker.Lambda(jcVariableDecls.toList(), apply);
         }
 
         return lambda;
@@ -234,7 +245,7 @@ public class ZrResolve extends Resolve {
                 try {
                     enclosedElements = packageSymbol.getEnclosedElements();
                 } catch (Exception e) {
-                    System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
+//                    System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
                     continue;
                 }
                 enclosedElements.stream().filter(e -> (e instanceof Symbol.ClassSymbol)).forEach(e -> {
