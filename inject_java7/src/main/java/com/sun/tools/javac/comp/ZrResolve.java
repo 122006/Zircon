@@ -86,7 +86,7 @@ public class ZrResolve extends Resolve {
                     if (!types.isCastable(site, nParams.get(0).type)) {
                         continue;
                     }
-                    String lambda = createLambdaTree(referenceTree, methodInfo.methodSymbol).toString();
+                    String lambda = createLambdaTree(referenceTree, methodInfo).toString();
                     final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + referenceTree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
                     runtimeException.setStackTrace(new StackTraceElement[0]);
                     throw runtimeException;
@@ -124,19 +124,30 @@ public class ZrResolve extends Resolve {
         }
     }
 
-    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
+    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference,ExMethodInfo methodInfo) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(context);
         final Name nameA = names.fromString("$zr$a");
-        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
-                , bestSoFar.params.get(1).type, syms.noSymbol);
-        final JCTree.JCIdent idA = maker.Ident(symA);
-        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
-        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
-        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
+        if (methodInfo.isStatic) {
+            Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, methodInfo.methodSymbol.params.head.type, syms.noSymbol);
+            final JCTree.JCIdent idA = maker.Ident(symA);
+            final List<JCTree.JCExpression> of = List.of(idA);
+            final JCTree.JCFieldAccess add = maker.Select(maker.Ident(methodInfo.methodSymbol.owner), methodInfo.methodSymbol.name);
+            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
 //                        apply.setType(bestSoFar.getReturnType());
-        JCTree.JCVariableDecl a = maker.VarDef(symA, null);
-        lambda = maker.Lambda(List.of(a), apply);
+            JCTree.JCVariableDecl a = maker.VarDef(symA, null);
+            lambda = maker.Lambda(List.of(a), apply);
+        } else {
+            Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, methodInfo.methodSymbol.params.get(1).type, syms.noSymbol);
+            final JCTree.JCIdent idA = maker.Ident(symA);
+            final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
+            final JCTree.JCFieldAccess add = maker.Select(maker.Ident(methodInfo.methodSymbol.owner), methodInfo.methodSymbol.name);
+            final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
+//                        apply.setType(bestSoFar.getReturnType());
+            JCTree.JCVariableDecl a = maker.VarDef(symA, null);
+            lambda = maker.Lambda(List.of(a), apply);
+        }
+
         return lambda;
     }
 
@@ -248,7 +259,7 @@ public class ZrResolve extends Resolve {
                                         exMethodInfo.cover = (boolean) cover.getValue();
                                     }
                                     exMethodInfo.isStatic = exMethodInfo.targetClass != null && !exMethodInfo.targetClass.isEmpty();
-                                    System.out.println("find method " + (exMethodInfo.isStatic ? "static " : "") + method + "[" + exMethodInfo.targetClass + "[" + method.type);
+//                                    System.out.println("find method " + (exMethodInfo.isStatic ? "static " : "") + method + "[" + exMethodInfo.targetClass + "[" + method.type);
                                     final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
                                     redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
                                 });
