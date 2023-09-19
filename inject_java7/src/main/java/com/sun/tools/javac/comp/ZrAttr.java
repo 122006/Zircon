@@ -4,15 +4,20 @@ import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.ReflectionUtil;
+import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 
-import static com.sun.tools.javac.code.Flags.PARAMETER;
-import static com.sun.tools.javac.code.TypeTag.NONE;
+import java.util.Objects;
+import java.util.Optional;
+
+import static com.sun.tools.javac.code.Flags.*;
+import static com.sun.tools.javac.code.TypeTag.*;
 
 public class ZrAttr extends Attr {
     private final Context context;
@@ -36,34 +41,63 @@ public class ZrAttr extends Attr {
         ReflectionUtil.setDeclaredField(Annotate.instance(context), Annotate.class, "attr", zrAttr);
         return zrAttr;
     }
-//    private JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, Symbol.MethodSymbol bestSoFar) {
-//        final JCTree.JCLambda lambda;
-//        final TreeMaker maker = TreeMaker.instance(context);
-//        final Name nameA = names.fromString("$zr$a");
-//        Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA
-//                , bestSoFar.params.get(1).type, syms.noSymbol);
-//        final JCTree.JCIdent idA = maker.Ident(symA);
-//        final List<JCTree.JCExpression> of = List.of(memberReference.getQualifierExpression(), idA);
-//        final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
-//        final JCTree.JCMethodInvocation apply = maker.Apply(memberReference.typeargs, add, of);
-////                        apply.setType(bestSoFar.getReturnType());
-//        JCTree.JCVariableDecl a = make.VarDef(symA, null);
-//        lambda = maker.Lambda(List.of(a), apply);
-//        return lambda;
-//    }
 
+    Symbol.ClassSymbol biopClass = null;
 
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
         try {
             super.visitApply(that);
         } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
+            final JCTree.JCMethodInvocation oldTree = make.Apply(that.typeargs, that.meth, that.args);
+
             final Symbol bestSoFar = redirectMethod.bestSoFar;
-            final TreeMaker maker = TreeMaker.instance(context);
-            final JCTree.JCFieldAccess add = maker.Select(maker.Ident(bestSoFar.owner), bestSoFar.name);
+            if (bestSoFar.owner == null) {
+                System.err.println(bestSoFar);
+                System.err.println(bestSoFar.owner);
+            }
+            final JCTree.JCFieldAccess add = make.Select(make.Ident(bestSoFar.owner), bestSoFar.name);
             final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
-            that.args = methodStaticExType.isEmpty() ? that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected) : that.args;
+            if (methodStaticExType.isEmpty()) {
+                if (that.meth instanceof JCTree.JCFieldAccess) {
+                    that.args = that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected);
+                } else if (that.meth instanceof JCTree.JCIdent) {
+                    that.args = that.args.prepend(make.Ident(names._this));
+                }
+            }
+            JCTree.JCExpression oldMeth = that.meth;
             that.meth = add;
+            that.type = redirectMethod.bestSoFar.type;
+            if (oldMeth.hasTag(JCTree.Tag.SELECT)) {
+                final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) oldMeth).selected;
+                final boolean staticInvoke = selected.hasTag(JCTree.Tag.IDENT) || TreeInfo.isStaticSelector(selected, names);
+                if (!staticInvoke) {
+                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs).findRedirectMethod(bestSoFar.getSimpleName()).stream().filter(a -> a.methodSymbol == bestSoFar)
+                            .findFirst();
+                    if (first.isPresent()) {
+                        if (first.get().isStatic) {
+                            if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(VOID)) {
+                                throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", oldTree);
+                            } else {
+                                if (biopClass == null) {
+                                    final Iterable<Symbol> elements = syms.packages.get(names.fromString("zircon")).members().getElements(a -> Objects.equals(a.getSimpleName().toString(), "BiOp"));
+                                    for (Symbol a : elements) {
+                                        biopClass = (Symbol.ClassSymbol) a;
+                                    }
+                                }
+                                if (biopClass == null) throw new ZrUnSupportCodeError("请确定是否正确引入依赖zircon");
+                                final JCTree.JCFieldAccess and = make.Select(make.QualIdent(biopClass), names.fromString("sec"));
+                                final JCTree.JCMethodInvocation copy = make.Apply(that.typeargs, that.meth, that.args);
+                                that.typeargs = List.nil();
+                                that.meth = and;
+                                that.args = List.of(selected, copy);
+                                super.visitApply(that);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
             super.visitApply(that);
         }
     }

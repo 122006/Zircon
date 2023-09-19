@@ -21,24 +21,32 @@ repositories {
     mavenCentral()
 }
 
-compileJava {
-    options.compilerArgs << "-Xplugin:ZrExMethod"
-    options.compilerArgs << "-Xplugin:ZrString"
-}
+
 //sourceCompatibility = JavaVersion.VERSION_1_8
 //targetCompatibility = JavaVersion.VERSION_1_8
 
+test {
+    useJUnitPlatform()
+}
 dependencies {
     annotationProcessor project(":javac")
+    implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
     implementation 'com.github.122006:ExMethodUtil:5dc2ce9a2f'
-    implementation 'com.github.122006.Zircon:zircon:3.+'
-    implementation 'com.github.122006:LinearHttp:1.2.8'
+//    implementation 'com.github.122006.Zircon:zircon:3.+'
+//    implementation 'com.github.122006:LinearHttp:1.2.8'
     implementation 'com.alibaba:fastjson:1.1.72.android'
     implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+    testAnnotationProcessor project(":javac")
+    testImplementation project(":test")
 }
 tasks.withType(JavaCompile) {
+    it.options.compilerArgs << "-Xplugin:ZrExMethod"
+    it.options.compilerArgs << "-Xplugin:ZrString"
+    it.options.fork = true
     if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 11) {
         it.options.forkOptions.jvmArgs
                 << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"

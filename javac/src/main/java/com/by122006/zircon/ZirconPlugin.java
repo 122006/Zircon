@@ -11,6 +11,7 @@ import com.sun.tools.javac.parser.UnicodeReader;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -56,6 +57,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                     isLoad = true;
                     try {
                         reloadClass("com.sun.tools.javac.parser.ReflectionUtil", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        reloadClass("com.sun.tools.javac.parser.ZrUnSupportCodeError", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                         reloadClass("com.sun.tools.javac.parser.ZrConstants", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                         startTask(context, compiler, ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                     } catch (Exception exception) {
@@ -129,20 +131,25 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
 
     static String dir;
 
+    public static boolean javaVersionUpper(int versionCode) {
+        final String version = System.getProperty("java.version");
+        return Integer.parseInt(version.split("\\.")[0]) >= versionCode;
+    }
+
     static <T> Class<T> reloadClassJavacVersion(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
         final String[] split = claz.split("\\.");
         final String simpleClassName = split[split.length - 1];
         if (dir == null) {
-            final String version = System.getProperty("java.version");
-            if (Integer.parseInt(version.split("\\.")[0]) >= 16) {
+            if (javaVersionUpper(16)) {
                 dir = "java16";
-            } else if (Integer.parseInt(version.split("\\.")[0]) >= 11) {
+            } else if (javaVersionUpper(11)) {
                 dir = "java11";
             } else {
                 dir = "java7";
             }
         }
-        return reloadClass(claz, incl, outcl, "clazz/" + dir + "/" + simpleClassName + ".clazz");
+        final String oPath = "clazz/" + dir + "/" + simpleClassName + ".clazz";
+        return reloadClass(claz, incl, outcl, oPath);
     }
 
     // <editor-fold defaultstate="collapsed" desc="reloadClass">
