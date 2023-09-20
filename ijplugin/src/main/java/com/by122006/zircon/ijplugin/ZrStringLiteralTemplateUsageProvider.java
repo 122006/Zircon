@@ -6,6 +6,7 @@ import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.psi.*;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
@@ -31,6 +32,7 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
     }
 
     private boolean checkReferencedFromZrStringLiteral(PsiElement elem) {
+        if (DumbService.isDumb(elem.getProject())) return false;
         if (elem.getLanguage() != JavaLanguage.INSTANCE) return false;
         if (!ZrPluginUtil.hasZrPlugin(elem.getProject())) return false;
         PsiNamedElement namedElement = this.findNamedElement(elem);

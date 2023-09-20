@@ -60,6 +60,7 @@
                             overrides="true"/>
         <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
+        <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>
         <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
         <!--    <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>-->
         <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
@@ -70,5 +71,7 @@
                         serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
                         overrides="true"/>
         <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
+        <findUsagesHandlerFactory implementation="com.by122006.zircon.ijplugin.ZrFindUsagesHandlerFactory"/>
+
     </extensions>
 </idea-plugin>

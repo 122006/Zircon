@@ -1,14 +1,12 @@
 package test;
 
 import org.junit.jupiter.api.Test;
-import org.opentest4j.AssertionFailedError;
-import zircon.example.ExArray;
 import zircon.example.ExObject;
 
-import java.util.List;
+import java.util.Arrays;
 import java.util.function.*;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 public class TestExMethodImpl {
@@ -359,21 +357,21 @@ public class TestExMethodImpl {
                 },
                 () -> TestExMethod.supplier(() -> "456"));
         checkMethodInvokes(
-                () -> {
-                    return "123".toInteger();
-                },
+                () -> "123".toInteger(),
                 () -> TestExMethod.toInteger("123"));
         String nullStr = null;
         checkMethodInvokes(
-                () -> {
-                    return nullStr.isNull();
-                },
+                () -> nullStr.isNull(),
                 () -> TestExMethod.isNull2(nullStr));
         checkMethodInvokes(
-                () -> {
-                    return nullStr.isEmpty();
-                },
+                () -> nullStr.isEmpty(),
                 () -> TestExMethod.isEmpty(nullStr));
+        checkMethodInvokes(
+                () -> Arrays.asList(123, 456),
+                () -> TestExMethod.asList(123, 456));
+        checkMethodInvokes(
+                () -> Arrays.asList("123", "456"),
+                () -> TestExMethod.asList("123", "456"));
         testEnd();
     }
 

@@ -44,6 +44,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     public static class CacheMethodInfo {
         List<PsiType> targetType = new ArrayList<>();
         boolean isStatic = false;
+        boolean cover = false;
         String name;
         PsiMethod method;
     }
@@ -60,10 +61,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             }).filter(Objects::nonNull).distinct().filter(PsiElement::isValid).map(method -> {
                 final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
                 if (annotation == null) return null;
-                PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
                 CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
                 cacheMethodInfo.name = method.getName();
                 cacheMethodInfo.method = method;
+                PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
                 if (ex != null) {
                     if (ex instanceof PsiClassObjectAccessExpression) {
                         cacheMethodInfo.targetType.add(((PsiImmediateClassType) ((PsiClassObjectAccessExpression) ex).getType()).getParameters()[0]);
@@ -83,6 +84,13 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
                 }
                 cacheMethodInfo.isStatic = ex != null;
+                PsiAnnotationMemberValue cover = annotation.findDeclaredAttributeValue("cover");
+                if (cover != null) {
+                    if (cover instanceof PsiLiteralExpression) {
+                        final Boolean value = (Boolean) ((PsiLiteralExpression) cover).getValue();
+                        cacheMethodInfo.cover = value != null && value;
+                    }
+                }
                 if (ex == null) {
                     final PsiParameterList parameterList = method.getParameterList();
                     if (parameterList.isEmpty()) return null;
@@ -109,7 +117,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         final List<Psi> emptyResult = Collections.emptyList();
         if (!ZrPluginUtil.hasZrPlugin(psiElement.getProject())) return emptyResult;
         if (PsiMethod.class.isAssignableFrom(eleType)) {
-            final List<CacheMethodInfo> psiMethods = getCachedAllMethod(psiElement.getProject());
+            final List<CacheMethodInfo> psiMethods = getCachedAllMethod(psiElement.getProject()).stream().filter(a -> !a.cover).collect(Collectors.toList());
             if (psiElement instanceof PsiClass) {
                 PsiClass psiClass = (PsiClass) psiElement;
                 final String type2Str = psiClass.getQualifiedName();
@@ -146,7 +154,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                             if (bounds.length == 0) {
                                 targetClass = JavaPsiFacade.getInstance(psiClass.getProject()).findClass(CommonClassNames.JAVA_LANG_OBJECT, psiClass.getResolveScope());
                             } else {
-                                targetClass = (PsiClass)bounds[0].resolve();
+                                targetClass = (PsiClass) bounds[0].resolve();
                             }
                         }
                         if (targetClass == null) return null;
@@ -206,7 +214,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 //        return collect;
 //    }
 
-    private synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull Project project) {
+    public static synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull Project project) {
         return CachedValuesManager.getManager(project).getCachedValue(project, () -> CachedValueProvider.Result.create(recoverCache(project), ProjectRootManager.getInstance(project)));
     }
 
@@ -294,7 +302,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         builder.setContainingClass(targetClass);
         builder.setMethodReturnType(result.getReturnType());
         builder.setConstructor(false);
-        builder.setNavigationElement(targetMethod);
         return builder;
     }
 
@@ -330,6 +337,11 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             this.isStatic = isStatic;
             this.targetClass = targetClass;
             this.targetMethod = targetMethod;
+        }
+
+        @Override
+        public @NotNull PsiElement getNavigationElement() {
+            return targetMethod;
         }
 
         @Override

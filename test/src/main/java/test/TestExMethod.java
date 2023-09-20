@@ -226,6 +226,7 @@ public class TestExMethod {
         methodNames.add("arraySiteCheckR(int,t");
         return str;
     }
+
     @ExMethod(ex = {Object.class})
     public static <T> T supplier(Supplier<T> supplier) {
         methodNames.add("supplier(");
@@ -242,11 +243,21 @@ public class TestExMethod {
     public static boolean isNull2(Object obj) {
         return obj == null;
     }
+
     @ExMethod(cover = true)
     public static boolean isEmpty(String str) {
         methodNames.add("isEmpty(s");
         return str == null || str.length() == 0;
     }
+
+    @ExMethod(ex = {Arrays.class}, cover = true)
+    public static <T> List<T> asList(T... strs) {
+        methodNames.add("Arrays.asList(t");
+        final ArrayList<T> ts = new ArrayList<>();
+        Collections.addAll(ts,strs);
+        return ts;
+    }
+
 
     @ExMethod(ex = {FatherClass.class})
     public static FatherClass createNew() {
