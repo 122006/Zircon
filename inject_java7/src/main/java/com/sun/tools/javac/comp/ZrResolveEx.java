@@ -14,13 +14,14 @@ public class ZrResolveEx {
             return bestSoFar;
         }
         java.util.List<List> newResult = new ArrayList<>();
-        Symbol lastMethodSymbol = bestSoFar;
+        Symbol lastMethodSymbol = zrResolve.methodNotFound;
         exInfo:
         for (ZrResolve.ExMethodInfo methodInfo : methodSymbolList) {
             List<Type> newArgTypes = argtypes;
             if (!methodInfo.isStatic) {
                 Type type = methodInfo.methodSymbol.getParameters().head.type.baseType();
                 type = zrResolve.types.capture(type);
+
                 if (!memberReference) newArgTypes = newArgTypes.prepend(site);
                 final Symbol best = zrResolve.selectBest(env, type, newArgTypes, typeargtypes, methodInfo.methodSymbol, lastMethodSymbol, allowBoxing, useVarargs, operator);
                 if (best == methodInfo.methodSymbol && best instanceof Symbol.MethodSymbol) {
@@ -49,7 +50,9 @@ public class ZrResolveEx {
 
         }
         if (newResult.isEmpty()) {
-            return lastMethodSymbol == null ? bestSoFar : lastMethodSymbol;
+            return !(lastMethodSymbol instanceof Symbol.MethodSymbol)
+                    ? bestSoFar
+                    : lastMethodSymbol;
         }
         List<ZrResolve.ExMethodInfo> finalMethodSymbol = List.nil();
         final java.util.List<List> coverList = newResult.stream().filter(a -> ((ZrResolve.ExMethodInfo) (a.get(1))).cover).collect(Collectors.toList());
@@ -83,7 +86,7 @@ public class ZrResolveEx {
             return finalMethodSymbol.head.methodSymbol;
         }
         if (memberReference) {
-            Resolve.AmbiguityError ambiguityError =zrResolve.new AmbiguityError(finalMethodSymbol.get(0).methodSymbol, finalMethodSymbol.get(1).methodSymbol);
+            Resolve.AmbiguityError ambiguityError = zrResolve.new AmbiguityError(finalMethodSymbol.get(0).methodSymbol, finalMethodSymbol.get(1).methodSymbol);
             finalMethodSymbol.stream().skip(2).forEach(info -> ambiguityError.addAmbiguousSymbol(info.methodSymbol));
             return ambiguityError;
         } else {

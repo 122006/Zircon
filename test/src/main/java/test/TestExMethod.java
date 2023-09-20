@@ -232,6 +232,21 @@ public class TestExMethod {
         return supplier.get();
     }
 
+    @ExMethod
+    public static Integer toInteger(String integer) {
+        methodNames.add("toInteger(s");
+        return Integer.parseInt(integer);
+    }
+
+    @ExMethod
+    public static boolean isNull(Object obj) {
+        return obj == null;
+    }
+    @ExMethod(cover = true)
+    public static boolean isEmpty(String str) {
+        return str == null || str.length() == 0;
+    }
+
     @ExMethod(ex = {FatherClass.class})
     public static FatherClass createNew() {
         methodNames.add("staticFatherCreateNew(");

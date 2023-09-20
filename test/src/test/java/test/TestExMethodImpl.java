@@ -350,6 +350,27 @@ public class TestExMethodImpl {
                     return supplier(()->"123");
                 },
                 () -> TestExMethod.supplier(()->"123"));
+        checkMethodInvokes(
+                () -> {
+                    return this.supplier(()->"456");
+                },
+                () -> TestExMethod.supplier(()->"456"));
+        checkMethodInvokes(
+                () -> {
+                    return "123".toInteger();
+                },
+                () -> TestExMethod.toInteger("123"));
+        String nullStr = null;
+        checkMethodInvokes(
+                () -> {
+                    return nullStr.isNull();
+                },
+                () -> TestExMethod.isNull(nullStr));
+        checkMethodInvokes(
+                () -> {
+                    return nullStr.isEmpty();
+                },
+                () -> TestExMethod.isEmpty(nullStr));
         testEnd();
     }
     public void throwAssertionFailedError(String message, Object expected, Object actual){
