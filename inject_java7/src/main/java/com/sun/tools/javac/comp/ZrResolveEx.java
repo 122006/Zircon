@@ -50,9 +50,7 @@ public class ZrResolveEx {
 
         }
         if (newResult.isEmpty()) {
-            return !(lastMethodSymbol instanceof Symbol.MethodSymbol)
-                    ? bestSoFar
-                    : lastMethodSymbol;
+            return bestSoFar instanceof Symbol.MethodSymbol ? bestSoFar : lastMethodSymbol;
         }
         List<ZrResolve.ExMethodInfo> finalMethodSymbol = List.nil();
         final java.util.List<List> coverList = newResult.stream().filter(a -> ((ZrResolve.ExMethodInfo) (a.get(1))).cover).collect(Collectors.toList());

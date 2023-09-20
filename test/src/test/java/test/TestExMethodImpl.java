@@ -2,6 +2,8 @@ package test;
 
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
+import zircon.example.ExArray;
+import zircon.example.ExObject;
 
 import java.util.List;
 import java.util.function.*;
@@ -12,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TestExMethodImpl {
     @Test
     public void test() {
-         checkMethodInvokes(
+        Class[] ExObject = new Class[]{ExObject.class};
+        checkMethodInvokes(
                 () -> {
                     "123".emptyStringRString();
                 }, () -> {
@@ -334,27 +337,27 @@ public class TestExMethodImpl {
                     return supplier.get();
                 },
                 () -> TestExMethod.ChildEnv.staticSameNameExtendClass());
-        Integer[] integers=new Integer[0];
-        int[] ints=new int[0];
+        Integer[] integers = new Integer[0];
+        int[] ints = new int[0];
         checkMethodInvokes(
                 () -> integers.objectArraySiteCheckRS(),
                 () -> TestExMethod.objectArraySiteCheckRS(integers));
         checkMethodInvokes(
                 () -> integers.objectArraySiteCheckRS("123"),
-                () -> TestExMethod.objectArraySiteCheckRS(integers,"123"));
+                () -> TestExMethod.objectArraySiteCheckRS(integers, "123"));
         checkMethodInvokes(
                 () -> ints.objectArraySiteCheckRS("123"),
-                () -> TestExMethod.objectArraySiteCheckRS(ints,"123"));
+                () -> TestExMethod.objectArraySiteCheckRS(ints, "123"));
         checkMethodInvokes(
                 () -> {
-                    return supplier(()->"123");
+                    return supplier(() -> "123");
                 },
-                () -> TestExMethod.supplier(()->"123"));
+                () -> TestExMethod.supplier(() -> "123"));
         checkMethodInvokes(
                 () -> {
-                    return this.supplier(()->"456");
+                    return this.supplier(() -> "456");
                 },
-                () -> TestExMethod.supplier(()->"456"));
+                () -> TestExMethod.supplier(() -> "456"));
         checkMethodInvokes(
                 () -> {
                     return "123".toInteger();
@@ -365,7 +368,7 @@ public class TestExMethodImpl {
                 () -> {
                     return nullStr.isNull();
                 },
-                () -> TestExMethod.isNull(nullStr));
+                () -> TestExMethod.isNull2(nullStr));
         checkMethodInvokes(
                 () -> {
                     return nullStr.isEmpty();
@@ -373,7 +376,8 @@ public class TestExMethodImpl {
                 () -> TestExMethod.isEmpty(nullStr));
         testEnd();
     }
-    public void throwAssertionFailedError(String message, Object expected, Object actual){
+
+    public void throwAssertionFailedError(String message, Object expected, Object actual) {
         assertEquals(expected, actual);
     }
 }

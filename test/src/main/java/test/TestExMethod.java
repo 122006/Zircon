@@ -239,11 +239,12 @@ public class TestExMethod {
     }
 
     @ExMethod
-    public static boolean isNull(Object obj) {
+    public static boolean isNull2(Object obj) {
         return obj == null;
     }
     @ExMethod(cover = true)
     public static boolean isEmpty(String str) {
+        methodNames.add("isEmpty(s");
         return str == null || str.length() == 0;
     }
 

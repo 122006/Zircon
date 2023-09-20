@@ -315,7 +315,7 @@ public class ZrResolve extends Resolve {
             return bestSoFar;
         }
         java.util.List<List> newResult = new ArrayList<>();
-        Symbol lastMethodSymbol = bestSoFar;
+        Symbol lastMethodSymbol = methodNotFound;
         exInfo:
         for (ExMethodInfo methodInfo : methodSymbolList) {
             List<Type> newArgTypes = argtypes;
@@ -353,7 +353,7 @@ public class ZrResolve extends Resolve {
 
         }
         if (newResult.isEmpty()) {
-            return lastMethodSymbol == null ? bestSoFar : lastMethodSymbol;
+            return bestSoFar instanceof Symbol.MethodSymbol ? bestSoFar : lastMethodSymbol;
         }
         List<ExMethodInfo> finalMethodSymbol = List.nil();
         final java.util.List<List> coverList = newResult.stream().filter(a -> ((ExMethodInfo) (a.get(1))).cover).collect(Collectors.toList());
