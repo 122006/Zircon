@@ -49,7 +49,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:版本号'
+        classpath 'com.github.122006.Zircon:gradle:3.1.0'
     }
 }
 ````
@@ -66,17 +66,17 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>版本号</version>
+            <version>3.1.0</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>base</artifactId>
-            <version>版本号</version>
+            <version>3.1.0</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>版本号</version>
+            <version>3.1.0</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -109,7 +109,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.5.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.6.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -144,9 +144,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.0
+### v3.1.0
 
-1. 支持拓展方法
+1. 拓展方法实现优化
 
 <details>
   <summary>历史依赖更新</summary>
@@ -170,9 +170,13 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 2. 支持使用gradle插件配置项目
 3. 重构以支持jdk16、jdk17
 
+### v3.0
+
+1. 支持拓展方法
+
 </details>
 
-### idea插件2.5
+### idea插件2.6
 
 1. 拓展方法显示优化
 
@@ -196,6 +200,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 1. 支持拓展方法
 2. 在未引入该项目的代码中，不再提示模板字符串功能
 
+### idea插件2.5
+
+1. 拓展方法显示优化
 </details>
 
 

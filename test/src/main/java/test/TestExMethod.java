@@ -2,15 +2,8 @@ package test;
 
 import zircon.ExMethod;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.security.KeyPair;
 import java.util.*;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class TestExMethod {
     static List<String> methodNames = new ArrayList<>();
@@ -82,6 +75,12 @@ public class TestExMethod {
     @ExMethod(ex = {FatherClass.class})
     public static <T> T staticFatherTRT(T t) {
         methodNames.add("staticFatherTRT(t");
+        return t;
+    }
+
+    @ExMethod
+    public static <T> T objectTRT(T t) {
+        methodNames.add("objectTRT(t");
         return t;
     }
 
@@ -227,6 +226,44 @@ public class TestExMethod {
         return str;
     }
 
+    @ExMethod
+    public static <T> List<T> listTRT(List<T> list, T item) {
+        methodNames.add("listTRT(int,t");
+        return list;
+    }
+
+    @ExMethod
+    public static <M, N, V> List<V> hashMapRListV(HashMap<M, N> list, M key, N value, V other) {
+        methodNames.add("hashMapRListV(h,m,n,v");
+        return Arrays.asList(other);
+    }
+
+    @ExMethod
+    public static <M, N, V, K> HashMap<V, K> hashMapRMapV(HashMap<M, N> list, M key, N value, V vk, K vk2) {
+        methodNames.add("hashMapRMapV(h,m,n,v");
+        final HashMap<V, K> vkHashMap = new HashMap<>();
+        vkHashMap.put(vk, vk2);
+        return vkHashMap;
+    }
+    @ExMethod
+    public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV(HashMap<M, N> list, Class<M> key, Class<N> value, Class<V> vk, Class<K> vk2) {
+        methodNames.add("hashMapRClassMapV(h,m,n,v");
+        final HashMap<V, K> vkHashMap = new HashMap<>();
+        return vkHashMap;
+    }
+    @ExMethod
+    public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV2(HashMap<?, N> list, Class<M> key, Class<?> value, Class<V> vk, Class<K> vk2) {
+        methodNames.add("hashMapRClassMapV2(h,m,n,v");
+        final HashMap<V, K> vkHashMap = new HashMap<>();
+        return vkHashMap;
+    }
+    @ExMethod
+    public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV3(HashMap<?, N> list, Class<?> key, Class<N> value, Class<V> vk, Class<K> vk2) {
+        methodNames.add("hashMapRClassMapV3(h,m,n,v");
+        final HashMap<V, K> vkHashMap = new HashMap<>();
+        return vkHashMap;
+    }
+
     @ExMethod(ex = {Object.class})
     public static <T> T supplier(Supplier<T> supplier) {
         methodNames.add("supplier(");
@@ -249,12 +286,15 @@ public class TestExMethod {
         methodNames.add("isEmpty(s");
         return str == null || str.length() == 0;
     }
-
+    @ExMethod
+    public static <T> T nullOr2(T obj, T or) {
+        return obj == null ? or : obj;
+    }
     @ExMethod(ex = {Arrays.class}, cover = true)
     public static <T> List<T> asList(T... strs) {
         methodNames.add("Arrays.asList(t");
         final ArrayList<T> ts = new ArrayList<>();
-        Collections.addAll(ts,strs);
+        Collections.addAll(ts, strs);
         return ts;
     }
 
@@ -271,10 +311,14 @@ public class TestExMethod {
         public static void testStaticMethod() {
         }
 
+        public static void oSameNameExtendClass() {
+        }
+
     }
 
     public static class ChildClass extends FatherClass {
-
+        public static void oSameNameExtendClass() {
+        }
     }
 
     @ExMethod
@@ -303,6 +347,7 @@ public class TestExMethod {
         }
     }
 
+
     public static List<String> errorSave = new ArrayList<>();
 
     @ExMethod
@@ -330,6 +375,7 @@ public class TestExMethod {
         methodNames.clear();
         final T t2 = supplier2.get();
         final String collect2 = String.join("\n=>\n", methodNames);
+        methodNames.clear();
         if (!Objects.equals(collect, collect2)) {
             final AssertionError assertionError = new AssertionError("\nv1:\n" + collect + "\n-----------\nv2:\n" + collect2 + "\n");
             errorSave.add(assertionError.getMessage() + "\n" + assertionError.getStackTrace()[1]);

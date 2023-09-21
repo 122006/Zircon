@@ -3,7 +3,12 @@ package test;
 import org.junit.jupiter.api.Test;
 import zircon.example.ExObject;
 
+import javax.xml.crypto.Data;
+import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.function.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class TestExMethodImpl {
     @Test
     public void test() {
-        Class[] ExObject = new Class[]{ExObject.class};
+        Class[] exObject = new Class[]{ExObject.class};
         checkMethodInvokes(
                 () -> {
                     "123".emptyStringRString();
@@ -119,6 +124,9 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> childClass.staticFatherTRT(12),
                 () -> TestExMethod.staticFatherTRT(12));
+        checkMethodInvokes(
+                () -> "123".objectTRT(),
+                () -> TestExMethod.objectTRT("123"));
         checkMethodInvokes(
                 () -> childClass.fatherTRT(12),
                 () -> TestExMethod.fatherTRT(childClass, 12));
@@ -360,9 +368,16 @@ public class TestExMethodImpl {
                 () -> "123".toInteger(),
                 () -> TestExMethod.toInteger("123"));
         String nullStr = null;
+        TestExMethod.ChildClass.oSameNameExtendClass();
         checkMethodInvokes(
                 () -> nullStr.isNull(),
                 () -> TestExMethod.isNull2(nullStr));
+        checkMethodInvokes(
+                () -> Arrays.asList("123","456","789").find(a->a.equals("123")),
+                () -> zircon.example.ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
+        checkMethodInvokes(
+                () -> "31231".nullOr("123"),
+                () -> zircon.example.ExObject.nullOr("31231","123"));
         checkMethodInvokes(
                 () -> nullStr.isEmpty(),
                 () -> TestExMethod.isEmpty(nullStr));
@@ -372,6 +387,25 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456"),
                 () -> TestExMethod.asList("123", "456"));
+        List<String> str=Arrays.asList("123","456");
+        checkMethodInvokes(
+                () -> str.listTRT("567"),
+                () -> TestExMethod.listTRT(str, "567"));
+        HashMap<String,Integer> hashMap=new HashMap<>();
+        checkMethodInvokes(
+                () -> hashMap.hashMapRListV("abc",22,BigDecimal.ZERO),
+                () -> TestExMethod.hashMapRListV(hashMap,"abc",22,BigDecimal.ZERO));
+        Date date=new Date();
+        checkMethodInvokes(
+                () -> hashMap.hashMapRMapV("abc",22,date,BigDecimal.ZERO),
+                () -> TestExMethod.hashMapRMapV(hashMap,"abc",22,date,BigDecimal.ZERO));
+        checkMethodInvokes(
+                () -> hashMap.hashMapRClassMapV(String.class,int.class, Data.class,BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV(hashMap,String.class,int.class, Data.class,BigDecimal.class));
+        checkMethodInvokes(
+                () -> hashMap.hashMapRClassMapV3(String.class,int.class, Data.class,BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV3(hashMap,String.class,int.class, Data.class,BigDecimal.class));
+
         testEnd();
     }
 

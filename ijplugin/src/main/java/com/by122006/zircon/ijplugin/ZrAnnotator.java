@@ -25,10 +25,10 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.tree.java.PsiArrayInitializerMemberValueImpl;
-import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.util.PsiTypesUtil;
+import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
@@ -44,7 +44,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -74,15 +76,75 @@ public class ZrAnnotator implements Annotator {
                 registerCheckZrExMethod((PsiMethod) element, holder);
                 return;
             }
-            if (element instanceof PsiMethodCallExpressionImpl) {
+            if (element instanceof PsiMethodCallExpression) {
                 if (FormatUtils.isFormatCall((PsiMethodCallExpression) element)) {
-                    registerChangeFromFormatIntentionAction((PsiMethodCallExpressionImpl) element, holder);
+                    registerChangeFromFormatIntentionAction((PsiMethodCallExpression) element, holder);
+                }
+                final PsiMethod method = ((PsiMethodCallExpression) element).resolveMethod();
+                if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
+                    registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiAugmentProvider.ZrPsiExtensionMethod) method, holder);
                 }
                 return;
             }
         } catch (ProcessCanceledException e) {
             throw e;
         }
+    }
+
+    private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiAugmentProvider.ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
+        final PsiParameter[] parameters = method.getParameterList().getParameters();
+        final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText()).collect(Collectors.joining(" , "));
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                .range(element.getMethodExpression().getLastChild())
+                .textAttributes(ZrExMethodTargetSiteUsage)
+                .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
+                .withFix(new IntentionAction() {
+                    @Override
+                    public @IntentionName
+                    @NotNull
+                    String getText() {
+                        return "[ZrExMethod]: replace with normal method";
+                    }
+
+                    @Override
+                    public @NotNull
+                    @IntentionFamilyName String getFamilyName() {
+                        return "ZrExMethod";
+                    }
+
+                    @Override
+                    public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                        return true;
+                    }
+
+                    @Override
+                    public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                        String s;
+                        final PsiClass containingClass = method.targetMethod.getContainingClass();
+                        if (containingClass == null) return;
+                        final String collect = Arrays.stream(element.getArgumentList().getExpressions()).map(PsiElement::getText).collect(Collectors.joining(","));
+                        if (method.isStatic) {
+                            s = containingClass.getQualifiedName() + "." + method.getName() + "(" + collect + ")";
+                        } else {
+                            final PsiElement site = element.getMethodExpression().getFirstChild();
+                            final String siteText = site.getText();
+                            if (collect.isEmpty()) {
+                                s = containingClass.getQualifiedName() + "." + method.getName() + "(" + siteText + ")";
+                            } else {
+                                s = containingClass.getQualifiedName() + "." + method.getName() + "(" + (siteText.isEmpty() ? "this" : siteText) + "," + collect + ")";
+                            }
+                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
+                            element.replace(codeBlockFromText);
+                        }
+                    }
+
+                    @Override
+                    public boolean startInWriteAction() {
+                        return true;
+                    }
+                })
+                .create();
     }
 
     private void registerCheckZrExMethod(@NotNull PsiMethod method, @NotNull AnnotationHolder holder) {
@@ -100,37 +162,111 @@ public class ZrAnnotator implements Annotator {
                     });
             return;
         }
+        if (ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream().noneMatch(a -> a.method == method)) {
+            holder.newSilentAnnotation(HighlightSeverity.WARNING)
+                    .range(method)
+                    .tooltip("need refresh cache")
+                    .highlightType(ProblemHighlightType.WARNING)
+                    .withFix(new IntentionAction() {
+                        @Override
+                        public @IntentionName
+                        @NotNull
+                        String getText() {
+                            return "[ZrExMethod]: refresh cache";
+                        }
+
+                        @Override
+                        public @NotNull
+                        @IntentionFamilyName String getFamilyName() {
+                            return "ZrExMethod";
+                        }
+
+                        @Override
+                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                            return true;
+                        }
+
+                        @Override
+                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                            ZrPsiAugmentProvider.freshCachedAllMethod(project);
+
+                        }
+
+                        @Override
+                        public boolean startInWriteAction() {
+                            return true;
+                        }
+                    })
+                    .create();
+        }
         final PsiAnnotation annotation = annotations[0];
         PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
         if (ex != null) {
-
             if (ex instanceof PsiClassObjectAccessExpression) {
+                registerSiteAnnotation(holder, ((PsiClassObjectAccessExpression) ex).getOperand(), null, null);
             } else if (ex instanceof PsiArrayInitializerMemberValue) {
                 final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
-                List<PsiType> types = Arrays.stream(initializers).map(a -> {
-                    final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
-                    if (childOfType == null) return null;
-                    return childOfType.getType();
-                }).filter(Objects::nonNull).collect(Collectors.toList());
+                List<PsiType> types = Arrays.stream(initializers)
+                        .map(a -> {
+                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                            if (childOfType == null) return null;
+                            registerSiteAnnotation(holder, childOfType, null, null);
+                            return childOfType.getType();
+                        }).filter(Objects::nonNull).collect(Collectors.toList());
                 if (types.isEmpty()) ex = null;
             }
         }
         if (ex == null) {
             final PsiParameterList parameterList = method.getParameterList();
             if (parameterList.isEmpty()) {
-                holder.newAnnotation(HighlightSeverity.WARNING, "非静态拓展方法需要设置首个入参作为代理类")
+                holder.newSilentAnnotation(HighlightSeverity.WARNING)
                         .range(method)
+                        .tooltip("!非静态拓展方法需要设置首个入参作为代理类")
                         .highlightType(ProblemHighlightType.WARNING)
                         .create();
             } else {
-                holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                        .range(parameterList.getParameter(0))
-                        .tooltip("代理类")
-                        .highlightType(ProblemHighlightType.INFORMATION)
-                        .create();
+                final PsiParameter parameter = parameterList.getParameter(0);
+                if (parameter != null && parameter.isValid())
+                    if (parameter instanceof PsiTypeParameter) {
+                        holder.newSilentAnnotation(HighlightSeverity.WEAK_WARNING)
+                                .range(method)
+                                .highlightType(ProblemHighlightType.WEAK_WARNING)
+                                .tooltip("!泛型丢失，对纯泛型代理会作用于所有类")
+                                .create();
+                    } else {
+                        final PsiType type = parameter.getType();
+                        if (type instanceof PsiArrayType && parameter.getTypeElement() != null) {
+                            final TextRange textRange = parameter.getTypeElement().getTextRange();
+                            final TextRange nRange = new TextRange(textRange.getStartOffset() + parameter.getText().lastIndexOf("["), textRange.getEndOffset());
+                            registerSiteAnnotation(holder, parameter.getTypeElement(), "[]", nRange);
+                        } else if (type instanceof PsiPrimitiveType && parameter.getTypeElement() != null) {
+                            final PsiClassType boxedType = ((PsiPrimitiveType) type).getBoxedType(parameter);
+                            registerSiteAnnotation(holder, parameter.getTypeElement(), boxedType == null ? "unknown" : boxedType.getClassName(), null);
+                        } else if (parameter.getTypeElement() != null) {
+                            final TextRange oTextRange = parameter.getTypeElement().getTextRange();
+                            int i = parameter.getText().indexOf("<");
+                            final TextRange textRange = new TextRange(oTextRange.getStartOffset(), i == -1 ? oTextRange.getEndOffset() : (oTextRange.getStartOffset() + i));
+                            registerSiteAnnotation(holder, parameter.getTypeElement(), null, textRange);
+                        } else if (parameter.isVarArgs()) {
+                            holder.newSilentAnnotation(HighlightSeverity.WARNING)
+                                    .range(method)
+                                    .tooltip("!请不要定义代理类为可变参数")
+                                    .highlightType(ProblemHighlightType.WARNING)
+                                    .create();
+                        }
+                    }
             }
         }
 
+    }
+
+    private void registerSiteAnnotation(@NotNull AnnotationHolder holder, @NotNull PsiTypeElement element, @Nullable String className, @Nullable TextRange textRange) {
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                .range(textRange == null ? element.getTextRange() : textRange)
+                .tooltip("This extension method will proxy the site: " + (className != null ? className : TypeConversionUtil.erasure(element.getType()).getCanonicalText()))
+                .textAttributes(ZrExMethodSite)
+                .highlightType(ProblemHighlightType.INFORMATION)
+                .create();
     }
 
     private void registerBackfStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
@@ -250,6 +386,16 @@ public class ZrAnnotator implements Annotator {
         return false;
     }
 
+    static @NotNull
+    TextAttributesKey ZrExMethodSite
+            = createTextAttributesKey("ZrExMethodSite",
+            new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN)
+            , null);
+    static @NotNull
+    TextAttributesKey ZrExMethodTargetSiteUsage
+            = createTextAttributesKey("ZrExMethodTargetSiteUsage",
+            new TextAttributes(null, null, null, null, Font.ITALIC)
+            , null);
     static @NotNull
     TextAttributesKey ZrStringTextCodeStyleP1
             = createTextAttributesKey("ZrStringTextCodeStyleP1",
@@ -524,7 +670,7 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
-    private void registerChangeFromFormatIntentionAction(@NotNull PsiMethodCallExpressionImpl element, @NotNull AnnotationHolder holder) {
+    private void registerChangeFromFormatIntentionAction(@NotNull PsiMethodCallExpression element, @NotNull AnnotationHolder holder) {
         final PsiElement child = element.getChildren()[1];
         if (!(child instanceof PsiExpressionList)) return;
         final PsiExpressionList formatExpression = (PsiExpressionList) child;
