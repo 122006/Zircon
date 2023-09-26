@@ -12,16 +12,21 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import zircon.example.ExObject;
+
 
 public class TestClass2 {
     @SpringBootApplication
     public static class GradleDemoApplication {
         public static void main(String[] args) {
+            System.out.println("31231".isNull());
             SpringApplication.run(GradleDemoApplication.class, args);
         }
     }
 
     public static void main(String[] args) {
+        System.out.println("31231".isNull());
+
 //        String nullStr = null;
 //        System.out.println(("2131" + "12312").concat("123"));
 //        System.out.println(Test.addStatic("test", "test2"));

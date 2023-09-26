@@ -40,7 +40,7 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
-    <change-notes>Initial release of the plugin.</change-notes>
+    <change-notes>support 'extension method'</change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
         <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
@@ -62,7 +62,7 @@
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>
         <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
-        <!--    <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>-->
+        <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>
         <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
         <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"
                               order="first"/>
@@ -72,6 +72,5 @@
                         overrides="true"/>
         <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
         <findUsagesHandlerFactory implementation="com.by122006.zircon.ijplugin.ZrFindUsagesHandlerFactory"/>
-
     </extensions>
 </idea-plugin>

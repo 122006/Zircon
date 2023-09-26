@@ -2,7 +2,11 @@ package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
 import com.by122006.zircon.util.ZrUtil;
+import com.intellij.codeInsight.FileModificationService;
+import com.intellij.codeInsight.daemon.impl.ShowAutoImportPass;
+import com.intellij.codeInsight.daemon.impl.actions.AddImportAction;
 import com.intellij.codeInsight.folding.impl.FoldingUtil;
+import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.dataFlow.CommonDataflow;
@@ -13,6 +17,7 @@ import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.java.JavaLanguage;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.FoldRegion;
@@ -26,14 +31,19 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
+import com.intellij.psi.infos.CandidateInfo;
+import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiTypesUtil;
 import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
+import com.siyeh.ig.psiutils.ClassUtils;
 import com.siyeh.ig.psiutils.FormatUtils;
+import com.siyeh.ig.psiutils.ImportUtils;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.*;
+import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
@@ -145,6 +155,84 @@ public class ZrAnnotator implements Annotator {
                     }
                 })
                 .create();
+        final String qualifiedName = method.targetMethod.getContainingClass().getQualifiedName();
+        final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, element) && canImport(method.targetMethod.getContainingClass(), element);
+        if (canBeImported) {
+            holder.newSilentAnnotation(HighlightSeverity.ERROR)
+                    .range(element.getMethodExpression().getLastChild())
+                    .textAttributes(ZrExMethodNeedImport)
+                    .tooltip("extension method need import " + qualifiedName)
+                    .withFix(new IntentionAction() {
+                        @Override
+                        public @IntentionName
+                        @NotNull
+                        String getText() {
+                            return "[ZrExMethod]: import " + qualifiedName;
+                        }
+
+                        @Override
+                        public @NotNull
+                        @IntentionFamilyName String getFamilyName() {
+                            return "ZrExMethod";
+                        }
+
+                        @Override
+                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                            return true;
+                        }
+
+                        @Override
+                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                            if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
+//                            ApplicationManager.getApplication().runWriteAction(() -> {
+                            ImportUtils.addImportIfNeeded(method.targetMethod.getContainingClass(), element);
+//                            });
+                        }
+
+                        @Override
+                        public boolean startInWriteAction() {
+                            return true;
+                        }
+                    })
+                    .create();
+        }
+    }
+
+    public static boolean canImport(@NotNull PsiClass aClass, @NotNull PsiElement context) {
+        final PsiFile file = context.getContainingFile();
+        if (!(file instanceof PsiJavaFile)) {
+            return false;
+        }
+        final PsiJavaFile javaFile = (PsiJavaFile) file;
+        final PsiClass outerClass = aClass.getContainingClass();
+        if (outerClass == null) {
+            if (PsiTreeUtil.isAncestor(javaFile, aClass, true)) {
+                return false;
+            }
+        } else {
+            if (PsiTreeUtil.isAncestor(outerClass, context, true) && ClassUtils.isInsideClassBody(context, outerClass))
+                return false;
+        }
+        final String qualifiedName = aClass.getQualifiedName();
+        if (qualifiedName == null) {
+            return false;
+        }
+        final PsiImportList importList = javaFile.getImportList();
+        if (importList == null) {
+            return false;
+        }
+        final String containingPackageName = javaFile.getPackageName();
+        @NonNls final String packageName = ClassUtil.extractPackageName(qualifiedName);
+        if (CommonClassNames.DEFAULT_PACKAGE.equals(packageName)) {
+            return false;
+        }
+        if (containingPackageName.equals(packageName) || importList.findSingleClassImportStatement(qualifiedName) != null) {
+            return false;
+        }
+        if (importList.findOnDemandImportStatement(packageName) != null && !ImportUtils.hasOnDemandImportConflict(qualifiedName, javaFile)) {
+            return false;
+        }
+        return true;
     }
 
     private void registerCheckZrExMethod(@NotNull PsiMethod method, @NotNull AnnotationHolder holder) {
@@ -395,6 +483,11 @@ public class ZrAnnotator implements Annotator {
     TextAttributesKey ZrExMethodTargetSiteUsage
             = createTextAttributesKey("ZrExMethodTargetSiteUsage",
             new TextAttributes(null, null, null, null, Font.ITALIC)
+            , null);
+    static @NotNull
+    TextAttributesKey ZrExMethodNeedImport
+            = createTextAttributesKey("ZrExMethodNeedImport",
+            new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC)
             , null);
     static @NotNull
     TextAttributesKey ZrStringTextCodeStyleP1

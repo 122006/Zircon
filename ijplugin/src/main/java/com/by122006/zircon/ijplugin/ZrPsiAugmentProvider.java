@@ -1,8 +1,11 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
+import com.intellij.codeInsight.daemon.impl.HighlightInfo;
+import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
 import com.intellij.lang.java.JavaLanguage;
+import com.intellij.lang.jvm.JvmElementVisitor;
 import com.intellij.lang.jvm.types.JvmReferenceType;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.diagnostic.Logger;
@@ -29,6 +32,8 @@ import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -63,7 +68,13 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
                 if (ex != null) {
                     if (ex instanceof PsiClassObjectAccessExpression) {
-                        cacheMethodInfo.targetType.add(((PsiImmediateClassType) ((PsiClassObjectAccessExpression) ex).getType()).getParameters()[0]);
+                        final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(ex, PsiTypeElement.class);
+                        if (childOfType == null) return null;
+                        PsiType type = childOfType.getType();
+                        if (type instanceof PsiPrimitiveType){
+                            type=((PsiPrimitiveType) type).getBoxedType(ex);
+                        }
+                        cacheMethodInfo.targetType.add(type);
                     } else if (ex instanceof PsiArrayInitializerMemberValue) {
                         final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
                         final List<PsiType> psiTypes = Arrays.stream(initializers).map(a -> {
@@ -120,14 +131,14 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 if (type2Str == null) {
                     return Collections.emptyList();
                 }
-                if (Objects.equals(type2Str, "_Dummy_.__Array__")) {
+                final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(psiElement.getManager().getProject());
+                if (Objects.equals(type2Str, elementFactory.getArrayClass(PsiUtil.getLanguageLevel(psiElement)).getQualifiedName())) {
                     final List<PsiMethod> collect = psiMethods.stream().map(methodInfo -> {
                         return methodInfo.targetType.stream().filter(type1 -> type1 instanceof PsiArrayType).map(type -> buildMethodBy(methodInfo.isStatic, psiClass, methodInfo.method)).filter(Objects::nonNull).collect(Collectors.toList());
                     }).flatMap(Collection::stream).collect(Collectors.toList());
                     return (List<Psi>) collect;
                 }
 
-                PsiType type2 = PsiTypesUtil.getClassType(psiClass);
                 List<PsiMethod> ownMethods = psiClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) psiClass).getOwnMethods() : List.of();
                 final List<PsiMethod> collect = psiMethods.stream().map(methodInfo -> {
                     return methodInfo.targetType.stream().filter(type -> {
@@ -208,7 +219,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     }
 
     public static synchronized List<CacheMethodInfo> freshCachedAllMethod(@NotNull Project project) {
-        project.putUserData(cachedAllExMethod,null);
+        project.putUserData(cachedAllExMethod, null);
         return getCachedAllMethod(project);
     }
 
@@ -394,6 +405,48 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         @Override
         public @NotNull PsiElement getNavigationElement() {
             return this;
+        }
+
+        @Override
+        public PsiReference @NotNull [] getReferences() {
+            return new PsiReference[]{getReference()};
+        }
+
+        @Override
+        public PsiReference getReference() {
+            final PsiClass containingClass = targetMethod.getContainingClass();
+            if (containingClass == null) return null;
+            final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager().getProject());
+            return elementFactory.createClassReferenceElement(containingClass);
+        }
+
+        @Override
+        public @NotNull GlobalSearchScope getResolveScope() {
+            return super.getResolveScope();
+        }
+
+
+        @Override
+        public void accept(@NotNull PsiElementVisitor visitor) {
+            super.accept(visitor);
+            if (visitor instanceof HighlightVisitorImpl) {
+                HighlightVisitorImpl highlightVisitor = (HighlightVisitorImpl) visitor;
+                try {
+                    final Field myRefCountHolder = highlightVisitor.getClass().getDeclaredField("myRefCountHolder");
+                    myRefCountHolder.setAccessible(true);
+                    final Object refCountHolder = myRefCountHolder.get(highlightVisitor);
+                    if (refCountHolder != null) {
+                        final Method registerImportStatement = refCountHolder.getClass().getDeclaredMethod("registerImportStatement", PsiReference.class, PsiImportStatementBase.class);
+                        final PsiReference reference = getReference();
+                        final PsiImportStatement importStatement = PsiElementFactory.getInstance(getProject()).createImportStatement(targetMethod.getContainingClass());
+                        registerImportStatement.invoke(registerImportStatement, reference, importStatement);
+                    }
+                } catch (ProcessCanceledException e) {
+                    throw e;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
 
         @Override

@@ -15,6 +15,7 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
 
@@ -191,30 +192,39 @@ public class ZrResolve extends Resolve {
     }
 
     Map<Name, List<ExMethodInfo>> redirectMethodSymbolMap = null;
+    ArrayList<Name> hasScan = new ArrayList<>();
+    int lastScanMapCount = 0;
+    boolean scanEl = false;
+
     @SuppressWarnings("unchecked")
     public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName) {
         if (redirectMethodSymbolMap == null) {
             redirectMethodSymbolMap = new HashMap<>();
-            long startTime = System.currentTimeMillis();
-            final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
-            for (Symbol.PackageSymbol packageSymbol : new ArrayList<>(allPackages.values())) {
-                if (ZrConstants.exMethodIgnorePackages.stream().anyMatch(a -> packageSymbol.fullname.toString().startsWith(a)))
-                    continue;
-                final java.util.List<Symbol> enclosedElements;
-                try {
-                    enclosedElements = packageSymbol.getEnclosedElements();
-                } catch (Exception e) {
-//                                System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
-                    continue;
-                }
-                enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
-                    final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
-                    scanMethod(classSymbol);
-                });
-            }
-            System.out.println("扫描耗时:" + (System.currentTimeMillis() - startTime) + "ms");
         }
-
+        final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
+        if (lastScanMapCount != allPackages.size()) {
+            do {
+                scanEl = false;
+                final ArrayList<Name> names = new ArrayList<>(allPackages.keySet());
+                names.stream().filter(name -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> name.toString().startsWith(a)))
+                        .filter(name -> hasScan.stream().noneMatch(a -> Objects.equals(name, a)))
+                        .forEach(name -> {
+                            Symbol.PackageSymbol packageSymbol = allPackages.get(name);
+                            final java.util.List<Symbol> enclosedElements;
+                            try {
+                                enclosedElements = packageSymbol.getEnclosedElements();
+                            } catch (Exception e) {
+                                return;
+                            }
+                            enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
+                                final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
+                                scanMethod(classSymbol);
+                            });
+                            scanEl = true;
+                            hasScan.add(name);
+                        });
+            } while (scanEl);
+        }
         final List<ExMethodInfo> list = redirectMethodSymbolMap.get(methodName);
         return list == null ? List.nil() : list;
     }
@@ -303,8 +313,6 @@ public class ZrResolve extends Resolve {
     }
 
 
-
-
     public boolean methodSymbolEnable(Symbol bestSoFar) {
         return bestSoFar instanceof Symbol.MethodSymbol || bestSoFar instanceof AmbiguityError;
     }
@@ -313,7 +321,7 @@ public class ZrResolve extends Resolve {
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
-            return ZrResolveEx.selectBestFromList(this,redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
+            return ZrResolveEx.selectBestFromList(this, redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
 
         } else {
             return bestSoFar;

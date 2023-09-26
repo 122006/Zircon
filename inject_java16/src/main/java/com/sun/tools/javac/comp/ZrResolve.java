@@ -7,11 +7,9 @@ import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.List;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
@@ -228,30 +226,40 @@ public class ZrResolve extends Resolve {
     }
 
     Map<Name, List<ExMethodInfo>> redirectMethodSymbolMap = null;
+    ArrayList<Name> hasScan = new ArrayList<>();
+    int lastScanMapCount = 0;
+    boolean scanEl = false;
 
     @SuppressWarnings("unchecked")
     public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName) {
         if (redirectMethodSymbolMap == null) {
             redirectMethodSymbolMap = new HashMap<>();
-            long startTime = System.currentTimeMillis();
-            final Map<Name, Map<Symbol.ModuleSymbol, Symbol.PackageSymbol>> allPackages = ReflectionUtil.getDeclaredField(syms, Symtab.class, "packages");
-            final String clazzName = "zircon.ExMethod";
-            for (Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> packageSymPair : new ArrayList<>(allPackages.values())) {
-                packageSymPair.values().stream().filter(packageSymbol -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> packageSymbol.fullname.toString().startsWith(a))).forEach(packageSymbol -> {
-                    final java.util.List<Symbol> enclosedElements;
-                    try {
-                        enclosedElements = packageSymbol.getEnclosedElements();
-                    } catch (Exception e) {
-//                                System.err.println("[warn] scan enclosedElements fail:" + e.getMessage());
-                        return;
-                    }
-                    enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
-                        final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
-                        scanMethod(classSymbol);
-                    });
-                });
-            }
-            System.out.println("扫描耗时:" + (System.currentTimeMillis() - startTime) + "ms");
+        }
+        final Map<Name, Map<Symbol.ModuleSymbol, Symbol.PackageSymbol>> allPackages = ReflectionUtil.getDeclaredField(syms, Symtab.class, "packages");
+        if (lastScanMapCount!=allPackages.size()) {
+            do {
+                scanEl = false;
+                final ArrayList<Name> names = new ArrayList<>(allPackages.keySet());
+                names.stream().filter(name -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> name.toString().startsWith(a)))
+                        .filter(name -> hasScan.stream().noneMatch(a -> Objects.equals(name, a)))
+                        .forEach(name -> {
+                            final Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> moduleSymbolPackageSymbolMap = allPackages.get(name);
+                            moduleSymbolPackageSymbolMap.values().forEach(a -> {
+                                final java.util.List<Symbol> enclosedElements;
+                                try {
+                                    enclosedElements = a.getEnclosedElements();
+                                } catch (Exception e) {
+                                    return;
+                                }
+                                enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
+                                    final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
+                                    scanMethod(classSymbol);
+                                });
+                            });
+                            scanEl = true;
+                            hasScan.add(name);
+                        });
+            } while (scanEl);
         }
         final List<ExMethodInfo> list = redirectMethodSymbolMap.get(methodName);
         return list == null ? List.nil() : list;
@@ -328,7 +336,7 @@ public class ZrResolve extends Resolve {
             List<Type> newArgTypes = argtypes;
             if (!methodInfo.isStatic) {
                 Type type = methodInfo.methodSymbol.getParameters().head.type.baseType();
-                type = types.capture(type);
+                type = types.erasure(type);
                 if (!memberReference)
                     newArgTypes = newArgTypes.prepend(site);
                 final Symbol best = selectBest(env, type, newArgTypes, typeargtypes, methodInfo.methodSymbol, lastMethodSymbol, allowBoxing, useVarargs);

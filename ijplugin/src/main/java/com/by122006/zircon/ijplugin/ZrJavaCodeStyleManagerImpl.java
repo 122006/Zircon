@@ -26,6 +26,10 @@ import com.intellij.psi.impl.source.tree.JavaJspElementType;
 import com.intellij.psi.jsp.JspFile;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.tree.IElementType;
+import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiClassUtil;
+import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.IncorrectOperationException;
 import com.intellij.util.containers.ContainerUtil;
@@ -60,7 +64,7 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
             return prepareOptimizeImportsResult(file, __ -> true);
         } catch (InvocationTargetException | IllegalAccessException | NoSuchMethodException e) {
             LOG.error(e);
-            LOG.error( "不支持的idea版本" );
+            LOG.error("不支持的idea版本");
             return super.prepareOptimizeImportsResult(file);
         }
     }
@@ -74,7 +78,7 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
         collectNamesToImport(names, comments, file, jspFile);
         if (jspFile != null) {
             try {
-                 Class<?> aClass;
+                Class<?> aClass;
                 try {
                     aClass = Class.forName("com.intellij.jsp.JspSpiUtil");
                 } catch (ClassNotFoundException e) {
@@ -98,7 +102,7 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
             }
 
         }
-        final Method addUnresolvedImportNames = ImportHelper.class.getDeclaredMethod( "addUnresolvedImportNames", Set.class, PsiJavaFile.class);
+        final Method addUnresolvedImportNames = ImportHelper.class.getDeclaredMethod("addUnresolvedImportNames", Set.class, PsiJavaFile.class);
         addUnresolvedImportNames.setAccessible(true);
         addUnresolvedImportNames.invoke(null, names, file);
         return names;
@@ -107,10 +111,10 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
     /**
      * @param filter pretend some references do not exist so the corresponding imports may be deleted
      */
-    @Nullable( "null means no need to replace the import list because they are the same" )
+    @Nullable("null means no need to replace the import list because they are the same")
     public PsiImportList prepareOptimizeImportsResult(@NotNull PsiJavaFile file, @NotNull Predicate<? super Pair<String, Boolean>> filter) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
         ImportHelper importHelper = new ImportHelper(JavaCodeStyleSettings.getInstance(file));
-        JavaCodeStyleSettings mySettings = ReflectUtil.getField(importHelper, "mySettings" );
+        JavaCodeStyleSettings mySettings = ReflectUtil.getField(importHelper, "mySettings");
         PsiImportList oldList = file.getImportList();
         if (oldList == null) return null;
 
@@ -150,25 +154,25 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
             }
         }
 
-        final Method findSingleImports = ImportHelper.class.getDeclaredMethod( "findSingleImports", PsiJavaFile.class, Collection.class, Set.class);
+        final Method findSingleImports = ImportHelper.class.getDeclaredMethod("findSingleImports", PsiJavaFile.class, Collection.class, Set.class);
         findSingleImports.setAccessible(true);
         final Set<String> classesToUseSingle = (Set<String>) findSingleImports.invoke(null, file, resultList, classesOrPackagesToImportOnDemand.keySet());
         Set<String> toReimport = new THashSet<>();
-        final Method calcClassesConflictingViaOnDemandImports = ImportHelper.class.getDeclaredMethod( "calcClassesConflictingViaOnDemandImports", PsiJavaFile.class, Map.class, GlobalSearchScope.class, Set.class);
+        final Method calcClassesConflictingViaOnDemandImports = ImportHelper.class.getDeclaredMethod("calcClassesConflictingViaOnDemandImports", PsiJavaFile.class, Map.class, GlobalSearchScope.class, Set.class);
         calcClassesConflictingViaOnDemandImports.setAccessible(true);
         calcClassesConflictingViaOnDemandImports.invoke(null, file, classesOrPackagesToImportOnDemand, file.getResolveScope(), toReimport);
         classesToUseSingle.addAll(toReimport);
         try {
 
-            final Method buildImportListText = ImportHelper.class.getDeclaredMethod( "buildImportListText", List.class, Set.class, Set.class);
+            final Method buildImportListText = ImportHelper.class.getDeclaredMethod("buildImportListText", List.class, Set.class, Set.class);
             buildImportListText.setAccessible(true);
             final StringBuilder text = (StringBuilder) buildImportListText.invoke(null, resultList, classesOrPackagesToImportOnDemand.keySet(), classesToUseSingle);
             for (PsiElement nonImport : nonImports) {
-                text.append( "\n" ).append(nonImport.getText());
+                text.append("\n").append(nonImport.getText());
             }
             String ext = JavaFileType.INSTANCE.getDefaultExtension();
             PsiFileFactory factory = PsiFileFactory.getInstance(file.getProject());
-            final PsiJavaFile dummyFile = (PsiJavaFile) factory.createFileFromText( "_Dummy_." + ext, JavaFileType.INSTANCE, text);
+            final PsiJavaFile dummyFile = (PsiJavaFile) factory.createFileFromText("_Dummy_." + ext, JavaFileType.INSTANCE, text);
             CodeStyle.reformatWithFileContext(dummyFile, file);
 
             PsiImportList newImportList = dummyFile.getImportList();
@@ -218,15 +222,26 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 }
                 continue;
             }
+            if (child instanceof PsiMethodCallExpression||child instanceof PsiMethodReferenceExpression) {
+                final PsiElement method = (child instanceof PsiMethodCallExpression)?((PsiMethodCallExpression) child).resolveMethod():((PsiMethodReferenceExpression) child).resolve() ;
+                if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
+                    final String qualifiedName = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) method).targetMethod.getContainingClass().getQualifiedName();
+                    if (PsiTreeUtil.getParentOfType(child, PsiClass.class) != null) {
+                        final String thisClassQName = PsiTreeUtil.getParentOfType(child, PsiClass.class).getQualifiedName();
+                        if (!Objects.equals(ClassUtil.extractPackageName(qualifiedName), ClassUtil.extractPackageName(thisClassQName)))
+                            names.add(Pair.create(qualifiedName, Boolean.FALSE));
+                    }
+                }
+            }
             if (child instanceof PsiLiteralExpression) {
-                final Formatter formatter = ZrUtil.checkPsiLiteralExpression((PsiLiteralExpression)child);
+                final Formatter formatter = ZrUtil.checkPsiLiteralExpression((PsiLiteralExpression) child);
                 if (formatter == null) continue;
                 final ZrStringModel build = formatter.build(child.getText());
                 final PsiElement[] psiElements = build.getList().stream().filter(a -> a.codeStyle == 1)
                         .map(a -> JavaPsiFacade
                                 .getElementFactory(child.getProject())
                                 .createExpressionFromText(a.stringVal.trim(), child)).toArray(PsiElement[]::new);
-                ContainerUtil.addAll(stack,psiElements);
+                ContainerUtil.addAll(stack, psiElements);
             } else
                 ContainerUtil.addAll(stack, child.getChildren());
 

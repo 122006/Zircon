@@ -1,6 +1,9 @@
 package test;
 
 import org.junit.jupiter.api.Test;
+import test.TestExMethod;
+import test.TestExMethod.ChildEnv;
+import zircon.example.ExCollection;
 import zircon.example.ExObject;
 
 import javax.xml.crypto.Data;
@@ -13,11 +16,9 @@ import java.util.function.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-
 public class TestExMethodImpl {
     @Test
     public void test() {
-        Class[] exObject = new Class[]{ExObject.class};
         checkMethodInvokes(
                 () -> {
                     "123".emptyStringRString();
@@ -365,47 +366,55 @@ public class TestExMethodImpl {
                 },
                 () -> TestExMethod.supplier(() -> "456"));
         checkMethodInvokes(
-                () -> "123".toInteger(),
-                () -> TestExMethod.toInteger("123"));
+                () -> "123".toInteger2(),
+                () -> TestExMethod.toInteger2("123"));
         String nullStr = null;
         TestExMethod.ChildClass.oSameNameExtendClass();
+        Function<String, Boolean> isNullFunc = String::isNull;
+        checkMethodInvokes(
+                () -> isNullFunc.apply(nullStr),
+                () -> nullStr.isNull());
         checkMethodInvokes(
                 () -> nullStr.isNull(),
                 () -> TestExMethod.isNull2(nullStr));
         checkMethodInvokes(
-                () -> Arrays.asList("123","456","789").find(a->a.equals("123")),
+                () -> Arrays.asList("123", "456", "789").find(a -> a.equals("123")),
                 () -> zircon.example.ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
+        zircon.example.ExObject.nullOr("31231", "123");
         checkMethodInvokes(
-                () -> "31231".nullOr("123"),
-                () -> zircon.example.ExObject.nullOr("31231","123"));
+                () -> "31231".nullOr("323"),
+                () -> zircon.example.ExObject.nullOr("31231", "123"));
         checkMethodInvokes(
-                () -> nullStr.isEmpty(),
-                () -> TestExMethod.isEmpty(nullStr));
+                () -> nullStr.isBlank(),
+                () -> TestExMethod.isBlank(nullStr));
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
                 () -> TestExMethod.asList(123, 456));
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456"),
                 () -> TestExMethod.asList("123", "456"));
-        List<String> str=Arrays.asList("123","456");
+        List<String> str = Arrays.asList("123", "456");
         checkMethodInvokes(
                 () -> str.listTRT("567"),
                 () -> TestExMethod.listTRT(str, "567"));
-        HashMap<String,Integer> hashMap=new HashMap<>();
+        HashMap<String, Integer> hashMap = new HashMap<>();
         checkMethodInvokes(
-                () -> hashMap.hashMapRListV("abc",22,BigDecimal.ZERO),
-                () -> TestExMethod.hashMapRListV(hashMap,"abc",22,BigDecimal.ZERO));
-        Date date=new Date();
+                () -> hashMap.hashMapRListV("abc", 22, BigDecimal.ZERO),
+                () -> TestExMethod.hashMapRListV(hashMap, "abc", 22, BigDecimal.ZERO));
+        Date date = new Date();
         checkMethodInvokes(
-                () -> hashMap.hashMapRMapV("abc",22,date,BigDecimal.ZERO),
-                () -> TestExMethod.hashMapRMapV(hashMap,"abc",22,date,BigDecimal.ZERO));
+                () -> hashMap.hashMapRMapV("abc", 22, date, BigDecimal.ZERO),
+                () -> TestExMethod.hashMapRMapV(hashMap, "abc", 22, date, BigDecimal.ZERO));
         checkMethodInvokes(
-                () -> hashMap.hashMapRClassMapV(String.class,int.class, Data.class,BigDecimal.class),
-                () -> TestExMethod.hashMapRClassMapV(hashMap,String.class,int.class, Data.class,BigDecimal.class));
+                () -> hashMap.hashMapRClassMapV(String.class, int.class, Data.class, BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV(hashMap, String.class, int.class, Data.class, BigDecimal.class));
         checkMethodInvokes(
-                () -> hashMap.hashMapRClassMapV3(String.class,int.class, Data.class,BigDecimal.class),
-                () -> TestExMethod.hashMapRClassMapV3(hashMap,String.class,int.class, Data.class,BigDecimal.class));
-
+                () -> hashMap.hashMapRClassMapV3(String.class, int.class, Data.class, BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV3(hashMap, String.class, int.class, Data.class, BigDecimal.class));
+        checkMethodInvokes(
+                () -> "123".testNoEncounteredMethod(),
+                () -> "123"
+        );
         testEnd();
     }
 

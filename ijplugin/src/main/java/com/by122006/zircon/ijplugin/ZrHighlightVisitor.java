@@ -1,12 +1,15 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrUtil;
+import com.intellij.codeHighlighting.Pass;
+import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx;
 import com.intellij.codeInsight.daemon.impl.HighlightVisitor;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
@@ -20,6 +23,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
@@ -37,8 +41,26 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
         return file instanceof PsiImportHolder && file.getLanguage() == JavaLanguage.INSTANCE && !InjectedLanguageManager.getInstance(file.getProject()).isInjectedFragment(file);
     }
 
+//    Object refCountHolder = null;
+
     @Override
     public void visit(@NotNull PsiElement psiElement) {
+//        if (psiElement instanceof PsiMethodCallExpression) {
+//            final PsiMethod method = ((PsiMethodCallExpression) psiElement).resolveMethod();
+//            if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
+//                try {
+//                    if (refCountHolder != null) {
+//                        final Method registerImportStatement = refCountHolder.getClass().getDeclaredMethod("registerImportStatement", PsiReference.class, PsiImportStatementBase.class);
+//                        final PsiReference reference = method.getReference();
+//                        final PsiImportStatement importStatement = PsiElementFactory.getInstance(psiElement.getProject()).createImportStatement(((ZrPsiAugmentProvider.ZrPsiExtensionMethod) method).targetMethod.getContainingClass());
+//                        registerImportStatement.invoke(registerImportStatement, reference, importStatement);
+//                    }
+//                } catch (Exception e) {
+//                    logger.warn("不支持的idea版本", e);
+//                }
+//            }
+//        }
+
         if (psiElement instanceof PsiLiteralExpression && psiElement.getContainingFile() != null && psiElement.getContainingFile().isPhysical()) {
             @NotNull PsiLiteralExpression expression = (PsiLiteralExpression) psiElement;
             final String text = expression.getText();
@@ -134,6 +156,28 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
         } finally {
             this.holder = null;
         }
+        file.putUserData(ZrHighlightInfoFilter.CACHE_IMPORT_EXMETHOD,null);
+//        try {
+//            final Field[] declaredFields = highlight.getClass().getDeclaredFields();
+//            final Optional<Field> first = Arrays.stream(declaredFields).filter(a -> {
+//                final Class<?> type = a.getType();
+//                return type.isArray() && type.getComponentType() == HighlightVisitor.class;
+//            }).findFirst();
+//            if (first.isPresent()){
+//                Field field=first.get();
+//                field.setAccessible(true);
+//                final HighlightVisitor[] o = (HighlightVisitor[])field.get(highlight);
+//                final Optional<HighlightVisitor> highlightVisitor = Arrays.stream(o).filter(a -> a instanceof HighlightVisitorImpl).findFirst();
+//                if (highlightVisitor.isPresent()){
+//                    final HighlightVisitorImpl highlightVisitorImpl = (HighlightVisitorImpl) highlightVisitor.get();
+//                    final Field myRefCountHolder = HighlightVisitorImpl.class.getDeclaredField("myRefCountHolder");
+//                    myRefCountHolder.setAccessible(true);
+//                    refCountHolder = myRefCountHolder.get(highlightVisitorImpl);
+//                }
+//            };
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
         return true;
     }
 

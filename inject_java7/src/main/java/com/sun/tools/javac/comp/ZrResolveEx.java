@@ -20,7 +20,7 @@ public class ZrResolveEx {
             List<Type> newArgTypes = argtypes;
             if (!methodInfo.isStatic) {
                 Type type = methodInfo.methodSymbol.getParameters().head.type.baseType();
-                type = zrResolve.types.capture(type);
+                type = zrResolve.types.erasure(type);
 
                 if (!memberReference) newArgTypes = newArgTypes.prepend(site);
                 final Symbol best = zrResolve.selectBest(env, type, newArgTypes, typeargtypes, methodInfo.methodSymbol, lastMethodSymbol, allowBoxing, useVarargs, operator);

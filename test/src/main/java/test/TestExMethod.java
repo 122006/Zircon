@@ -271,8 +271,8 @@ public class TestExMethod {
     }
 
     @ExMethod
-    public static Integer toInteger(String integer) {
-        methodNames.add("toInteger(s");
+    public static Integer toInteger2(String integer) {
+        methodNames.add("toInteger2(s");
         return Integer.parseInt(integer);
     }
 
@@ -282,8 +282,8 @@ public class TestExMethod {
     }
 
     @ExMethod(cover = true)
-    public static boolean isEmpty(String str) {
-        methodNames.add("isEmpty(s");
+    public static boolean isBlank(String str) {
+        methodNames.add("isBlank(s");
         return str == null || str.length() == 0;
     }
     @ExMethod

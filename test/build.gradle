@@ -33,7 +33,7 @@ dependencies {
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation 'com.github.122006:ExMethodUtil:1.0.1'
+    implementation('com.github.122006:ExMethodUtil:b11d5e97d2')
 //    implementation 'com.github.122006.Zircon:zircon:3.+'
 //    implementation 'com.github.122006:LinearHttp:1.2.8'
     implementation 'com.alibaba:fastjson:1.1.72.android'
@@ -41,7 +41,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
     testAnnotationProcessor project(":javac")
-    testImplementation project(":test")
+//    testImplementation project(":test")
 }
 tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"
