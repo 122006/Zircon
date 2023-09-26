@@ -49,7 +49,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.1.0'
+        classpath 'com.github.122006.Zircon:gradle:3.1.1'
     }
 }
 ````
@@ -66,17 +66,17 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.1.0</version>
+            <version>3.1.1</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>base</artifactId>
-            <version>3.1.0</version>
+            <version>3.1.1</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.1.0</version>
+            <version>3.1.1</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
