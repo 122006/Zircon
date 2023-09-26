@@ -409,7 +409,6 @@ public class ZrResolve extends Resolve {
 
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
-        System.out.println("findRedirectMethod "+name+" =>"+redirectMethod);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {
