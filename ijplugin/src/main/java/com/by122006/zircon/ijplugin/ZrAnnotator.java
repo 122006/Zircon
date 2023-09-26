@@ -250,6 +250,42 @@ public class ZrAnnotator implements Annotator {
                     });
             return;
         }
+        if (!method.getModifierList().hasModifierProperty(PsiModifier.STATIC)){
+            holder.newAnnotation(HighlightSeverity.ERROR, "must static method")
+                    .range(method.getModifierList())
+                    .highlightType(ProblemHighlightType.ERROR)
+                    .withFix(new IntentionAction() {
+                        @Override
+                        public @IntentionName
+                        @NotNull
+                        String getText() {
+                            return "[ZrExMethod]: set static";
+                        }
+
+                        @Override
+                        public @NotNull
+                        @IntentionFamilyName String getFamilyName() {
+                            return "ZrExMethod";
+                        }
+
+                        @Override
+                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                            return true;
+                        }
+
+                        @Override
+                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                            method.getModifierList().setModifierProperty(PsiModifier.STATIC,true);
+
+                        }
+
+                        @Override
+                        public boolean startInWriteAction() {
+                            return true;
+                        }
+                    })
+                    .create();
+        }
         if (ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream().noneMatch(a -> a.method == method)) {
             holder.newSilentAnnotation(HighlightSeverity.WARNING)
                     .range(method)
@@ -277,7 +313,7 @@ public class ZrAnnotator implements Annotator {
                         @Override
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                             ZrPsiAugmentProvider.freshCachedAllMethod(project);
-
+                            method.getModifierList().setModifierProperty(PsiModifier.STATIC,true);
                         }
 
                         @Override
