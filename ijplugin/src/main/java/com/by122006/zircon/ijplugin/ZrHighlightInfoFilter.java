@@ -25,6 +25,7 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
         if (Objects.equals(highlightInfo.getDescription(), JavaAnalysisBundle.message("unused.import.statement"))) {
             final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
             if (elementAt == null) return true;
+            if (!(elementAt instanceof PsiImportStatementImpl)) return true;
             final String qualifiedName = ((PsiImportStatementImpl) elementAt.getParent()).getQualifiedName();
             Set<String> cacheExMethodClasses;
             if ((file.getUserData(CACHE_IMPORT_EXMETHOD)) == null) {

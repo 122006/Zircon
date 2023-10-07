@@ -6,7 +6,6 @@ import test.TestExMethod.ChildEnv;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 
-import javax.xml.crypto.Data;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Date;
@@ -382,7 +381,7 @@ public class TestExMethodImpl {
                 () -> zircon.example.ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
         zircon.example.ExObject.nullOr("31231", "123");
         checkMethodInvokes(
-                () -> "31231".nullOr("323"),
+                () -> "31231".nullOr(123),
                 () -> zircon.example.ExObject.nullOr("31231", "123"));
         checkMethodInvokes(
                 () -> nullStr.isBlank(),
@@ -406,11 +405,11 @@ public class TestExMethodImpl {
                 () -> hashMap.hashMapRMapV("abc", 22, date, BigDecimal.ZERO),
                 () -> TestExMethod.hashMapRMapV(hashMap, "abc", 22, date, BigDecimal.ZERO));
         checkMethodInvokes(
-                () -> hashMap.hashMapRClassMapV(String.class, int.class, Data.class, BigDecimal.class),
-                () -> TestExMethod.hashMapRClassMapV(hashMap, String.class, int.class, Data.class, BigDecimal.class));
+                () -> hashMap.hashMapRClassMapV(String.class, int.class, Date.class, BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV(hashMap, String.class, int.class, Date.class, BigDecimal.class));
         checkMethodInvokes(
-                () -> hashMap.hashMapRClassMapV3(String.class, int.class, Data.class, BigDecimal.class),
-                () -> TestExMethod.hashMapRClassMapV3(hashMap, String.class, int.class, Data.class, BigDecimal.class));
+                () -> hashMap.hashMapRClassMapV3(String.class, int.class, Date.class, BigDecimal.class),
+                () -> TestExMethod.hashMapRClassMapV3(hashMap, String.class, int.class, Date.class, BigDecimal.class));
         checkMethodInvokes(
                 () -> "123".testNoEncounteredMethod(),
                 () -> "123"
