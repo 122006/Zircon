@@ -275,6 +275,11 @@ public class TestExMethod {
         methodNames.add("toInteger2(s");
         return Integer.parseInt(integer);
     }
+    @ExMethod
+    public static Integer toInteger2(String integer,String str2) {
+        methodNames.add("toInteger2(s,s2");
+        return Integer.parseInt(integer);
+    }
 
     @ExMethod
     public static boolean isNull2(Object obj) {

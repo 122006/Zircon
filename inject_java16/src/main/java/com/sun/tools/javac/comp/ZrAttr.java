@@ -9,6 +9,7 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
 import java.lang.reflect.Field;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
@@ -54,10 +55,41 @@ public class ZrAttr extends Attr {
 
         return zrAttr;
     }
+    @Override
+    public void visitVarDef(JCTree.JCVariableDecl that) {
+        try {
+            super.visitVarDef(that);
+        } catch (ZrResolve.NeedReplaceLambda needReplaceLambda) {
+            JCTree.JCExpression initializer = that.getInitializer();
+            while (initializer instanceof JCTree.JCParens) {
+                initializer=((JCTree.JCParens) initializer).getExpression();
+            }
+            if (Objects.equals(initializer.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
+                that.init=needReplaceLambda.bestSoFar;
+            }
+            super.visitVarDef(that);
+        }
+    }
 
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
         try {
+            super.visitApply(that);
+        } catch (ZrResolve.NeedReplaceLambda needReplaceLambda) {
+            List<JCTree.JCExpression> arguments = that.getArguments();
+            List<JCTree.JCExpression> newList = List.nil();
+            for (int i = 0; i < arguments.size(); i++) {
+                JCTree.JCExpression argument = arguments.get(i);
+                while (argument instanceof JCTree.JCParens) {
+                    argument=((JCTree.JCParens) argument).getExpression();
+                }
+                if (Objects.equals(argument.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
+                    newList = newList.append(needReplaceLambda.bestSoFar);
+                } else {
+                    newList = newList.append(argument);
+                }
+            }
+            that.args = newList;
             super.visitApply(that);
         } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
             final JCTree.JCMethodInvocation oldTree = make.Apply(that.typeargs, that.meth, that.args);

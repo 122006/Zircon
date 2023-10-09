@@ -379,6 +379,27 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").find(a -> a.equals("123")),
                 () -> zircon.example.ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
+        String bString="456";
+        checkMethodInvokes(
+                () -> Arrays.asList("123", "456", "789").forEach((bString::toInteger2)),
+                () -> Arrays.asList("123", "456", "789").forEach(t -> bString.toInteger2(t)));
+        checkMethodInvokes(
+                () -> Arrays.asList("123", "456", "789").forEach(( "456"::toInteger2)),
+                () -> Arrays.asList("123", "456", "789").forEach(t -> "456".toInteger2(t)));
+        checkMethodInvokes(
+                () -> {
+                    final Function<String,Integer> testLambda = bString::toInteger2;
+                },
+                () -> {
+                    final Function<String,Integer> testLambda3 = str2 -> bString.toInteger2(str2);
+                });
+        checkMethodInvokes(
+                () -> {
+                    final Consumer<String> testLambda2 = (("456"::toInteger2));
+                },
+                () -> {
+                    final Consumer<String> testLambda4 = ((str2) -> "456".toInteger2(str2));
+                });
         zircon.example.ExObject.nullOr("31231", "123");
         checkMethodInvokes(
                 () -> "31231".nullOr(123),

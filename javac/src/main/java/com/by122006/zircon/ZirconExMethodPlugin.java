@@ -28,6 +28,7 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         if (!javaVersionUpper(11))
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolveEx", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedRedirectMethod", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedReplaceLambda", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ExMethodInfo", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrMethodReferenceLookupHelper", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrLookupHelper", pcl, classLoader);

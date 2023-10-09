@@ -9,6 +9,7 @@ import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.tree.TreeTranslator;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.List;
 
@@ -63,7 +64,7 @@ public class ZrResolve extends Resolve {
             redirectMethodSymbolMap = new HashMap<>();
         }
         final Map<Name, Map<Symbol.ModuleSymbol, Symbol.PackageSymbol>> allPackages = ReflectionUtil.getDeclaredField(syms, Symtab.class, "packages");
-        if (lastScanMapCount!=allPackages.size()) {
+        if (lastScanMapCount != allPackages.size()) {
             do {
                 scanEl = false;
                 final ArrayList<Name> names = new ArrayList<>(allPackages.keySet());
@@ -156,10 +157,8 @@ public class ZrResolve extends Resolve {
                     if (!types.isCastable(site, nParams.get(0).type)) {
                         continue;
                     }
-                    String lambda = createLambdaTree(referenceTree, methodInfo).toString();
-                    final RuntimeException runtimeException = new RuntimeException("搜索到被拓展的非静态方法引用：" + referenceTree + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + lambda);
-                    runtimeException.setStackTrace(new StackTraceElement[0]);
-                    throw runtimeException;
+                    final JCTree.JCLambda lambdaTree = createLambdaTree(referenceTree, methodInfo);
+                    throw new NeedReplaceLambda(lambdaTree, referenceTree, methodInfo);
                 }
                 return method2;
             }
@@ -206,6 +205,7 @@ public class ZrResolve extends Resolve {
                 Symbol.VarSymbol param = params.get(i);
                 final Name nameA = names.fromString("$zr$a" + i);
                 Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, param.type, syms.noSymbol);
+                symA.adr = 1 << i;
                 jcVariableDecls.add(maker.VarDef(symA, null));
                 jcIdents.add(maker.Ident(symA));
             }
@@ -312,12 +312,19 @@ public class ZrResolve extends Resolve {
         }
 
         Symbol bestSoFar;
-        Attr.ResultInfo resultInfo;
+    }
 
-        public NeedRedirectMethod(Symbol bestSoFar, Attr.ResultInfo resultInfo) {
+    public static class NeedReplaceLambda extends RuntimeException {
+        public NeedReplaceLambda(JCTree.JCLambda bestSoFar, JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
+            super("搜索到不支持且被拓展的非静态方法引用：" + memberReference + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + bestSoFar+"\n请至github联系开发者以修复该情况");
             this.bestSoFar = bestSoFar;
-            this.resultInfo = resultInfo;
+            this.memberReference = memberReference;
+            this.methodInfo = methodInfo;
         }
+
+        JCTree.JCLambda bestSoFar;
+        JCTree.JCMemberReference memberReference;
+        ExMethodInfo methodInfo;
     }
 
     Symbol selectBestFromList(List<ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {

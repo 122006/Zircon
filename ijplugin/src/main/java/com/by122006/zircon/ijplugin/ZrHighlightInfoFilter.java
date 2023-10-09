@@ -7,7 +7,7 @@ import com.intellij.java.analysis.JavaAnalysisBundle;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.PsiImportStatementImpl;
+import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -25,8 +25,9 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
         if (Objects.equals(highlightInfo.getDescription(), JavaAnalysisBundle.message("unused.import.statement"))) {
             final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
             if (elementAt == null) return true;
-            if (!(elementAt instanceof PsiImportStatementImpl)) return true;
-            final String qualifiedName = ((PsiImportStatementImpl) elementAt.getParent()).getQualifiedName();
+            final PsiImportStatement importStatement = PsiTreeUtil.getParentOfType(elementAt, PsiImportStatement.class);
+            if (importStatement==null) return true;
+            final String qualifiedName = importStatement.getQualifiedName();
             Set<String> cacheExMethodClasses;
             if ((file.getUserData(CACHE_IMPORT_EXMETHOD)) == null) {
                 cacheExMethodClasses = new HashSet<>();

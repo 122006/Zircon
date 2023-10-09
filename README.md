@@ -109,7 +109,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.7.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.8.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -144,7 +144,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.1.0
+### v3.1.1
 
 1. 拓展方法实现优化
 
@@ -176,9 +176,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件2.7
+### idea插件2.8
 
-1. 拓展方法自动引包相关支持
+1. 支持在成员方法引用中对外部引用调用拓展方法的情况
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -209,5 +209,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 拓展方法显示优化
 
+### idea插件2.7
 
+1. 拓展方法自动引包相关支持
 

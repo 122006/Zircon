@@ -466,47 +466,47 @@ public class ZrAnnotator implements Annotator {
             e.printStackTrace();
             return true;
         }
-        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod
-                && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
-            holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]:暂不支持拓展方法应用于非静态成员方法引用")
-                    .range(element)
-                    .highlightType(ProblemHighlightType.ERROR)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrExMethod]: replace with lambda tree";
-                        }
-
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrExMethod";
-                        }
-
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
-
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                            final PsiParameterList parameterList = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).getParameterList();
-                            final String collect = Arrays.stream(parameterList.getParameters()).map(PsiParameter::getName).collect(Collectors.joining(","));
-                            final String s = "(" + collect + ")->" + element.getText().replace("::", ".") + "(" + collect + ")";
-                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
-                            element.replace(codeBlockFromText);
-                        }
-
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
-        }
+//        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod
+//                && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
+//            holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]:暂不支持拓展方法应用于非静态成员方法引用")
+//                    .range(element)
+//                    .highlightType(ProblemHighlightType.ERROR)
+//                    .withFix(new IntentionAction() {
+//                        @Override
+//                        public @IntentionName
+//                        @NotNull
+//                        String getText() {
+//                            return "[ZrExMethod]: replace with lambda tree";
+//                        }
+//
+//                        @Override
+//                        public @NotNull
+//                        @IntentionFamilyName String getFamilyName() {
+//                            return "ZrExMethod";
+//                        }
+//
+//                        @Override
+//                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+//                            return true;
+//                        }
+//
+//                        @Override
+//                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+//                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+//                            final PsiParameterList parameterList = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).getParameterList();
+//                            final String collect = Arrays.stream(parameterList.getParameters()).map(PsiParameter::getName).collect(Collectors.joining(","));
+//                            final String s = "(" + collect + ")->" + element.getText().replace("::", ".") + "(" + collect + ")";
+//                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
+//                            element.replace(codeBlockFromText);
+//                        }
+//
+//                        @Override
+//                        public boolean startInWriteAction() {
+//                            return true;
+//                        }
+//                    })
+//                    .create();
+//        }
         return false;
     }
 
