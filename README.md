@@ -144,9 +144,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.1.1
 
-1. 拓展方法实现优化
+### v3.1.2
+
+1. 支持在成员方法引用中对外部引用调用拓展方法的情况
 
 <details>
   <summary>历史依赖更新</summary>
