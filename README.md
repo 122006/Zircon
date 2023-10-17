@@ -204,7 +204,6 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件2.5
 
 1. 拓展方法显示优化
-</details>
 
 ### idea插件2.6
 
@@ -214,3 +213,11 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 拓展方法自动引包相关支持
 
+</details>
+
+## 相关项目
+
+### ExMethodUtil
+   项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能
+
+   `implementation 'com.github.122006:ExMethodUtil:1.0.2'`

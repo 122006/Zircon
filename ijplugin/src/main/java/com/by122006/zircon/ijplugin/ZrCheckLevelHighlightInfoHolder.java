@@ -22,13 +22,13 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 
-public class ZrCheckLevelHighlightInfoHolder extends CheckLevelHighlightInfoHolder {
+public class ZrCheckLevelHighlightInfoHolder extends HighlightInfoHolder {
     private static final Logger LOG = Logger.getInstance(ZrCheckLevelHighlightInfoHolder.class.getName());
     HighlightInfoHolder holder;
     int startIndex;
 
     public ZrCheckLevelHighlightInfoHolder(@NotNull PsiFile file, @NotNull HighlightInfoHolder holder, int startIndex) {
-        super(file, holder);
+        super(file);
         this.holder = holder;
         this.startIndex = startIndex;
     }

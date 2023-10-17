@@ -15,7 +15,9 @@ import java.util.function.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "unchecked"})
 public class TestExMethodImpl {
+    @SuppressWarnings("AccessStaticViaInstance")
     @Test
     public void test() {
         checkMethodInvokes(

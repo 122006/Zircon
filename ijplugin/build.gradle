@@ -6,8 +6,8 @@ group 'com.by122006.zircon'
 version '2.8'
 
 compileJava {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 buildPlugin {
@@ -32,5 +32,6 @@ dependencies {
 //IU-202.7319.50
 intellij  {
     plugins = ['java']
-    version = 'IU-213.7172.25'
+    version = "2023.2.3"
+    type = "IC"
 }
