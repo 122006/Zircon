@@ -208,11 +208,11 @@ public class TestExMethod {
         return str;
     }
 
-    @ExMethod
-    public static <T> T objectArraySiteCheckRS(Integer array, T str) {
-        methodNames.add("arraySiteCheckR(Integer,t");
-        return str;
-    }
+//    @ExMethod
+//    public static <T> T objectArraySiteCheckRS(Integer array, T str) {
+//        methodNames.add("arraySiteCheckR(Integer,t");
+//        return str;
+//    }
 
     @ExMethod
     public static <T> T objectArraySiteCheckRS(int[] array, T str) {
