@@ -9,6 +9,15 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
+          <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
+          <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
+        </processorPath>
+        <module name="Zircon.test.test" />
+      </profile>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
           <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.20/18bcea7d5df4d49227b4a0743a536208ce4825bb/lombok-1.18.20.jar" />
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
           <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
@@ -17,16 +26,17 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
-      <module name="maven_plugin_m" target="1.8" />
+      <module name="JavaStringFormat.Zircon.inject_java11" target="11" />
+      <module name="JavaStringFormat.Zircon.inject_java11.main" target="1.8" />
+      <module name="JavaStringFormat.Zircon.inject_java11.main~1" target="1.8" />
+      <module name="JavaStringFormat.Zircon.inject_java11.test" target="11" />
+      <module name="JavaStringFormat.Zircon.inject_java11.test~1" target="11" />
       <module name="Zircon.inject_java11" target="11" />
       <module name="Zircon.inject_java11.main" target="1.8" />
       <module name="Zircon.inject_java11.test" target="11" />
       <module name="Zircon.inject_java7" target="1.8" />
       <module name="Zircon.inject_java7.main" target="1.8" />
       <module name="Zircon.inject_java7.test" target="1.8" />
-      <module name="Zircon.maven_plugin" target="11" />
-      <module name="Zircon.maven_plugin.main" target="1.8" />
-      <module name="Zircon.maven_plugin.test" target="11" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
@@ -34,6 +44,8 @@
       <module name="Zircon.base.main" options="-Xlint:unchecked --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
       <module name="Zircon.ijplugin.main" options="--add-modules java.base" />
       <module name="Zircon.inject_java11.main" options="--add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
+      <module name="Zircon.test.main" options="--add-modules java.base" />
+      <module name="Zircon.test.test" options="--add-modules java.base" />
     </option>
   </component>
 </project>

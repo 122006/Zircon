@@ -21,7 +21,7 @@
     <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
     <DebugAllEnabled>false</DebugAllEnabled>
     <method v="2">
-      <option name="Gradle.BeforeRunTask" enabled="true" tasks="clean build copyJavacClass" externalProjectPath="$PROJECT_DIR$/inject_java7" vmOptions="" scriptParameters="" />
+      <option name="Gradle.BeforeRunTask" enabled="true" tasks="clean build copyJavacClass" externalProjectPath="$PROJECT_DIR$/inject_java16" vmOptions="" scriptParameters="" />
     </method>
   </configuration>
 </component>

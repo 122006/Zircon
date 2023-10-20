@@ -1,12 +1,8 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
-import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
-import com.intellij.lang.java.JavaLanguage;
-import com.intellij.lang.jvm.JvmElementVisitor;
-import com.intellij.lang.jvm.types.JvmReferenceType;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -18,17 +14,14 @@ import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
-import com.intellij.psi.augment.PsiExtensionMethod;
 import com.intellij.psi.impl.light.*;
 import com.intellij.psi.impl.source.PsiClassReferenceType;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.intellij.psi.impl.source.PsiImmediateClassType;
-import com.intellij.psi.impl.source.tree.java.PsiTypeParameterImpl;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.*;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 
 import java.lang.reflect.Constructor;
@@ -336,15 +329,35 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }
         methodText.append("{ }");
         PsiMethod result = elementFactory.createMethodFromText(methodText.toString(), targetClass);
-        final LightMethodBuilder builder = new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
-                result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+        final LightMethodBuilder builder =new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
+                        result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
         builder.setContainingClass(targetClass);
         builder.setMethodReturnType(result.getReturnType());
         builder.setConstructor(false);
         return builder;
     }
 
-    static class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMethod {
+//    static class ZrPsiExtensionMethodUpper203 extends ZrPsiExtensionMethod implements PsiExtensionMethod{
+//        public ZrPsiExtensionMethodUpper203(boolean isStatic, PsiClass targetClass, PsiMethod targetMethod, PsiManager manager, Language language, @NotNull String name, PsiParameterList parameterList, PsiModifierList modifierList, PsiReferenceList throwsList, PsiTypeParameterList typeParameterList) {
+//            super(isStatic, targetClass, targetMethod, manager, language, name, parameterList, modifierList, throwsList, typeParameterList);
+//        }
+//
+//        @Override
+//        public @NotNull PsiMethod getTargetMethod() {
+//            return targetMethod;
+//        }
+//
+//        @Override
+//        public @Nullable PsiParameter getTargetReceiverParameter() {
+//            return isStatic ? null : targetMethod.getParameterList().getParameter(0);
+//        }
+//
+//        @Override
+//        public @Nullable PsiParameter getTargetParameter(int index) {
+//            return targetMethod.getParameterList().getParameter(isStatic ? index : (index + 1));
+//        }
+//    }
+    static class ZrPsiExtensionMethod extends LightMethodBuilder{
         boolean isStatic;
         PsiClass targetClass;
         PsiMethod targetMethod;
@@ -449,20 +462,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             }
         }
 
-        @Override
-        public @NotNull PsiMethod getTargetMethod() {
-            return targetMethod;
-        }
 
-        @Override
-        public @Nullable PsiParameter getTargetReceiverParameter() {
-            return isStatic ? null : targetMethod.getParameterList().getParameter(0);
-        }
-
-        @Override
-        public @Nullable PsiParameter getTargetParameter(int index) {
-            return targetMethod.getParameterList().getParameter(isStatic ? index : (index + 1));
-        }
     }
 
 

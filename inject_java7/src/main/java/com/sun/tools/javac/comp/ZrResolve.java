@@ -15,7 +15,6 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
 
@@ -75,7 +74,7 @@ public class ZrResolve extends Resolve {
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
-                for (ExMethodInfo methodInfo : findRedirectMethod(name)) {
+                for (ExMethodInfo methodInfo : findRedirectMethod(name, method != methodNotFound)) {
                     final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                     if (nParams.size() == 0) continue;
                     if (!types.isCastable(site, nParams.get(0).type)) {
@@ -191,14 +190,18 @@ public class ZrResolve extends Resolve {
     }
 
     Map<Name, List<ExMethodInfo>> redirectMethodSymbolMap = null;
+    Map<Name, List<ExMethodInfo>> coverStaticRedirectMethodSymbolMap = null;
     ArrayList<Name> hasScan = new ArrayList<>();
     int lastScanMapCount = 0;
     boolean scanEl = false;
 
     @SuppressWarnings("unchecked")
-    public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName) {
+    public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName, boolean onlyCover) {
         if (redirectMethodSymbolMap == null) {
             redirectMethodSymbolMap = new HashMap<>();
+        }
+        if (coverStaticRedirectMethodSymbolMap == null) {
+            coverStaticRedirectMethodSymbolMap = new HashMap<>();
         }
         final Map<Name, Symbol.PackageSymbol> allPackages = ReflectionUtil.getDeclaredField(classReader, ClassReader.class, "packages");
         if (lastScanMapCount != allPackages.size()) {
@@ -223,8 +226,9 @@ public class ZrResolve extends Resolve {
                             hasScan.add(name);
                         });
             } while (scanEl);
+            lastScanMapCount = allPackages.size();
         }
-        final List<ExMethodInfo> list = redirectMethodSymbolMap.get(methodName);
+        final List<ExMethodInfo> list = (onlyCover ? coverStaticRedirectMethodSymbolMap : redirectMethodSymbolMap).get(methodName);
         return list == null ? List.nil() : list;
     }
 
@@ -249,6 +253,10 @@ public class ZrResolve extends Resolve {
                         exMethodInfo.cover = (boolean) cover.getValue();
                     }
                     exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
+                    if (exMethodInfo.cover) {
+                        final List<ExMethodInfo> list = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
+                        coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
+                    }
                     final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
                     redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
                 } catch (Exception exc) {
@@ -294,6 +302,7 @@ public class ZrResolve extends Resolve {
         }
         return List.nil();
     }
+
     public static class NeedReplaceLambda extends RuntimeException {
         public NeedReplaceLambda(JCTree.JCLambda bestSoFar, JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
             super("搜索到不支持且被拓展的非静态方法引用：" + memberReference + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + bestSoFar + "\n请至github联系开发者以修复该情况");
@@ -329,7 +338,7 @@ public class ZrResolve extends Resolve {
 
 
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
-        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name);
+        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, bestSoFar != methodNotFound);
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return ZrResolveEx.selectBestFromList(this, redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
 

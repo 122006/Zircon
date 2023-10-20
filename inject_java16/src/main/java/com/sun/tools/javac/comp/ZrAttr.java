@@ -115,7 +115,7 @@ public class ZrAttr extends Attr {
                 final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) oldMeth).selected;
                 final boolean staticInvoke = selected.hasTag(JCTree.Tag.IDENT) || TreeInfo.isStaticSelector(selected, names);
                 if (!staticInvoke) {
-                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs).findRedirectMethod(bestSoFar.getSimpleName()).stream().filter(a -> a.methodSymbol == bestSoFar)
+                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs).findRedirectMethod(bestSoFar.getSimpleName(),false).stream().filter(a -> a.methodSymbol == bestSoFar)
                             .findFirst();
                     if (first.isPresent()) {
                         if (first.get().isStatic) {

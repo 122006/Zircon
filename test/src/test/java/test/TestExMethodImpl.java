@@ -380,7 +380,7 @@ public class TestExMethodImpl {
                 () -> TestExMethod.isNull2(nullStr));
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").find(a -> a.equals("123")),
-                () -> zircon.example.ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
+                () -> ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
         String bString="456";
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").forEach((bString::toInteger2)),

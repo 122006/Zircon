@@ -2,7 +2,6 @@ package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.ExceptionUtil;
-import com.intellij.codeInsight.daemon.impl.CheckLevelHighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
@@ -39,11 +38,6 @@ public class ZrCheckLevelHighlightInfoHolder extends HighlightInfoHolder {
         this.psiElement = psiElement;
     }
 
-    @Override
-    public boolean addAll(@NotNull Collection<? extends HighlightInfo> highlightInfos) {
-        highlightInfos.forEach(this::add);
-        return true;
-    }
 
     @Override
     public boolean add(@Nullable HighlightInfo info) {

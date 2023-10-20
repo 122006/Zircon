@@ -197,7 +197,10 @@ public class ZrAnnotator implements Annotator {
                     .create();
         }
     }
-
+    public static boolean isInsideClassBody(@NotNull PsiElement element, @Nullable PsiClass outerClass) {
+        final PsiElement brace = outerClass != null ? outerClass.getLBrace() : null;
+        return brace != null && brace.getTextOffset() < element.getTextOffset();
+    }
     public static boolean canImport(@NotNull PsiClass aClass, @NotNull PsiElement context) {
         final PsiFile file = context.getContainingFile();
         if (!(file instanceof PsiJavaFile)) {
@@ -210,7 +213,7 @@ public class ZrAnnotator implements Annotator {
                 return false;
             }
         } else {
-            if (PsiTreeUtil.isAncestor(outerClass, context, true) && ClassUtils.isInsideClassBody(context, outerClass))
+            if (PsiTreeUtil.isAncestor(outerClass, context, true) && isInsideClassBody(context, outerClass))
                 return false;
         }
         final String qualifiedName = aClass.getQualifiedName();
