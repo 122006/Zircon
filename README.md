@@ -145,9 +145,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.2
+### v3.1.3
 
-1. 支持在成员方法引用中对外部引用调用拓展方法的情况
+1. 修复了一个导致编译时间过长的问题
 
 <details>
   <summary>历史依赖更新</summary>
@@ -174,6 +174,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### v3.0
 
 1. 支持拓展方法
+
+### v3.1.2
+
+1. 支持在成员方法引用中对外部引用调用拓展方法的情况
 
 </details>
 
