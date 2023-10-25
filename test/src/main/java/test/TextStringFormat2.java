@@ -1,9 +1,6 @@
 package test;
 
 
-import java.util.Locale;
-import java.util.logging.Logger;
-
 public class TextStringFormat2 {
 //    static Logger logger = Logger.getLogger(TextStringFormat2.class.getSimpleName());
 //

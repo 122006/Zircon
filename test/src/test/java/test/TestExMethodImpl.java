@@ -379,8 +379,8 @@ public class TestExMethodImpl {
                 () -> nullStr.isNull(),
                 () -> TestExMethod.isNull2(nullStr));
         checkMethodInvokes(
-                () -> Arrays.asList("123", "456", "789").find(a -> a.equals("123")),
-                () -> ExCollection.find(Arrays.asList("123", "456", "789"), a -> a.equals("123")));
+                () -> Arrays.asList("123", "456", "789").subList(0, 3).find(a -> a.endsWith("123")),
+                () -> ExCollection.find(Arrays.asList("123", "456", "789").subList(0, 3), a -> a.endsWith("123")));
         String bString="456";
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").forEach((bString::toInteger2)),

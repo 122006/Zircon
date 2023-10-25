@@ -329,34 +329,22 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }
         methodText.append("{ }");
         PsiMethod result = elementFactory.createMethodFromText(methodText.toString(), targetClass);
-        final LightMethodBuilder builder =new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
-                        result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+        LightMethodBuilder builder;
+        try {
+            final Class<?> aClass = Class.forName("com.intellij.psi.augment.PsiExtensionMethod");
+            final Class<?> zrPsiExtensionMethodUpper203 = Class.forName("com.by122006.zircon.ijplugin.ZrPsiExtensionMethodUpper203");
+            builder= (LightMethodBuilder) zrPsiExtensionMethodUpper203.getConstructors()[0].newInstance(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
+                    result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+        }catch (Exception e){
+            builder =new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
+                    result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+        }
         builder.setContainingClass(targetClass);
         builder.setMethodReturnType(result.getReturnType());
         builder.setConstructor(false);
         return builder;
     }
 
-//    static class ZrPsiExtensionMethodUpper203 extends ZrPsiExtensionMethod implements PsiExtensionMethod{
-//        public ZrPsiExtensionMethodUpper203(boolean isStatic, PsiClass targetClass, PsiMethod targetMethod, PsiManager manager, Language language, @NotNull String name, PsiParameterList parameterList, PsiModifierList modifierList, PsiReferenceList throwsList, PsiTypeParameterList typeParameterList) {
-//            super(isStatic, targetClass, targetMethod, manager, language, name, parameterList, modifierList, throwsList, typeParameterList);
-//        }
-//
-//        @Override
-//        public @NotNull PsiMethod getTargetMethod() {
-//            return targetMethod;
-//        }
-//
-//        @Override
-//        public @Nullable PsiParameter getTargetReceiverParameter() {
-//            return isStatic ? null : targetMethod.getParameterList().getParameter(0);
-//        }
-//
-//        @Override
-//        public @Nullable PsiParameter getTargetParameter(int index) {
-//            return targetMethod.getParameterList().getParameter(isStatic ? index : (index + 1));
-//        }
-//    }
     static class ZrPsiExtensionMethod extends LightMethodBuilder{
         boolean isStatic;
         PsiClass targetClass;
