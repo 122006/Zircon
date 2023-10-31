@@ -3,7 +3,6 @@ package com.by122006.zircon.ijplugin;
 import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
-import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
@@ -17,17 +16,16 @@ import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.impl.light.*;
 import com.intellij.psi.impl.source.PsiClassReferenceType;
 import com.intellij.psi.impl.source.PsiExtensibleClass;
-import com.intellij.psi.impl.source.PsiImmediateClassType;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.*;
 import org.jetbrains.annotations.NotNull;
 import zircon.ExMethod;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -64,8 +62,8 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(ex, PsiTypeElement.class);
                         if (childOfType == null) return null;
                         PsiType type = childOfType.getType();
-                        if (type instanceof PsiPrimitiveType){
-                            type=((PsiPrimitiveType) type).getBoxedType(ex);
+                        if (type instanceof PsiPrimitiveType) {
+                            type = ((PsiPrimitiveType) type).getBoxedType(ex);
                         }
                         cacheMethodInfo.targetType.add(type);
                     } else if (ex instanceof PsiArrayInitializerMemberValue) {
@@ -219,17 +217,16 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     public static PsiMethod buildMethodBy(boolean isStatic, PsiClass targetClass, PsiMethod targetMethod) {
         final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager().getProject());
         final StringBuilder methodText = new StringBuilder();
-        final LightModifierList newModifierList;
         final PsiTypeParameterList newPsiTypeParameterList;
         final PsiParameterList newPsiParameterList;
         if (!targetMethod.isValid()) return targetMethod;
+        final PsiElementFactory factory = JavaPsiFacade.getInstance(targetMethod.getProject()).getElementFactory();
 
         {
             final PsiModifierList modifierList = targetMethod.getModifierList();
             for (@PsiModifier.ModifierConstant String m : PsiModifier.MODIFIERS) {
                 if (!m.equalsIgnoreCase("static")) {
-                    if (modifierList.hasModifierProperty(m))
-                        methodText.append(m);
+                    if (modifierList.hasModifierProperty(m)) methodText.append(m);
                 } else if (isStatic) {
                     methodText.append(m);
                 }
@@ -245,48 +242,66 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 if (isStatic) return oTypeParameterList;
                 if (targetMethod.getParameterList().isEmpty()) return oTypeParameterList;
                 final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
-                PsiTypesUtil.TypeParameterSearcher searcher = new PsiTypesUtil.TypeParameterSearcher();
-                final PsiType type = parameters[0].getType();
-                type.accept(searcher);
-                final Set<PsiTypeParameter> typeParameters = searcher.getTypeParameters();
-                if (typeParameters.size() == 1 && Objects.equals(((PsiTypeParameter) typeParameters.toArray()[0]).getName(), type.getCanonicalText())) {
-                    return oTypeParameterList;
-                }
-                final PsiClass firstParamPsiClass = PsiTypesUtil.getPsiClass(type);
+                final PsiType firstParamType = parameters[0].getType();
+                final PsiClass firstParamPsiClass = PsiTypesUtil.getPsiClass(firstParamType);
                 if (firstParamPsiClass == null) return oTypeParameterList;
-                if (!(type instanceof PsiClassReferenceType)) return oTypeParameterList;
+                if (!(firstParamType instanceof PsiClassReferenceType)) return oTypeParameterList;
                 final PsiTypeParameter[] classTypeParameters = firstParamPsiClass.getTypeParameters();
-                final PsiType @NotNull [] paramsTypeParameters = ((PsiClassReferenceType) type).getParameters();
                 for (int i = 0; i < classTypeParameters.length; i++) {
                     PsiTypeParameter classTypeParameter = classTypeParameters[i];
                     final String oName = classTypeParameter.getName();
 //                    final PsiClassType oType = PsiClassType.getTypeByName(oName, targetMethod.getProject(), targetMethod.getResolveScope());
                     final String nName = "ZR" + oName;
-                    final Optional<PsiTypeParameter> first = Arrays.stream(targetMethod.getTypeParameters()).filter(a -> a.getName().equals(oName))
-                            .findFirst();
+                    final Optional<PsiTypeParameter> first = Arrays.stream(targetMethod.getTypeParameters()).filter(a -> Objects.equals(a.getName(), oName)).findFirst();
                     if (first.isPresent()) {
-                        typesMapping.put(first.get(), new PsiImmediateClassType(new LightPsiClassBuilder(targetMethod, nName), PsiSubstitutor.EMPTY));
-                        builder.addParameter(new LightTypeParameterBuilder(nName, targetMethod, i));
+                        typesMapping.put(first.get(), factory.createTypeByFQClassName(nName));
+                        final LightTypeParameterBuilder parameter = new LightTypeParameterBuilder(nName, targetMethod, i);
+                        for (PsiClassType referencedType : classTypeParameter.getExtendsList().getReferencedTypes()) {
+                            parameter.getExtendsList().addReference(referencedType);
+                        }
+                        builder.addParameter(parameter);
                     }
                 }
-                for (int i = 0; i < paramsTypeParameters.length; i++) {
-                    final PsiType paramsTypeParameter = paramsTypeParameters[i];
-                    final Optional<PsiTypeParameter> first = Arrays.stream(oTypeParameterList.getTypeParameters())
-                            .filter(a -> paramsTypeParameter instanceof PsiClassReferenceType
-                                    && Objects.equals(a.getName(), ((PsiClassReferenceType) paramsTypeParameter).getName()))
-                            .findFirst();
-                    final PsiTypeParameter typeParameter = firstParamPsiClass.getTypeParameters()[i];
-                    first.ifPresent(psiTypeParameter -> typesMapping.put(psiTypeParameter, PsiTypesUtil.getClassType(typeParameter)));
+                BiFunction<String, PsiTypeParameter[], PsiTypeParameter> isTypeParams = (name, typeParams) -> {
+                    return Arrays.stream(typeParams).filter(a -> Objects.equals(a.getName(), name)).findFirst().orElse(null);
+                };
+                final PsiTypeParameter typeParams = isTypeParams.apply(firstParamType.getCanonicalText(), targetMethod.getTypeParameters());
+                if (typeParams != null) {
+                    final Optional<PsiTypeParameter> first = typesMapping.keySet().stream().filter(a -> Objects.equals(a.getName(), typeParams.getName())).findFirst();
+                    first.ifPresent(typesMapping::remove);
+                    if (!Objects.equals(typeParams.getName(), firstParamType.getCanonicalText()))
+                        typesMapping.put(typeParams, firstParamType);
+                } else {
+                    final PsiType[] parameters1 = ((PsiClassReferenceType) firstParamType).getParameters();
+                    final PsiClass resolve = ((PsiClassReferenceType) firstParamType).resolve();
+                    if (resolve != null) {
+                        final PsiTypeParameter @NotNull [] parameters2 = resolve.getTypeParameters();
+                        if (parameters1.length == parameters2.length) {
+                            for (int i = 0; i < parameters1.length; i++) {
+                                final PsiTypeParameter apply = isTypeParams.apply(parameters1[i].getCanonicalText(), targetMethod.getTypeParameters());
+                                if (apply != null) {
+                                    final Optional<PsiTypeParameter> first = typesMapping.keySet().stream().filter(a -> Objects.equals(a.getName(), apply.getName())).findFirst();
+                                    first.ifPresent(typesMapping::remove);
+                                    if (!Objects.equals(apply.getName(), parameters2[i].getName()))
+                                        typesMapping.put(apply, factory.createTypeByFQClassName(parameters2[i].getName()));
+                                }
+                            }
+                        }
+                    }
+
                 }
-                Arrays.stream(oTypeParameterList.getTypeParameters())
-                        .filter(a -> Arrays.stream(classTypeParameters).noneMatch(o -> Objects.equals(o.getName(), a.getName())))
-                        .forEach(builder::addParameter);
+                Arrays.stream(oTypeParameterList.getTypeParameters()).filter(a -> Arrays.stream(classTypeParameters).noneMatch(o -> Objects.equals(o.getName(), a.getName()))).forEach(builder::addParameter);
                 return builder.getTypeParameters().length == 0 ? null : builder;
             };
             newPsiTypeParameterList = supplier.get();
             if (newPsiTypeParameterList != null && newPsiTypeParameterList.getTypeParameters().length != 0) {
-                final String collect = Arrays.stream(newPsiTypeParameterList.getTypeParameters())
-                        .map(NavigationItem::getName).collect(Collectors.joining(","));
+                final String collect = Arrays.stream(newPsiTypeParameterList.getTypeParameters()).map(psiTypeParameter -> psiTypeParameter.getName() + (psiTypeParameter.getExtendsList().getReferencedTypes().length > 0 ? " extends " + Arrays.stream(psiTypeParameter.getExtendsList().getReferencedTypes())
+                        .map(a -> {
+                            final PsiClass resolve = a.resolve();
+                            if (resolve == null) return a.getClassName();
+                            return resolve.getQualifiedName();
+                        })
+                        .collect(Collectors.joining(",")) : "")).collect(Collectors.joining(","));
                 methodText.append("<").append(collect).append(">");
             }
             methodText.append(" ");
@@ -311,9 +326,18 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
                     final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
                     final LightParameterListBuilder lightParameterListBuilder = new LightParameterListBuilder(targetMethod.getManager(), targetClass.getLanguage());
-                    for (int i = 1; i < parameters.length; i++) {
+                    for (int i = isStatic ? 0 : 1; i < parameters.length; i++) {
                         final PsiParameter parameter = parameters[i];
-                        LightParameter lightParameter = new LightParameter(parameter.getName(), substitutor.substitute(parameter.getType()), targetMethod);
+                        final PsiType type = parameter.getType();
+                        final PsiType substitute = substitutor.substitute(type);
+                        PsiType substituteType;
+                        final Optional<PsiType> first = typesMapping.entrySet().stream().filter(a -> Objects.equals(a.getKey().getName(), parameter.getType().getCanonicalText())).map(Map.Entry::getValue).findFirst();
+                        if (parameter.getType() instanceof PsiTypeParameter) {
+                            substituteType = first.orElse(parameter.getType());
+                        } else {
+                            substituteType = substitute;
+                        }
+                        LightParameter lightParameter = new LightParameter(parameter.getName(), substituteType, targetMethod.getNavigationElement());
                         lightParameterListBuilder.addParameter(lightParameter);
                     }
 
@@ -321,23 +345,44 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 }
             };
             newPsiParameterList = supplier.get();
-            final String collect = Arrays.stream(newPsiParameterList.getParameters())
-                    .map(a -> a.getType().getCanonicalText(true) + " " + a.getName())
-                    .collect(Collectors.joining(","));
+            final String collect = Arrays.stream(newPsiParameterList.getParameters()).map(a -> a.getType().getCanonicalText(true) + " " + a.getName()).collect(Collectors.joining(","));
             methodText.append("(").append(collect).append(")");
 
         }
-        methodText.append("{ }");
+        methodText.append("{ throw new java.lang.UnsupportedOperationException(); }");
         PsiMethod result = elementFactory.createMethodFromText(methodText.toString(), targetClass);
-        LightMethodBuilder builder;
+        PsiParameterList parameterList = result.getParameterList();
+        final LightParameterListBuilder imParameterList = new LightParameterListBuilder(parameterList.getManager(), parameterList.getLanguage());
+        for (int i = 0; i < parameterList.getParameters().length; i++) {
+            final PsiParameter parameter = parameterList.getParameters()[i];
+            final PsiType type = parameter.getType();
+            if (!(type instanceof PsiClassType)) {
+                imParameterList.addParameter(parameter);
+                continue;
+            }
+            final PsiClass resolve = ((PsiClassType) type).resolve();
+            if (resolve != null) {
+                imParameterList.addParameter(parameter);
+                continue;
+            }
+            final PsiParameter parameter1 = newPsiParameterList.getParameters()[i];
+            final PsiClass resolve2 = ((PsiClassType) parameter1.getType()).resolve();
+            if (resolve2 == null) {
+                imParameterList.addParameter(parameter);
+                continue;
+            }
+            final PsiClassType type1 = factory.createType(resolve2, ((PsiClassType) type).getParameters());
+            final LightParameter lightParameter = new LightParameter(parameter.getName(), type1, imParameterList);
+            imParameterList.addParameter(lightParameter);
+        }
+        parameterList = imParameterList;
+        ZrPsiExtensionMethod builder;
         try {
             final Class<?> aClass = Class.forName("com.intellij.psi.augment.PsiExtensionMethod");
             final Class<?> zrPsiExtensionMethodUpper203 = Class.forName("com.by122006.zircon.ijplugin.ZrPsiExtensionMethodUpper203");
-            builder= (LightMethodBuilder) zrPsiExtensionMethodUpper203.getConstructors()[0].newInstance(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
-                    result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
-        }catch (Exception e){
-            builder =new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(),
-                    result.getParameterList(), result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+            builder = (ZrPsiExtensionMethod) zrPsiExtensionMethodUpper203.getConstructors()[0].newInstance(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(), parameterList, result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
+        } catch (Exception e) {
+            builder = new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), result.getName(), parameterList, result.getModifierList(), result.getThrowsList(), result.getTypeParameterList());
         }
         builder.setContainingClass(targetClass);
         builder.setMethodReturnType(result.getReturnType());
@@ -345,34 +390,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         return builder;
     }
 
-    static class ZrPsiExtensionMethod extends LightMethodBuilder{
+    static class ZrPsiExtensionMethod extends LightMethodBuilder {
         boolean isStatic;
         PsiClass targetClass;
         PsiMethod targetMethod;
-
-        @Override
-        public @NotNull MethodSignature getSignature(@NotNull PsiSubstitutor substitutor) {
-            MethodSignature methodSignatureBackedByPsiMethod;
-            if (!isStatic) {
-                methodSignatureBackedByPsiMethod = MethodSignatureBackedByPsiMethod.create(targetMethod, substitutor);
-                final PsiType[] parameterTypes = methodSignatureBackedByPsiMethod.getParameterTypes();
-                PsiType[] newTypes = new PsiType[parameterTypes.length - 1];
-                System.arraycopy(parameterTypes, 0, newTypes, 0, parameterTypes.length - 1);
-                final Constructor<?> constructor = MethodSignatureBackedByPsiMethod.class.getDeclaredConstructors()[0];
-                try {
-                    constructor.setAccessible(true);
-                    final MethodSignatureBackedByPsiMethod methodSignature = (MethodSignatureBackedByPsiMethod) constructor
-                            .newInstance(this, substitutor, PsiUtil.isRawSubstitutor(targetMethod, substitutor), newTypes, methodSignatureBackedByPsiMethod.getTypeParameters());
-                    return methodSignature;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    return super.getSignature(substitutor);
-                }
-            } else {
-                methodSignatureBackedByPsiMethod = super.getSignature(substitutor);
-            }
-            return methodSignatureBackedByPsiMethod;
-        }
 
         @Override
         public boolean equals(Object o) {

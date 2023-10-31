@@ -13,6 +13,7 @@ import com.intellij.codeInspection.dataFlow.CommonDataflow;
 import com.intellij.codeInspection.dataFlow.TypeConstraint;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
+import com.intellij.lang.ASTNode;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -30,12 +31,11 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
+import com.intellij.psi.impl.DebugUtil;
+import com.intellij.psi.impl.source.tree.CompositeElement;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.infos.CandidateInfo;
-import com.intellij.psi.util.ClassUtil;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.PsiTypesUtil;
-import com.intellij.psi.util.TypeConversionUtil;
+import com.intellij.psi.util.*;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.ClassUtils;
@@ -104,21 +104,61 @@ public class ZrAnnotator implements Annotator {
     private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiAugmentProvider.ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText()).collect(Collectors.joining(" , "));
-        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                .range(element.getMethodExpression().getLastChild())
-                .textAttributes(ZrExMethodTargetSiteUsage)
-                .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
-                .withFix(new IntentionAction() {
+        final PsiClass containingClass = method.targetMethod.getContainingClass();
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element.getMethodExpression().getLastChild()).textAttributes(ZrExMethodTargetSiteUsage).tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )").withFix(new IntentionAction() {
+            @Override
+            public @IntentionName @NotNull String getText() {
+                return "[ZrExMethod]: replace with normal method";
+            }
+
+            @Override
+            public @NotNull @IntentionFamilyName String getFamilyName() {
+                return "ZrExMethod";
+            }
+
+            @Override
+            public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                return true;
+            }
+
+            @Override
+            public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                String s;
+                if (containingClass == null) return;
+                final String collect = Arrays.stream(element.getArgumentList().getExpressions()).map(PsiElement::getText).collect(Collectors.joining(","));
+                if (method.isStatic) {
+                    s = containingClass.getQualifiedName() + "." + method.getName() + "(" + collect + ")";
+                } else {
+                    final PsiElement site = element.getMethodExpression().getFirstChild();
+                    final String siteText = site.getText();
+                    if (collect.isEmpty()) {
+                        s = containingClass.getQualifiedName() + "." + method.getName() + "(" + siteText + ")";
+                    } else {
+                        s = containingClass.getQualifiedName() + "." + method.getName() + "(" + (siteText.isEmpty() ? "this" : siteText) + "," + collect + ")";
+                    }
+                }
+                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
+                element.replace(codeBlockFromText);
+            }
+
+            @Override
+            public boolean startInWriteAction() {
+                return true;
+            }
+        }).create();
+        if (containingClass != null) {
+            final String qualifiedName = containingClass.getQualifiedName();
+            final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, element) && canImport(containingClass, element);
+            if (canBeImported) {
+                holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getMethodExpression().getLastChild()).textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName).withFix(new IntentionAction() {
                     @Override
-                    public @IntentionName
-                    @NotNull
-                    String getText() {
-                        return "[ZrExMethod]: replace with normal method";
+                    public @IntentionName @NotNull String getText() {
+                        return "[ZrExMethod]: import " + qualifiedName;
                     }
 
                     @Override
-                    public @NotNull
-                    @IntentionFamilyName String getFamilyName() {
+                    public @NotNull @IntentionFamilyName String getFamilyName() {
                         return "ZrExMethod";
                     }
 
@@ -129,78 +169,26 @@ public class ZrAnnotator implements Annotator {
 
                     @Override
                     public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                        String s;
-                        final PsiClass containingClass = method.targetMethod.getContainingClass();
-                        if (containingClass == null) return;
-                        final String collect = Arrays.stream(element.getArgumentList().getExpressions()).map(PsiElement::getText).collect(Collectors.joining(","));
-                        if (method.isStatic) {
-                            s = containingClass.getQualifiedName() + "." + method.getName() + "(" + collect + ")";
-                        } else {
-                            final PsiElement site = element.getMethodExpression().getFirstChild();
-                            final String siteText = site.getText();
-                            if (collect.isEmpty()) {
-                                s = containingClass.getQualifiedName() + "." + method.getName() + "(" + siteText + ")";
-                            } else {
-                                s = containingClass.getQualifiedName() + "." + method.getName() + "(" + (siteText.isEmpty() ? "this" : siteText) + "," + collect + ")";
-                            }
-                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
-                            element.replace(codeBlockFromText);
-                        }
+                        if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
+//                            ApplicationManager.getApplication().runWriteAction(() -> {
+                        ImportUtils.addImportIfNeeded(containingClass, element);
+//                            });
                     }
 
                     @Override
                     public boolean startInWriteAction() {
                         return true;
                     }
-                })
-                .create();
-        final String qualifiedName = method.targetMethod.getContainingClass().getQualifiedName();
-        final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, element) && canImport(method.targetMethod.getContainingClass(), element);
-        if (canBeImported) {
-            holder.newSilentAnnotation(HighlightSeverity.ERROR)
-                    .range(element.getMethodExpression().getLastChild())
-                    .textAttributes(ZrExMethodNeedImport)
-                    .tooltip("extension method need import " + qualifiedName)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrExMethod]: import " + qualifiedName;
-                        }
-
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrExMethod";
-                        }
-
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
-
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
-//                            ApplicationManager.getApplication().runWriteAction(() -> {
-                            ImportUtils.addImportIfNeeded(method.targetMethod.getContainingClass(), element);
-//                            });
-                        }
-
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
+                }).create();
+            }
         }
     }
+
     public static boolean isInsideClassBody(@NotNull PsiElement element, @Nullable PsiClass outerClass) {
         final PsiElement brace = outerClass != null ? outerClass.getLBrace() : null;
         return brace != null && brace.getTextOffset() < element.getTextOffset();
     }
+
     public static boolean canImport(@NotNull PsiClass aClass, @NotNull PsiElement context) {
         final PsiFile file = context.getContainingFile();
         if (!(file instanceof PsiJavaFile)) {
@@ -244,87 +232,69 @@ public class ZrAnnotator implements Annotator {
         final List<PsiAnnotation> collect = Arrays.stream(annotations).filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class.getName())).collect(Collectors.toList());
         if (collect.isEmpty()) return;
         if (collect.size() > 1) {
-            collect.stream().skip(1)
-                    .forEach(annotation -> {
-                        holder.newAnnotation(HighlightSeverity.WARNING, "Duplicate annotation")
-                                .range(annotation)
-                                .highlightType(ProblemHighlightType.WARNING)
-                                .create();
-                    });
+            collect.stream().skip(1).forEach(annotation -> {
+                holder.newAnnotation(HighlightSeverity.WARNING, "Duplicate annotation").range(annotation).highlightType(ProblemHighlightType.WARNING).create();
+            });
             return;
         }
-        if (!method.getModifierList().hasModifierProperty(PsiModifier.STATIC)){
-            holder.newAnnotation(HighlightSeverity.ERROR, "must static method")
-                    .range(method.getModifierList())
-                    .highlightType(ProblemHighlightType.ERROR)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrExMethod]: set static";
-                        }
+        if (!method.getModifierList().hasModifierProperty(PsiModifier.STATIC)) {
+            holder.newAnnotation(HighlightSeverity.ERROR, "must static method").range(method.getModifierList()).highlightType(ProblemHighlightType.ERROR).withFix(new IntentionAction() {
+                @Override
+                public @IntentionName @NotNull String getText() {
+                    return "[ZrExMethod]: set static";
+                }
 
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrExMethod";
-                        }
+                @Override
+                public @NotNull @IntentionFamilyName String getFamilyName() {
+                    return "ZrExMethod";
+                }
 
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
+                @Override
+                public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                    return true;
+                }
 
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            method.getModifierList().setModifierProperty(PsiModifier.STATIC,true);
+                @Override
+                public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                    method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
 
-                        }
+                }
 
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
+                @Override
+                public boolean startInWriteAction() {
+                    return true;
+                }
+            }).create();
         }
         if (ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream().noneMatch(a -> a.method == method)) {
-            holder.newSilentAnnotation(HighlightSeverity.WARNING)
-                    .range(method)
-                    .tooltip("need refresh cache")
-                    .highlightType(ProblemHighlightType.WARNING)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrExMethod]: refresh cache";
-                        }
+            holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("need refresh cache").highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {
+                @Override
+                public @IntentionName @NotNull String getText() {
+                    return "[ZrExMethod]: refresh cache";
+                }
 
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrExMethod";
-                        }
+                @Override
+                public @NotNull @IntentionFamilyName String getFamilyName() {
+                    return "ZrExMethod";
+                }
 
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
+                @Override
+                public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                    return true;
+                }
 
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                            method.getModifierList().setModifierProperty(PsiModifier.STATIC,true);
-                        }
+                @Override
+                public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                    ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                    method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+                    psiFile.subtreeChanged();
+                }
 
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
+                @Override
+                public boolean startInWriteAction() {
+                    return true;
+                }
+            }).create();
         }
         final PsiAnnotation annotation = annotations[0];
         PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
@@ -333,13 +303,12 @@ public class ZrAnnotator implements Annotator {
                 registerSiteAnnotation(holder, ((PsiClassObjectAccessExpression) ex).getOperand(), null, null);
             } else if (ex instanceof PsiArrayInitializerMemberValue) {
                 final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
-                List<PsiType> types = Arrays.stream(initializers)
-                        .map(a -> {
-                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
-                            if (childOfType == null) return null;
-                            registerSiteAnnotation(holder, childOfType, null, null);
-                            return childOfType.getType();
-                        }).filter(Objects::nonNull).collect(Collectors.toList());
+                List<PsiType> types = Arrays.stream(initializers).map(a -> {
+                    final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                    if (childOfType == null) return null;
+                    registerSiteAnnotation(holder, childOfType, null, null);
+                    return childOfType.getType();
+                }).filter(Objects::nonNull).collect(Collectors.toList());
                 if (types.isEmpty()) ex = null;
             }
         }
@@ -353,47 +322,57 @@ public class ZrAnnotator implements Annotator {
                         .create();
             } else {
                 final PsiParameter parameter = parameterList.getParameter(0);
-                if (parameter != null && parameter.isValid())
-                    if (parameter instanceof PsiTypeParameter) {
-                        holder.newSilentAnnotation(HighlightSeverity.WEAK_WARNING)
-                                .range(method)
-                                .highlightType(ProblemHighlightType.WEAK_WARNING)
-                                .tooltip("!泛型丢失，对纯泛型代理会作用于所有类")
-                                .create();
-                    } else {
+                if (parameter != null && parameter.isValid()) {
+                    final PsiTypeElement typeElement = parameter.getTypeElement();
+                    if (typeElement != null) {
+                        if (method.getTypeParameterList() != null) {
+                            final Optional<PsiTypeParameter> b = Arrays.stream(method.getTypeParameterList().getTypeParameters()).filter(a -> Objects.equals(a.getName(), parameter.getType().getCanonicalText())).findFirst();
+                            if (b.isPresent() && b.get().getExtendsList().getReferencedTypes().length == 0) {
+                                holder.newSilentAnnotation(HighlightSeverity.WEAK_WARNING)
+                                        .range(typeElement)
+                                        .highlightType(ProblemHighlightType.WEAK_WARNING)
+                                        .tooltip("!泛型丢失，该泛型会被替换为Object")
+                                        .create();
+                                return;
+                            }
+                        }
                         final PsiType type = parameter.getType();
-                        if (type instanceof PsiArrayType && parameter.getTypeElement() != null) {
-                            final TextRange textRange = parameter.getTypeElement().getTextRange();
+                        if (type instanceof PsiArrayType) {
+                            final TextRange textRange = typeElement.getTextRange();
                             final TextRange nRange = new TextRange(textRange.getStartOffset() + parameter.getText().lastIndexOf("["), textRange.getEndOffset());
-                            registerSiteAnnotation(holder, parameter.getTypeElement(), "[]", nRange);
-                        } else if (type instanceof PsiPrimitiveType && parameter.getTypeElement() != null) {
+                            registerSiteAnnotation(holder, typeElement, "[]", nRange);
+                        } else if (type instanceof PsiPrimitiveType) {
                             final PsiClassType boxedType = ((PsiPrimitiveType) type).getBoxedType(parameter);
-                            registerSiteAnnotation(holder, parameter.getTypeElement(), boxedType == null ? "unknown" : boxedType.getClassName(), null);
-                        } else if (parameter.getTypeElement() != null) {
-                            final TextRange oTextRange = parameter.getTypeElement().getTextRange();
+                            registerSiteAnnotation(holder, typeElement, boxedType == null ? "unknown" : boxedType.getClassName(), null);
+                        } else if (parameter.isVarArgs()) {
+                            holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement).tooltip("!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
+                        } else {
+                            final TextRange oTextRange = typeElement.getTextRange();
                             int i = parameter.getText().indexOf("<");
                             final TextRange textRange = new TextRange(oTextRange.getStartOffset(), i == -1 ? oTextRange.getEndOffset() : (oTextRange.getStartOffset() + i));
-                            registerSiteAnnotation(holder, parameter.getTypeElement(), null, textRange);
-                        } else if (parameter.isVarArgs()) {
-                            holder.newSilentAnnotation(HighlightSeverity.WARNING)
-                                    .range(method)
-                                    .tooltip("!请不要定义代理类为可变参数")
-                                    .highlightType(ProblemHighlightType.WARNING)
-                                    .create();
+                            registerSiteAnnotation(holder, typeElement, null, textRange);
+                            if (type instanceof PsiClassType) {
+                                final boolean b1 = Arrays.stream(((PsiClassType) type).getParameters()).anyMatch(a -> {
+                                    if (!(a instanceof PsiClassType)) return false;
+                                    final boolean b2 = Arrays.stream(method.getTypeParameterList().getTypeParameters()).anyMatch(b -> Objects.equals(b.getName(), a.getCanonicalText()));
+                                    if (b2) return false;
+                                    return ((PsiClassType) a).getParameters().length > 0;
+                                });
+                                if (b1) {
+                                    holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement).tooltip("!请不要定义超过1级泛型的代理类").highlightType(ProblemHighlightType.ERROR).create();
+                                }
+                            }
                         }
+
                     }
+                }
             }
         }
 
     }
 
     private void registerSiteAnnotation(@NotNull AnnotationHolder holder, @NotNull PsiTypeElement element, @Nullable String className, @Nullable TextRange textRange) {
-        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                .range(textRange == null ? element.getTextRange() : textRange)
-                .tooltip("This extension method will proxy the site: " + (className != null ? className : TypeConversionUtil.erasure(element.getType()).getCanonicalText()))
-                .textAttributes(ZrExMethodSite)
-                .highlightType(ProblemHighlightType.INFORMATION)
-                .create();
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange == null ? element.getTextRange() : textRange).tooltip("This extension method will proxy the site: " + (className != null ? className : TypeConversionUtil.erasure(element.getType()).getCanonicalText())).textAttributes(ZrExMethodSite).highlightType(ProblemHighlightType.INFORMATION).create();
     }
 
     private void registerBackfStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
@@ -406,13 +385,8 @@ public class ZrAnnotator implements Annotator {
                 foldCode(element, holder, printOut);
                 boldSpecialChar(element, holder, formatter, model);
                 model.getList().stream().filter(a -> a.codeStyle == 1).forEach(a -> {
-                    final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
-                            .shiftRight(element.getTextOffset());
-                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                            .range(textRange)
-                            .highlightType(ProblemHighlightType.INFORMATION)
-                            .textAttributes(ZrStringTextCodeStyle1)
-                            .create();
+                    final TextRange textRange = TextRange.create(a.startIndex, a.endIndex).shiftRight(element.getTextOffset());
+                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange).highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyle1).create();
                 });
                 final String previewString = model.getList().stream().map(a -> {
                     if (a.codeStyle == 0) {
@@ -422,10 +396,7 @@ public class ZrAnnotator implements Annotator {
                     }
                     return "";
                 }).collect(Collectors.joining());
-                holder.newAnnotation(HighlightSeverity.INFORMATION, previewString)
-                        .range(element)
-                        .highlightType(ProblemHighlightType.INFORMATION)
-                        .create();
+                holder.newAnnotation(HighlightSeverity.INFORMATION, previewString).range(element).highlightType(ProblemHighlightType.INFORMATION).create();
                 if (formatter instanceof FStringFormatter) {
                     try {
                         checkFStringError(element, model, holder);
@@ -513,52 +484,19 @@ public class ZrAnnotator implements Annotator {
         return false;
     }
 
-    static @NotNull
-    TextAttributesKey ZrExMethodSite
-            = createTextAttributesKey("ZrExMethodSite",
-            new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrExMethodTargetSiteUsage
-            = createTextAttributesKey("ZrExMethodTargetSiteUsage",
-            new TextAttributes(null, null, null, null, Font.ITALIC)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrExMethodNeedImport
-            = createTextAttributesKey("ZrExMethodNeedImport",
-            new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrStringTextCodeStyleP1
-            = createTextAttributesKey("ZrStringTextCodeStyleP1",
-            new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrStringTextCodeStyleSplit
-            = createTextAttributesKey("ZrStringTextCodeStyleSplit",
-            new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrStringTextCodeStyle2
-            = createTextAttributesKey("ZrStringTextCodeStyle2",
-            new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC)
-            , null);
-    static @NotNull
-    TextAttributesKey ZrStringTextCodeStyle1
-            = createTextAttributesKey("ZrStringTextCodeStyle1",
-            new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN)
-            , null);
+    static @NotNull TextAttributesKey ZrExMethodSite = createTextAttributesKey("ZrExMethodSite", new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN), null);
+    static @NotNull TextAttributesKey ZrExMethodTargetSiteUsage = createTextAttributesKey("ZrExMethodTargetSiteUsage", new TextAttributes(null, null, null, null, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrExMethodNeedImport = createTextAttributesKey("ZrExMethodNeedImport", new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleP1 = createTextAttributesKey("ZrStringTextCodeStyleP1", new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit = createTextAttributesKey("ZrStringTextCodeStyleSplit", new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle2 = createTextAttributesKey("ZrStringTextCodeStyle2", new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle1 = createTextAttributesKey("ZrStringTextCodeStyle1", new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
 
     private void boldSpecialChar(PsiElement element, AnnotationHolder holder, Formatter formatter, ZrStringModel model) {
         String text = model.getOriginalString();
         {
-            final TextRange textRange = TextRange.create(0, text.indexOf("\""))
-                    .shiftRight(element.getTextOffset());
-            holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                    .range(textRange)
-                    .highlightType(ProblemHighlightType.INFORMATION)
-                    .textAttributes(ZrStringTextCodeStyleP1)
-                    .create();
+            final TextRange textRange = TextRange.create(0, text.indexOf("\"")).shiftRight(element.getTextOffset());
+            holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange).highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyleP1).create();
         }
         {
             int lastItemEndIndex = text.indexOf("\"") + 1;
@@ -567,29 +505,16 @@ public class ZrAnnotator implements Annotator {
             for (StringRange stringRange : list) {
                 String sub = text.substring(lastItemEndIndex, stringRange.startIndex).trim();
                 {
-                    final TextRange textRange = TextRange.create(lastItemEndIndex, stringRange.startIndex)
-                            .shiftRight(element.getTextOffset());
+                    final TextRange textRange = TextRange.create(lastItemEndIndex, stringRange.startIndex).shiftRight(element.getTextOffset());
                     if (formatter instanceof FStringFormatter & sub.equals(":")) {
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                .range(textRange)
-                                .highlightType(ProblemHighlightType.INFORMATION)
-                                .textAttributes(ZrStringTextCodeStyleSplit)
-                                .create();
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange).highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyleSplit).create();
                     } else if (sub.length() > 0) {
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                .range(textRange)
-                                .highlightType(ProblemHighlightType.INFORMATION)
-                                .textAttributes(ZrStringTextCodeStyleSplit)
-                                .create();
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange).highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyleSplit).create();
                     }
                 }
                 if (stringRange.codeStyle == 2) {
-                    final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
-                            .shiftRight(element.getTextOffset());
-                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                            .range(textRange)
-                            .textAttributes(ZrStringTextCodeStyle2)
-                            .create();
+                    final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex).shiftRight(element.getTextOffset());
+                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange).textAttributes(ZrStringTextCodeStyle2).create();
                 }
                 lastItemEndIndex = stringRange.endIndex;
             }
@@ -598,8 +523,7 @@ public class ZrAnnotator implements Annotator {
     }
 
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
-        final Constructor<?> constructor = Arrays.stream(TextAttributesKey.class.getDeclaredConstructors()).filter(a -> a.getParameterCount() == 3)
-                .findFirst().orElseThrow(() -> new RuntimeException("不支持的idea版本"));
+        final Constructor<?> constructor = Arrays.stream(TextAttributesKey.class.getDeclaredConstructors()).filter(a -> a.getParameterCount() == 3).findFirst().orElseThrow(() -> new RuntimeException("不支持的idea版本"));
         constructor.setAccessible(true);
         try {
             return (TextAttributesKey) constructor.newInstance(externalName, defaultAttributes, fallbackAttributeKey);
@@ -613,88 +537,74 @@ public class ZrAnnotator implements Annotator {
 
     private void checkNeedChange2SString(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
         if (text.matches(".*\\$\\{.*")) {
-            holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]:replace with '$-string'")
-                    .range(element)
-                    .highlightType(ProblemHighlightType.INFORMATION)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrString]: replace with '$-string'";
-                        }
+            holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]:replace with '$-string'").range(element).highlightType(ProblemHighlightType.INFORMATION).withFix(new IntentionAction() {
+                @Override
+                public @IntentionName @NotNull String getText() {
+                    return "[ZrString]: replace with '$-string'";
+                }
 
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrString";
-                        }
+                @Override
+                public @NotNull @IntentionFamilyName String getFamilyName() {
+                    return "ZrString";
+                }
 
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
+                @Override
+                public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                    return true;
+                }
 
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (editor instanceof EditorEx) {
-                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "$" + element.getText();
-                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
-                                element.replace(codeBlockFromText);
-                            }
-                        }
+                @Override
+                public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                    if (editor instanceof EditorEx) {
+                        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                        final String text = "$" + element.getText();
+                        @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
+                        element.replace(codeBlockFromText);
+                    }
+                }
 
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
+                @Override
+                public boolean startInWriteAction() {
+                    return true;
+                }
+            }).create();
         }
     }
 
     private void checkSStringChange2FString(PsiElement element, ZrStringModel build, AnnotationHolder holder) {
         final boolean change2FString = build.getList().stream().anyMatch(a -> a.codeStyle == 2);
         if (change2FString) {
-            holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "[ZrString]:replace with 'F-string'")
-                    .range(element)
-                    .highlightType(ProblemHighlightType.WEAK_WARNING)
-                    .withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName
-                        @NotNull
-                        String getText() {
-                            return "[ZrString]: replace with 'F-string'";
-                        }
+            holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "[ZrString]:replace with 'F-string'").range(element).highlightType(ProblemHighlightType.WEAK_WARNING).withFix(new IntentionAction() {
+                @Override
+                public @IntentionName @NotNull String getText() {
+                    return "[ZrString]: replace with 'F-string'";
+                }
 
-                        @Override
-                        public @NotNull
-                        @IntentionFamilyName String getFamilyName() {
-                            return "ZrString";
-                        }
+                @Override
+                public @NotNull @IntentionFamilyName String getFamilyName() {
+                    return "ZrString";
+                }
 
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
+                @Override
+                public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                    return true;
+                }
 
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (editor instanceof EditorEx) {
-                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "f" + element.getText().substring(1);
-                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
-                                element.replace(codeBlockFromText);
-                            }
-                        }
+                @Override
+                public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                    if (editor instanceof EditorEx) {
+                        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                        final String text = "f" + element.getText().substring(1);
+                        @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
+                        element.replace(codeBlockFromText);
+                    }
+                }
 
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    })
-                    .create();
+                @Override
+                public boolean startInWriteAction() {
+                    return true;
+                }
+            }).create();
         }
     }
 
@@ -735,9 +645,7 @@ public class ZrAnnotator implements Annotator {
         }
         final int argumentCount = argumentString.size();
         PsiExpression[] arguments = argumentString.stream().map(a -> {
-            return JavaPsiFacade
-                    .getElementFactory(element.getProject())
-                    .createExpressionFromText(build.getOriginalString().substring(a.startIndex, a.endIndex), element);
+            return JavaPsiFacade.getElementFactory(element.getProject()).createExpressionFromText(build.getOriginalString().substring(a.startIndex, a.endIndex), element);
         }).toArray(PsiExpression[]::new);
         for (int i = 0; i < arguments.length; i++) {
             final StringRange formatRange = formatList.get(i);
@@ -746,12 +654,8 @@ public class ZrAnnotator implements Annotator {
                 invoke = decode.invoke(null, build.getOriginalString().substring(formatRange.startIndex, formatRange.endIndex), argumentCount);
             } catch (InvocationTargetException e) {
                 final Throwable targetException = e.getTargetException();
-                final TextRange textRange = TextRange.create(formatRange.startIndex, formatRange.endIndex)
-                        .shiftRight(element.getTextOffset());
-                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: " + targetException.getMessage())
-                        .range(textRange)
-                        .highlightType(ProblemHighlightType.ERROR)
-                        .create();
+                final TextRange textRange = TextRange.create(formatRange.startIndex, formatRange.endIndex).shiftRight(element.getTextOffset());
+                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: " + targetException.getMessage()).range(textRange).highlightType(ProblemHighlightType.ERROR).create();
                 continue;
             } catch (ProcessCanceledException e) {
                 throw e;
@@ -759,12 +663,8 @@ public class ZrAnnotator implements Annotator {
                 e.printStackTrace();
             }
             if (invoke == null || !invoke.getClass().isArray() || ((Object[]) invoke).length == 0) {
-                final TextRange textRange = TextRange.create(formatRange.startIndex, formatRange.endIndex)
-                        .shiftRight(element.getTextOffset());
-                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 请输入合法的'String.format()'标识符")
-                        .range(textRange)
-                        .highlightType(ProblemHighlightType.ERROR)
-                        .create();
+                final TextRange textRange = TextRange.create(formatRange.startIndex, formatRange.endIndex).shiftRight(element.getTextOffset());
+                holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 请输入合法的'String.format()'标识符").range(textRange).highlightType(ProblemHighlightType.ERROR).create();
                 continue;
             }
             final Object validator = ((Object[]) invoke)[0];
@@ -791,12 +691,8 @@ public class ZrAnnotator implements Annotator {
             if (validator != null && !valid.test(validator, argumentType)) {
                 PsiType preciseType = TypeConstraint.fromDfType(CommonDataflow.getDfType(argument)).getPsiType(element.getProject());
                 if (preciseType == null || !valid.test(validator, preciseType)) {
-                    final TextRange textRange = argumentRange.get(i)
-                            .shiftRight(element.getTextOffset());
-                    holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 参数类型不匹配。当前传入:" + argumentType.getCanonicalText())
-                            .range(textRange)
-                            .highlightType(ProblemHighlightType.ERROR)
-                            .create();
+                    final TextRange textRange = argumentRange.get(i).shiftRight(element.getTextOffset());
+                    holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]: 参数类型不匹配。当前传入:" + argumentType.getCanonicalText()).range(textRange).highlightType(ProblemHighlightType.ERROR).create();
                 }
             }
         }
@@ -835,14 +731,10 @@ public class ZrAnnotator implements Annotator {
                 } else if ("%n".equals(group)) {
                     s = "\n";
                 } else if ("%s".equals(group) || "%d".equals(group)) {
-                    final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                    final String replace = iterator.next().getText().replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1").replace("\n", "");
                     s = "${" + replace + "}";
                 } else {
-                    final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                    final String replace = iterator.next().getText().replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1").replace("\n", "");
                     s = "${" + group + ":" + replace + "}";
                 }
             } else {
@@ -853,12 +745,7 @@ public class ZrAnnotator implements Annotator {
         }
         stringBuilder.append(text, lastIndex, text.length());
         text = stringBuilder.toString();
-        holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace 'String.format' with 'F-string'")
-                .range((PsiElement) element)
-                .tooltip(text)
-                .highlightType(ProblemHighlightType.INFORMATION)
-                .withFix(new Change2FStringQuickFix(text, element))
-                .create();
+        holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace 'String.format' with 'F-string'").range((PsiElement) element).tooltip(text).highlightType(ProblemHighlightType.INFORMATION).withFix(new Change2FStringQuickFix(text, element)).create();
     }
 
     @Nullable
@@ -866,8 +753,7 @@ public class ZrAnnotator implements Annotator {
         List<Formatter> allFormatters = Formatter.getAllFormatters();
         int endIndex = text.indexOf("\"");
         if (endIndex == -1) {
-            LOG.info(element +
-                    "字符串前缀无法识别: " + text);
+            LOG.info(element + "字符串前缀无法识别: " + text);
             return null;
         }
         if (endIndex == 0) {
@@ -875,8 +761,7 @@ public class ZrAnnotator implements Annotator {
         }
         String prefix = text.substring(0, endIndex).replace("\\", "");
         if (prefix.contains("\\")) return null;
-        Formatter formatter = allFormatters.stream()
-                .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
+        Formatter formatter = allFormatters.stream().filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
         if (formatter == null) {
             LOG.info("未识别的字符串前缀: " + text);
             return null;
@@ -886,11 +771,7 @@ public class ZrAnnotator implements Annotator {
 
     private void foldCode(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String printOut) {
         if (element.getTextOffset() != 0)
-            holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                    .range(element)
-                    .highlightType(ProblemHighlightType.INFORMATION)
-                    .withFix(new FoldCodeQuickFix(element, element.getTextOffset()))
-                    .create();
+            holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element).highlightType(ProblemHighlightType.INFORMATION).withFix(new FoldCodeQuickFix(element, element.getTextOffset())).create();
     }
 
     @NotNull
@@ -902,12 +783,7 @@ public class ZrAnnotator implements Annotator {
                 printOut = printOut.substring(1, printOut.length() - 1);
             }
         }
-        holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace with normal string")
-                .range(element)
-                .tooltip(printOut)
-                .highlightType(ProblemHighlightType.INFORMATION)
-                .withFix(new Change2NormalStringQuickFix(printOut, element))
-                .create();
+        holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]: Replace with normal string").range(element).tooltip(printOut).highlightType(ProblemHighlightType.INFORMATION).withFix(new Change2NormalStringQuickFix(printOut, element)).create();
         return printOut;
     }
 
@@ -915,11 +791,7 @@ public class ZrAnnotator implements Annotator {
         ProblemHighlightType information = ProblemHighlightType.INFORMATION;
         HighlightSeverity severity = HighlightSeverity.INFORMATION;
         StringBuilder printOut = new StringBuilder("$\"");
-        List<PsiElement> collect = Arrays.stream(element.getChildren())
-                .filter(a -> !(a instanceof PsiWhiteSpace
-                        || (a instanceof PsiJavaToken && ((PsiJavaToken) a).getTokenType() == JavaTokenType.PLUS)
-                        || (Objects.equals(a.getText(), "\"\""))))
-                .collect(Collectors.toList());
+        List<PsiElement> collect = Arrays.stream(element.getChildren()).filter(a -> !(a instanceof PsiWhiteSpace || (a instanceof PsiJavaToken && ((PsiJavaToken) a).getTokenType() == JavaTokenType.PLUS) || (Objects.equals(a.getText(), "\"\"")))).collect(Collectors.toList());
         if (collect.size() == 1) return;
         List<PsiElement> firstCollect = new ArrayList<>();
         for (PsiElement psiElement : collect) {
@@ -968,9 +840,7 @@ public class ZrAnnotator implements Annotator {
                     if (itemText.length() <= 2) continue;
                     itemText = itemText.substring(1, itemText.length() - 1).trim();
                 }
-                final String replace = itemText.replaceAll("([^\\\\])'", "$1\\'")
-                        .replace("\n", "")
-                        .replace("\r", "");
+                final String replace = itemText.replaceAll("([^\\\\])'", "$1\\'").replace("\n", "").replace("\r", "");
                 if (replace.endsWith("))")) appendType = 1;
                 if (appendType == 1) {
                     printOut.append("${");
@@ -988,12 +858,7 @@ public class ZrAnnotator implements Annotator {
 //                severity=HighlightSeverity.INFORMATION;
 //            }
         String text = printOut.toString();
-        holder.newAnnotation(severity, "[ZrString]: Replace '+' with '$-string'")
-                .range(element)
-                .tooltip(text)
-                .highlightType(information)
-                .withFix(new Change2SStringQuickFix(text, element))
-                .create();
+        holder.newAnnotation(severity, "[ZrString]: Replace '+' with '$-string'").range(element).tooltip(text).highlightType(information).withFix(new Change2SStringQuickFix(text, element)).create();
     }
 
     private static class Change2NormalStringQuickFix implements IntentionAction {
@@ -1007,15 +872,12 @@ public class ZrAnnotator implements Annotator {
         }
 
         @Override
-        public @IntentionName
-        @NotNull
-        String getText() {
+        public @IntentionName @NotNull String getText() {
             return "[ZrString]: Replace with normal string";
         }
 
         @Override
-        public @NotNull
-        @IntentionFamilyName String getFamilyName() {
+        public @NotNull @IntentionFamilyName String getFamilyName() {
             return "ZrString";
         }
 
@@ -1049,15 +911,12 @@ public class ZrAnnotator implements Annotator {
         }
 
         @Override
-        public @IntentionName
-        @NotNull
-        String getText() {
+        public @IntentionName @NotNull String getText() {
             return "[ZrString]: Replace with $-string";
         }
 
         @Override
-        public @NotNull
-        @IntentionFamilyName String getFamilyName() {
+        public @NotNull @IntentionFamilyName String getFamilyName() {
             return "ZrString";
         }
 
@@ -1090,15 +949,12 @@ public class ZrAnnotator implements Annotator {
         }
 
         @Override
-        public @IntentionName
-        @NotNull
-        String getText() {
+        public @IntentionName @NotNull String getText() {
             return "[ZrString]: Replace 'String.format' with F-string";
         }
 
         @Override
-        public @NotNull
-        @IntentionFamilyName String getFamilyName() {
+        public @NotNull @IntentionFamilyName String getFamilyName() {
             return "ZrString";
         }
 
@@ -1130,15 +986,12 @@ public class ZrAnnotator implements Annotator {
         }
 
         @Override
-        public @IntentionName
-        @NotNull
-        String getText() {
+        public @IntentionName @NotNull String getText() {
             return "[ZrString]: Fold line string code";
         }
 
         @Override
-        public @NotNull
-        @IntentionFamilyName String getFamilyName() {
+        public @NotNull @IntentionFamilyName String getFamilyName() {
             return "ZrString";
         }
 

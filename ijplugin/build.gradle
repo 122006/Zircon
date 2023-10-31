@@ -32,6 +32,6 @@ dependencies {
 //IU-202.7319.50
 intellij  {
     plugins = ['java']
-    version = "2023.2.3"
+    version = "2022.1"
     type = "IC"
 }

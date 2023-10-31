@@ -15,7 +15,7 @@ import java.util.function.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "unchecked"})
+@SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "unchecked", "CodeBlock2Expr", "unused"})
 public class TestExMethodImpl {
     @SuppressWarnings("AccessStaticViaInstance")
     @Test
@@ -437,6 +437,24 @@ public class TestExMethodImpl {
                 () -> "123".testNoEncounteredMethod(),
                 () -> "123"
         );
+        checkMethodInvokes(
+                () -> str.testGenericTransformMethod("123"),
+                () -> TestExMethod.testGenericTransformMethod(str,"123"));
+        checkMethodInvokes(
+                () -> str.testGenericTransformMethod2("123"),
+                () -> TestExMethod.testGenericTransformMethod2(str,"123"));
+        checkMethodInvokes(
+                () -> hashMap.testGenericTransformMethod("123"),
+                () -> TestExMethod.testGenericTransformMethod(hashMap,"123"));
+        checkMethodInvokes(
+                () -> hashMap.testGenericTransformMethodRSet("123"),
+                () -> TestExMethod.testGenericTransformMethodRSet(hashMap,"123"));
+        checkMethodInvokes(
+                () -> hashMap.testGenericTransformMethodRSet(str),
+                () -> TestExMethod.testGenericTransformMethodRSet(hashMap,str));
+        checkMethodInvokes(
+                () -> hashMap.testGenericTransformMethodRSet2(str),
+                () -> TestExMethod.testGenericTransformMethodRSet2(hashMap,str));
         testEnd();
     }
 

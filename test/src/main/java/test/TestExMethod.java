@@ -295,6 +295,42 @@ public class TestExMethod {
     public static <T> T nullOr2(T obj, T or) {
         return obj == null ? or : obj;
     }
+
+
+    @ExMethod
+    public static <T> T testGenericTransformMethod(List<T> param1, T param2) {
+        return param1.get(0);
+    }
+    @ExMethod
+    public static <E> E testGenericTransformMethod2(List<E> param1, E param2) {
+        return param1.get(0);
+    }
+
+    @ExMethod
+    public static <T,R> R testGenericTransformMethod(HashMap<T,R> param1, T param2) {
+        return param1.get(param2);
+    }
+    @ExMethod
+    public static <T,R> Set<T> testGenericTransformMethodRSet(HashMap<T,R> param1, T param2) {
+        return param1.keySet();
+    }
+    @ExMethod
+    public static <T,R> Set<T> testGenericTransformMethodRSet(HashMap<T,R> param1, List<T> param2) {
+        final Set<T> ts = param1.keySet();
+        ts.addAll(param2);
+        return ts;
+    }
+    @ExMethod
+    public static <K,R> Set<K> testGenericTransformMethodRSet2(HashMap<K,R> param1, List<K> param2) {
+        final Set<K> ts = param1.keySet();
+        ts.addAll(param2);
+        return ts;
+    }
+//    @ExMethod
+//    public static <K,R> Set<K> testGenericTransformMethodRSet3(HashMap<List<K>,R> param1, List<K> param2) {
+//        return null;
+//    }
+
     @ExMethod(ex = {Arrays.class}, cover = true)
     public static <T> List<T> asList(T... strs) {
         methodNames.add("Arrays.asList(t");
