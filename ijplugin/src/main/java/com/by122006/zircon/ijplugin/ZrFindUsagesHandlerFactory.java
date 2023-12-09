@@ -33,12 +33,12 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
                         = ZrPsiAugmentProvider.getCachedAllMethod(element.getProject());
                 final Optional<ZrPsiAugmentProvider.CacheMethodInfo> first = psiMethods.stream().filter(a -> a.method == element)
                         .findFirst();
-                if (first.isEmpty()) return PsiElement.EMPTY_ARRAY;
+                if (!first.isPresent()) return PsiElement.EMPTY_ARRAY;
                 final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = first.get();
                 final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
                     final PsiClass psiClass = PsiTypesUtil.getPsiClass(type);
                     if (psiClass == null) return null;
-                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method);
+                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method,null);
                 }).filter(Objects::nonNull).collect(Collectors.toList());
                 return list.toArray(PsiElement.EMPTY_ARRAY);
             }

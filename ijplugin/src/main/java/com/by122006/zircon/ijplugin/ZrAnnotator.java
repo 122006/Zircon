@@ -285,9 +285,13 @@ public class ZrAnnotator implements Annotator {
 
                 @Override
                 public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                    ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                    method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
-                    psiFile.subtreeChanged();
+                    try {
+                        ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                        method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+                        PsiDocumentManager.getInstance(project).commitDocument(editor.getDocument());
+                    } catch (IncorrectOperationException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
@@ -325,33 +329,19 @@ public class ZrAnnotator implements Annotator {
                 if (parameter != null && parameter.isValid()) {
                     final PsiTypeElement typeElement = parameter.getTypeElement();
                     if (typeElement != null) {
-                        if (method.getTypeParameterList() != null) {
-                            final Optional<PsiTypeParameter> b = Arrays.stream(method.getTypeParameterList().getTypeParameters()).filter(a -> Objects.equals(a.getName(), parameter.getType().getCanonicalText())).findFirst();
-                            if (b.isPresent() && b.get().getExtendsList().getReferencedTypes().length == 0) {
-                                holder.newSilentAnnotation(HighlightSeverity.WEAK_WARNING)
-                                        .range(typeElement)
-                                        .highlightType(ProblemHighlightType.WEAK_WARNING)
-                                        .tooltip("!泛型丢失，该泛型会被替换为Object")
-                                        .create();
-                                return;
-                            }
-                        }
                         final PsiType type = parameter.getType();
                         if (type instanceof PsiArrayType) {
                             final TextRange textRange = typeElement.getTextRange();
-                            final TextRange nRange = new TextRange(textRange.getStartOffset() + parameter.getText().lastIndexOf("["), textRange.getEndOffset());
-                            registerSiteAnnotation(holder, typeElement, "[]", nRange);
+                            final PsiType deepComponentType = type.getDeepComponentType();
+                            registerSiteAnnotation(holder, typeElement, deepComponentType.getCanonicalText() + "[]", null);
                         } else if (type instanceof PsiPrimitiveType) {
                             final PsiClassType boxedType = ((PsiPrimitiveType) type).getBoxedType(parameter);
                             registerSiteAnnotation(holder, typeElement, boxedType == null ? "unknown" : boxedType.getClassName(), null);
                         } else if (parameter.isVarArgs()) {
                             holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement).tooltip("!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
                         } else {
-                            final TextRange oTextRange = typeElement.getTextRange();
-                            int i = parameter.getText().indexOf("<");
-                            final TextRange textRange = new TextRange(oTextRange.getStartOffset(), i == -1 ? oTextRange.getEndOffset() : (oTextRange.getStartOffset() + i));
-                            registerSiteAnnotation(holder, typeElement, null, textRange);
-                            if (type instanceof PsiClassType) {
+                            registerSiteAnnotation(holder, typeElement, type.getCanonicalText(), null);
+                            if (type instanceof PsiClassType && method.getTypeParameterList() != null) {
                                 final boolean b1 = Arrays.stream(((PsiClassType) type).getParameters()).anyMatch(a -> {
                                     if (!(a instanceof PsiClassType)) return false;
                                     final boolean b2 = Arrays.stream(method.getTypeParameterList().getTypeParameters()).anyMatch(b -> Objects.equals(b.getName(), a.getCanonicalText()));

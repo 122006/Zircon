@@ -72,5 +72,6 @@
                         overrides="true"/>
         <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
         <findUsagesHandlerFactory implementation="com.by122006.zircon.ijplugin.ZrFindUsagesHandlerFactory"/>
+        <completion.contributor language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrCompletionContributor" order="first"/>
     </extensions>
 </idea-plugin>

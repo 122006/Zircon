@@ -404,7 +404,7 @@ public class TestExMethodImpl {
                 });
         zircon.example.ExObject.nullOr("31231", "123");
         checkMethodInvokes(
-                () -> "31231".nullOr(123),
+                () -> "31231".nullOr("2432"),
                 () -> zircon.example.ExObject.nullOr("31231", "123"));
         checkMethodInvokes(
                 () -> nullStr.isBlank(),

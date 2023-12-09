@@ -109,7 +109,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-2.9.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.0.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -181,9 +181,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件2.9
+### idea插件3.0
 
-1. 在idea 203以上版本支持了拓展方法引用处点击跳转。203以下版本会跳转到代理对象
+1. 重构了拓展方法及自动提示。现在支持代理泛型推断及泛型数组推断了
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -220,6 +220,11 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件2.8
 
 1. 支持在成员方法引用中对外部引用调用拓展方法的情况
+
+### idea插件2.9
+
+1. 在idea 203以上版本支持了拓展方法引用处点击跳转。203以下版本会跳转到代理对象
+
 
 
 </details>
