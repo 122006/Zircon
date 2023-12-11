@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.util.ZrPluginUtil;
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.EqTailType;
 import com.intellij.codeInsight.lookup.LookupElement;
@@ -32,6 +33,9 @@ public class ZrCompletionContributor extends CompletionContributor {
     @Override
     public void fillCompletionVariants(@NotNull CompletionParameters parameters, @NotNull CompletionResultSet result) {
         if (parameters.getCompletionType() != CompletionType.BASIC) return;
+        if (!ZrPluginUtil.hasZrPlugin(parameters.getEditor().getProject())){
+            return;
+        }
         final PsiElement position = parameters.getPosition();
         if (!isInJavaContext(position)) {
             return;
@@ -66,16 +70,16 @@ public class ZrCompletionContributor extends CompletionContributor {
             cacheMethodInfo.targetType.stream().filter(b -> TypeConversionUtil.isAssignable(b, erasure) || b.equalsToText(JAVA_LANG_OBJECT))
                     .forEach(targetType -> {
                         PsiClass psiClass;
-                        if (targetType instanceof PsiArrayType){
+                        if (targetType instanceof PsiArrayType) {
                             final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(position.getProject());
                             psiClass = elementFactory.getArrayClass(PsiUtil.getLanguageLevel(position.getProject()));
-                        }else if (targetType instanceof PsiClassType){
+                        } else if (targetType instanceof PsiClassType) {
                             psiClass = PsiTypesUtil.getPsiClass(targetType);
-                            if (targetType.equalsToText(JAVA_LANG_OBJECT)){
-                                psiClass=aClass;
+                            if (targetType.equalsToText(JAVA_LANG_OBJECT)) {
+                                psiClass = aClass;
                             }
-                        }else {
-                            System.err.println("checkBySiteType fail :"+targetType.getClass());
+                        } else {
+                            System.err.println("checkBySiteType fail :" + targetType.getClass());
                             return;
                         }
                         if (psiClass == null) {
@@ -103,7 +107,7 @@ public class ZrCompletionContributor extends CompletionContributor {
                                         editor.getCaretModel().moveToOffset(end + 2);
                                     } else {
                                         final String params = Arrays.stream(parameterList.getParameters())
-                                                .map(a -> a.getName())
+                                                .map(a -> "")
                                                 .collect(Collectors.joining(", "));
                                         document.insertString(end, "(" + params + ")");
                                         editor.getCaretModel().moveToOffset(end + 1);
@@ -120,7 +124,9 @@ public class ZrCompletionContributor extends CompletionContributor {
                             if (returnType != null) {
                                 builder = builder.withTypeText(substitutor.substitute(returnType).getPresentableText());
                             }
-                            builder = builder.bold();
+                            if (targetType.equals(erasure)){
+                                builder = builder.bold();
+                            }
                             final String name = containingClass == null ? "unknown" : containingClass.getName();
                             if (cacheMethodInfo.isStatic) {
                                 builder = builder.appendTailText(" static for " + targetType.getPresentableText() + " by " + name, true);

@@ -37,6 +37,8 @@ import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.infos.CandidateInfo;
 import com.intellij.psi.util.*;
 import com.intellij.ui.JBColor;
+import com.intellij.util.FileContentUtil;
+import com.intellij.util.FileContentUtilCore;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.ClassUtils;
 import com.siyeh.ig.psiutils.FormatUtils;
@@ -286,10 +288,9 @@ public class ZrAnnotator implements Annotator {
                 @Override
                 public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                     try {
-                        ZrPsiAugmentProvider.freshCachedAllMethod(project);
                         method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
-                        PsiDocumentManager.getInstance(project).commitDocument(editor.getDocument());
-                    } catch (IncorrectOperationException e) {
+                        ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -331,7 +332,6 @@ public class ZrAnnotator implements Annotator {
                     if (typeElement != null) {
                         final PsiType type = parameter.getType();
                         if (type instanceof PsiArrayType) {
-                            final TextRange textRange = typeElement.getTextRange();
                             final PsiType deepComponentType = type.getDeepComponentType();
                             registerSiteAnnotation(holder, typeElement, deepComponentType.getCanonicalText() + "[]", null);
                         } else if (type instanceof PsiPrimitiveType) {
@@ -341,17 +341,6 @@ public class ZrAnnotator implements Annotator {
                             holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement).tooltip("!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
                         } else {
                             registerSiteAnnotation(holder, typeElement, type.getCanonicalText(), null);
-                            if (type instanceof PsiClassType && method.getTypeParameterList() != null) {
-                                final boolean b1 = Arrays.stream(((PsiClassType) type).getParameters()).anyMatch(a -> {
-                                    if (!(a instanceof PsiClassType)) return false;
-                                    final boolean b2 = Arrays.stream(method.getTypeParameterList().getTypeParameters()).anyMatch(b -> Objects.equals(b.getName(), a.getCanonicalText()));
-                                    if (b2) return false;
-                                    return ((PsiClassType) a).getParameters().length > 0;
-                                });
-                                if (b1) {
-                                    holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement).tooltip("!请不要定义超过1级泛型的代理类").highlightType(ProblemHighlightType.ERROR).create();
-                                }
-                            }
                         }
 
                     }

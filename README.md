@@ -8,19 +8,16 @@
 
 #### 已支持的语法特性：
 
-### 1. 内插模板字符串
+### 1. 全局拓展方法
+
+> 自由拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
+
+### 2. 内插模板字符串
 
 `String text=$"My name is $ID.name ";//简单使用`
 
 `String text=f"My age is ${%02d:ID.age} ";//带格式化的模板字符串`
 > 字符串插值功能构建在复合格式设置功能的基础之上，提供更具有可读性、更方便的语法，用于将表达式结果包括到结果字符串。
-
-### 2. 全局拓展方法
-
-`someList.stream().filter(a->a.age==25).findFirst().get()`
-替换为=>
-`someList.find(a->a.age==25)`
-> 自定义拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
 
 ---------------
 
@@ -183,7 +180,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ### idea插件3.0
 
-1. 重构了拓展方法及自动提示。现在支持代理泛型推断及泛型数组推断了
+1. 重构了拓展方法及自动提示。现在已支持代理泛型推断及泛型数组推断
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -234,4 +231,4 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### ExMethodUtil
    项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能
 
-   `implementation 'com.github.122006:ExMethodUtil:1.0.2'`
+   `implementation 'com.github.122006:ExMethodUtil:1.0.5'`

@@ -148,7 +148,7 @@ public class TestExMethodImpl {
                 () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendArrayRT(childClass, childClass, childClass, childClass),
                 () -> TestExMethod.fatherTArrayExtendArrayRT(new TestExMethod.FatherClass[]{childClass}, childClass, childClass, childClass, childClass));
         checkMethodInvokes(
-                () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendArrayRT("123"),//数组调用动态拓展方法会丢弃掉泛型值，导致泛型退化为Object，但定义泛型数组可以方便推导其他参数
+                () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendArrayRT("123"),
                 () -> TestExMethod.fatherTArrayExtendArrayRT(new TestExMethod.FatherClass[]{childClass}, "123"));
         checkMethodInvokes(
                 () -> {

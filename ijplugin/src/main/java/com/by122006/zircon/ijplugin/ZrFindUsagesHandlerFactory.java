@@ -38,7 +38,7 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
                 final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
                     final PsiClass psiClass = PsiTypesUtil.getPsiClass(type);
                     if (psiClass == null) return null;
-                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method,null);
+                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method,PsiTypesUtil.getClassType(psiClass));
                 }).filter(Objects::nonNull).collect(Collectors.toList());
                 return list.toArray(PsiElement.EMPTY_ARRAY);
             }
