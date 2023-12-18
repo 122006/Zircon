@@ -5,15 +5,35 @@ import com.by122006.zircon.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.ide.highlighter.JavaFileType;
-import com.intellij.jsp.JspSpiUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.psi.*;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.JavaRecursiveElementWalkingVisitor;
+import com.intellij.psi.JavaResolveResult;
+import com.intellij.psi.JspPsiUtil;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassOwner;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiFileFactory;
+import com.intellij.psi.PsiIdentifier;
+import com.intellij.psi.PsiImportList;
+import com.intellij.psi.PsiImportStatementBase;
+import com.intellij.psi.PsiImportStaticStatement;
+import com.intellij.psi.PsiJavaCodeReferenceElement;
+import com.intellij.psi.PsiJavaFile;
+import com.intellij.psi.PsiJavaReference;
+import com.intellij.psi.PsiLiteralExpression;
+import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiMethodReferenceExpression;
+import com.intellij.psi.PsiReference;
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings;
 import com.intellij.psi.impl.source.PsiJavaCodeReferenceElementImpl;
 import com.intellij.psi.impl.source.codeStyle.ImportHelper;
@@ -27,9 +47,6 @@ import com.intellij.psi.jsp.JspFile;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.ClassUtil;
-import com.intellij.psi.util.PsiClassUtil;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.PsiUtil;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.IncorrectOperationException;
 import com.intellij.util.containers.ContainerUtil;
@@ -37,18 +54,25 @@ import com.intellij.util.containers.MultiMap;
 import com.intellij.util.containers.NotNullList;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ZrStringModel;
-import gnu.trove.THashMap;
-import gnu.trove.THashSet;
+
 import org.apache.tools.ant.util.ReflectUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
+import gnu.trove.THashMap;
+import gnu.trove.THashSet;
 
 public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
     private static final Logger LOG = Logger.getInstance(ZrJavaCodeStyleManagerImpl.class);
@@ -102,9 +126,13 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
             }
 
         }
-        final Method addUnresolvedImportNames = ImportHelper.class.getDeclaredMethod("addUnresolvedImportNames", Set.class, PsiJavaFile.class);
-        addUnresolvedImportNames.setAccessible(true);
-        addUnresolvedImportNames.invoke(null, names, file);
+        try {
+            final Method addUnresolvedImportNames = ImportHelper.class.getDeclaredMethod("addUnresolvedImportNames", Set.class, PsiJavaFile.class);
+            addUnresolvedImportNames.setAccessible(true);
+            addUnresolvedImportNames.invoke(null, names, file);
+        } catch (InvocationTargetException e) {
+            throw (RuntimeException) e.getTargetException();
+        }
         return names;
     }
 
@@ -222,15 +250,13 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 }
                 continue;
             }
-            if (child instanceof PsiMethodCallExpression||child instanceof PsiMethodReferenceExpression) {
-                final PsiElement method = (child instanceof PsiMethodCallExpression)?((PsiMethodCallExpression) child).resolveMethod():((PsiMethodReferenceExpression) child).resolve() ;
+            if (child instanceof PsiMethodCallExpression || child instanceof PsiMethodReferenceExpression) {
+                final PsiElement method = (child instanceof PsiMethodCallExpression) ? ((PsiMethodCallExpression) child).resolveMethod() : ((PsiMethodReferenceExpression) child).resolve();
                 if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                    final String qualifiedName = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) method).targetMethod.getContainingClass().getQualifiedName();
-                    if (PsiTreeUtil.getParentOfType(child, PsiClass.class) != null) {
-                        final String thisClassQName = PsiTreeUtil.getParentOfType(child, PsiClass.class).getQualifiedName();
-                        if (!Objects.equals(ClassUtil.extractPackageName(qualifiedName), ClassUtil.extractPackageName(thisClassQName)))
-                            names.add(Pair.create(qualifiedName, Boolean.FALSE));
-                    }
+                    final String qualifiedName = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) method).targetMethod
+                            .getContainingClass().getQualifiedName();
+                    if (!Objects.equals(qualifiedName, ClassUtil.extractPackageName(thisPackageName)))
+                        names.add(Pair.create(qualifiedName, Boolean.FALSE));
                 }
             }
             if (child instanceof PsiLiteralExpression) {
@@ -238,12 +264,13 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 if (formatter == null) continue;
                 final ZrStringModel build = formatter.build(child.getText());
                 final PsiElement[] psiElements = build.getList().stream().filter(a -> a.codeStyle == 1)
-                        .map(a -> JavaPsiFacade
-                                .getElementFactory(child.getProject())
-                                .createExpressionFromText(a.stringVal.trim(), child)).toArray(PsiElement[]::new);
+                                                      .map(a -> JavaPsiFacade
+                                                              .getElementFactory(child.getProject())
+                                                              .createExpressionFromText(a.stringVal.trim(), child))
+                                                      .toArray(PsiElement[]::new);
                 ContainerUtil.addAll(stack, psiElements);
-            } else
-                ContainerUtil.addAll(stack, child.getChildren());
+            }
+            ContainerUtil.addAll(stack, child.getChildren());
 
             for (final PsiReference reference : child.getReferences()) {
                 JavaResolveResult resolveResult = HighlightVisitorImpl.resolveJavaReference(reference);
@@ -304,6 +331,67 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 }
             }
         }
+    }
+
+    @Override
+    @Nullable
+    public Collection<PsiImportStatementBase> findRedundantImports(@NotNull final PsiJavaFile file) {
+        final Collection<PsiImportStatementBase> redundant = super.findRedundantImports(file);
+        if (redundant == null) return null;
+        final List<PsiFile> roots = file.getViewProvider().getAllFiles();
+        for (PsiElement root : roots) {
+            root.accept(new JavaRecursiveElementWalkingVisitor() {
+                @Override
+                public void visitMethodCallExpression(PsiMethodCallExpression element) {
+                    super.visitMethodCallExpression(element);
+                    final PsiMethod method = element.resolveMethod();
+                    if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
+                        final ZrPsiAugmentProvider.ZrPsiExtensionMethod zrMethod = (ZrPsiAugmentProvider.ZrPsiExtensionMethod) method;
+                        final PsiClass containingClass = zrMethod.getTargetMethod().getContainingClass();
+                        if (containingClass != null && !inTheSamePackage(file, containingClass)) {
+                            redundant.removeIf(a -> {
+                                final PsiJavaCodeReferenceElement importReference = a.getImportReference();
+                                return importReference != null && Objects.equals(containingClass.getQualifiedName(), importReference.getQualifiedName());
+                            });
+                        }
+                    }
+                }
+
+                @Override
+                public void visitMethodReferenceExpression(PsiMethodReferenceExpression element) {
+                    super.visitMethodReferenceExpression(element);
+                }
+
+                @Override
+                public void visitIdentifier(PsiIdentifier identifier) {
+                    super.visitIdentifier(identifier);
+                }
+
+                @Override
+                public void visitLiteralExpression(PsiLiteralExpression expression) {
+                    super.visitLiteralExpression(expression);
+                    final Formatter formatter = ZrUtil.checkPsiLiteralExpression(expression);
+                    if (formatter == null) return;
+                    final ZrStringModel build = formatter.build(expression.getText());
+                    build.getList().stream().filter(a -> a.codeStyle == 1)
+                         .map(a -> JavaPsiFacade
+                                 .getElementFactory(expression.getProject())
+                                 .createExpressionFromText(a.stringVal.trim(), expression))
+                         .filter(a -> a instanceof PsiMethodCallExpression)
+                         .forEach(exp -> visitMethodCallExpression((PsiMethodCallExpression) exp));
+                }
+
+                private boolean inTheSamePackage(PsiJavaFile file, PsiElement element) {
+                    if (element instanceof PsiClass) {
+                        final PsiFile containingFile = element.getContainingFile();
+                        return containingFile instanceof PsiClassOwner &&
+                                Comparing.strEqual(file.getPackageName(), ((PsiClassOwner) containingFile).getPackageName());
+                    }
+                    return false;
+                }
+            });
+        }
+        return redundant;
     }
 
     static boolean hasPackage(@NotNull String className, @NotNull String packageName) {

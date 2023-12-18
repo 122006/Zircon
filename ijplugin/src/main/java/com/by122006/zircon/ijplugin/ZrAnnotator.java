@@ -3,22 +3,17 @@ package com.by122006.zircon.ijplugin;
 import com.by122006.zircon.util.ZrPluginUtil;
 import com.by122006.zircon.util.ZrUtil;
 import com.intellij.codeInsight.FileModificationService;
-import com.intellij.codeInsight.daemon.impl.ShowAutoImportPass;
-import com.intellij.codeInsight.daemon.impl.actions.AddImportAction;
 import com.intellij.codeInsight.folding.impl.FoldingUtil;
-import com.intellij.codeInsight.hint.HintManager;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.dataFlow.CommonDataflow;
 import com.intellij.codeInspection.dataFlow.TypeConstraint;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
-import com.intellij.lang.ASTNode;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.java.JavaLanguage;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.FoldRegion;
@@ -30,17 +25,14 @@ import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.DebugUtil;
-import com.intellij.psi.impl.source.tree.CompositeElement;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
-import com.intellij.psi.infos.CandidateInfo;
-import com.intellij.psi.util.*;
+import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.ui.JBColor;
-import com.intellij.util.FileContentUtil;
-import com.intellij.util.FileContentUtilCore;
 import com.intellij.util.IncorrectOperationException;
-import com.siyeh.ig.psiutils.ClassUtils;
 import com.siyeh.ig.psiutils.FormatUtils;
 import com.siyeh.ig.psiutils.ImportUtils;
 import com.sun.tools.javac.parser.Formatter;
@@ -56,9 +48,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.*;
-import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -151,7 +141,8 @@ public class ZrAnnotator implements Annotator {
         }).create();
         if (containingClass != null) {
             final String qualifiedName = containingClass.getQualifiedName();
-            final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, element) && canImport(containingClass, element);
+            final PsiFile originalFile = element.getContainingFile().getOriginalFile();
+            final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
                 holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getMethodExpression().getLastChild()).textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName).withFix(new IntentionAction() {
                     @Override
@@ -173,7 +164,15 @@ public class ZrAnnotator implements Annotator {
                     public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                         if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
 //                            ApplicationManager.getApplication().runWriteAction(() -> {
-                        ImportUtils.addImportIfNeeded(containingClass, element);
+                        if (!(editor instanceof EditorEx)) {
+                            ImportUtils.addImportIfNeeded(containingClass, originalFile);
+                        } else {
+                            final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
+                            final PsiFile file = PsiManager.getInstance(project).findFile(virtualFile);
+                            if (file != null) {
+                                ImportUtils.addImportIfNeeded(containingClass, file);
+                            }
+                        }
 //                            });
                     }
 
@@ -320,11 +319,7 @@ public class ZrAnnotator implements Annotator {
         if (ex == null) {
             final PsiParameterList parameterList = method.getParameterList();
             if (parameterList.isEmpty()) {
-                holder.newSilentAnnotation(HighlightSeverity.WARNING)
-                        .range(method)
-                        .tooltip("!非静态拓展方法需要设置首个入参作为代理类")
-                        .highlightType(ProblemHighlightType.WARNING)
-                        .create();
+                holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("!非静态拓展方法需要设置首个入参作为代理类").highlightType(ProblemHighlightType.WARNING).create();
             } else {
                 final PsiParameter parameter = parameterList.getParameter(0);
                 if (parameter != null && parameter.isValid()) {

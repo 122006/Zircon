@@ -1,13 +1,11 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
-import com.intellij.core.CoreJavaCodeStyleManager;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
-import com.intellij.psi.codeStyle.JavaCodeStyleManager;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
@@ -46,17 +44,27 @@ public class ZrStringLiteralInjector implements LanguageInjector {
         List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (printOut == null) return;
-
-        build.stream().filter(a -> a.codeStyle == 1)
-                .filter(a -> a.startIndex != a.endIndex)
-                .forEach(a -> {
+        final PsiJavaFile containingFile = (PsiJavaFile) impl.getContainingFile();
+        final PsiImportList importList = containingFile.getImportList();
+        String addText = "";
+        addText += "package " + containingFile.getPackageName() + ";\n";
+        if (importList != null) {
+            addText += importList.getText();
+            addText += "\n";
+        }
+        addText+="@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ";
+        for (StringRange a : build) {
+            if (a.codeStyle == 1) {
+                if (a.startIndex != a.endIndex) {
                     TextRange textRange = new TextRange(a.startIndex, a.endIndex);
-                    if (textRange.getLength()==0) return;
+                    if (textRange.getLength() == 0) continue;
 //                    LOG.info("addPlace "+a.stringVal);
                     places.addPlace(JavaLanguage.INSTANCE, textRange,
-                            "@SuppressWarnings(\"unused\")  class __ZRStringObj {\n  // " + printOut + "\n public Object _zr_obj_str = ", ";\n}");
+                            addText, ";\n}");
 
-                });
+                }
+            }
+        }
 
     }
 

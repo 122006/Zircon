@@ -5,6 +5,19 @@ apply plugin: 'maven-publish'
 dependencies {
     compileOnly gradleApi()
 }
+gradlePlugin {
+    plugins {
+        zircon {
+            id = 'zircon'
+            implementationClass = 'com.by122006.zircon.ZrPlugin'
+        }
+        ZrString {
+            id = 'ZrString'
+            implementationClass = 'com.by122006.zircon.ZrPlugin'
+        }
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {

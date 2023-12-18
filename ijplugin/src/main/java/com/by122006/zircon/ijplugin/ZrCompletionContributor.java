@@ -1,41 +1,71 @@
 package com.by122006.zircon.ijplugin;
 
+import static com.intellij.psi.CommonClassNames.JAVA_LANG_OBJECT;
+
 import com.by122006.zircon.util.ZrPluginUtil;
-import com.intellij.codeInsight.completion.*;
-import com.intellij.codeInsight.lookup.EqTailType;
+import com.intellij.codeInsight.completion.CompletionContributor;
+import com.intellij.codeInsight.completion.CompletionParameters;
+import com.intellij.codeInsight.completion.CompletionResultSet;
+import com.intellij.codeInsight.completion.CompletionType;
+import com.intellij.codeInsight.completion.InsertHandler;
+import com.intellij.codeInsight.completion.PrioritizedLookupElement;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.lang.java.JavaLanguage;
-import com.intellij.openapi.application.ReadAction;
-import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.util.Iconable;
 import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.*;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.PsiArrayType;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassType;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiElementFactory;
+import com.intellij.psi.PsiExpression;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiParameter;
+import com.intellij.psi.PsiParameterList;
+import com.intellij.psi.PsiReferenceExpression;
+import com.intellij.psi.PsiSubstitutor;
+import com.intellij.psi.PsiType;
 import com.intellij.psi.impl.source.tree.java.PsiReferenceExpressionImpl;
-import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.util.*;
-import com.intellij.util.Consumer;
+import com.intellij.psi.util.PsiFormatUtil;
+import com.intellij.psi.util.PsiFormatUtilBase;
+import com.intellij.psi.util.PsiTypesUtil;
+import com.intellij.psi.util.PsiUtil;
+import com.intellij.psi.util.PsiUtilCore;
+import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.util.containers.JBIterable;
 import com.siyeh.ig.psiutils.ImportUtils;
+
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static com.intellij.psi.CommonClassNames.JAVA_LANG_OBJECT;
 
 public class ZrCompletionContributor extends CompletionContributor {
 
     @Override
     public void fillCompletionVariants(@NotNull CompletionParameters parameters, @NotNull CompletionResultSet result) {
+        doFillCompletionVariants(parameters, result);
+    }
+
+    public void doFillCompletionVariants(@NotNull CompletionParameters parameters, @NotNull CompletionResultSet result) {
         if (parameters.getCompletionType() != CompletionType.BASIC) return;
-        if (!ZrPluginUtil.hasZrPlugin(parameters.getEditor().getProject())){
+        if (!ZrPluginUtil.hasZrPlugin(parameters.getEditor().getProject())) {
             return;
         }
+        if (DumbService.isDumb(parameters.getEditor().getProject())) return;
+
         final PsiElement position = parameters.getPosition();
         if (!isInJavaContext(position)) {
             return;
@@ -49,24 +79,36 @@ public class ZrCompletionContributor extends CompletionContributor {
                         .filter(PsiClass.class)
                         .forEach(psiClass -> {
                             final PsiClassType classType = PsiTypesUtil.getClassType(psiClass);
-                            checkBySiteType(result, position, classType);
+                            checkBySiteType(result, position, classType, false);
                         });
 
             } else {
                 final PsiType type = qualifierExpression.getType();
-                erasure = TypeConversionUtil.erasure(type);
-                if (erasure == null) return;
-                checkBySiteType(result, position, erasure);
+                if (type == null) {
+                    if (qualifierExpression instanceof PsiReferenceExpression) {
+                        final PsiElement resolve = ((PsiReferenceExpression) qualifierExpression).resolve();
+                        if (resolve instanceof PsiClass) {
+                            erasure = PsiTypesUtil.getClassType((PsiClass) resolve);
+                            checkBySiteType(result, position, erasure, true);
+                        }
+                    }
+                } else {
+                    erasure = TypeConversionUtil.erasure(type);
+                    if (erasure == null) return;
+                    checkBySiteType(result, position, erasure, false);
+                }
             }
         } else {
             System.out.println(position.getParent());
         }
     }
 
-    private void checkBySiteType(CompletionResultSet result, PsiElement position, PsiType erasure) {
+    private void checkBySiteType(CompletionResultSet result, PsiElement position, PsiType erasure, boolean isStatic) {
         final PsiClass aClass = JavaPsiFacade.getInstance(position.getProject()).findClass(JAVA_LANG_OBJECT, position.getResolveScope());
+        List<LookupElement> list = new ArrayList<>();
         ZrPsiAugmentProvider.getCachedAllMethod(position.getProject()).forEach(cacheMethodInfo -> {
             ProgressManager.checkCanceled();
+            if (!cacheMethodInfo.isStatic && isStatic) return;
             cacheMethodInfo.targetType.stream().filter(b -> TypeConversionUtil.isAssignable(b, erasure) || b.equalsToText(JAVA_LANG_OBJECT))
                     .forEach(targetType -> {
                         PsiClass psiClass;
@@ -97,34 +139,59 @@ public class ZrCompletionContributor extends CompletionContributor {
                             final PsiClass containingClass = cacheMethodInfo.method.getContainingClass();
                             builder = builder.withInsertHandler((InsertHandler) (context, item) -> {
                                 final Editor editor = context.getEditor();
-//                        context.commitDocument();
-                                final Document document = context.getDocument();
-                                final int end = position.getTextOffset() + method.getName().length();
-                                if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                    final PsiParameterList parameterList = method.getParameterList();
-                                    if (parameterList.isEmpty()) {
-                                        document.insertString(end, "()");
-                                        editor.getCaretModel().moveToOffset(end + 2);
-                                    } else {
-                                        final String params = Arrays.stream(parameterList.getParameters())
-                                                .map(a -> "")
-                                                .collect(Collectors.joining(", "));
-                                        document.insertString(end, "(" + params + ")");
-                                        editor.getCaretModel().moveToOffset(end + 1);
+                                Document document = context.getDocument();
+                                int end;
+                                if (!(editor instanceof EditorEx)) {
+                                    end = position.getTextOffset() + method.getName().length();
+                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                        final PsiParameterList parameterList = method.getParameterList();
+                                        if (parameterList.isEmpty()) {
+                                            document.insertString(end, "()");
+                                            editor.getCaretModel().moveToOffset(end + 2);
+                                        } else {
+                                            final String params = Arrays.stream(parameterList.getParameters())
+                                                    .map(a -> "")
+                                                    .collect(Collectors.joining(", "));
+                                            document.insertString(end, "(" + params + ")");
+                                            editor.getCaretModel().moveToOffset(end + 1);
+                                        }
+                                    }
+                                } else{
+                                    final EditorEx nowEditor = (EditorEx) editor;
+                                    end =nowEditor.getExpectedCaretOffset();
+                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                        final PsiParameterList parameterList = method.getParameterList();
+                                        if (parameterList.isEmpty()) {
+                                            document.insertString(end, "()");
+                                        } else {
+                                            final String params = Arrays.stream(parameterList.getParameters())
+                                                    .map(a -> "")
+                                                    .collect(Collectors.joining(", "));
+                                            document.insertString(end, "(" + params + ")");
+                                        }
                                     }
                                 }
+
                                 PsiDocumentManager.getInstance(editor.getProject()).commitDocument(document);
                                 final String qualifiedName = containingClass.getQualifiedName();
                                 final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
                                 if (canBeImported) {
-                                    ImportUtils.addImportIfNeeded(containingClass, position.getParent());//为啥不生效呢
+                                    if (!(editor instanceof EditorEx)) {
+                                        ImportUtils.addImportIfNeeded(containingClass, context.getFile());
+                                    } else {
+                                        final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
+                                        final PsiFile file = PsiManager.getInstance(editor.getProject()).findFile(virtualFile);
+                                        if (file != null) {
+                                            ImportUtils.addImportIfNeeded(containingClass, file);
+                                        }
+                                    }
                                 }
                             });
                             final PsiType returnType = method.getReturnType();
                             if (returnType != null) {
                                 builder = builder.withTypeText(substitutor.substitute(returnType).getPresentableText());
                             }
-                            if (targetType.equals(erasure)){
+                            if (targetType.equals(erasure)) {
                                 builder = builder.bold();
                             }
                             final String name = containingClass == null ? "unknown" : containingClass.getName();
@@ -134,10 +201,13 @@ public class ZrCompletionContributor extends CompletionContributor {
                                 final PsiParameter parameter = cacheMethodInfo.method.getParameterList().getParameter(0);
                                 builder = builder.appendTailText(" for " + (parameter == null ? "unknown" : parameter.getType().getPresentableText()) + " by " + name, true);
                             }
-                            result.addElement(builder);
+                            LookupElement add = builder;
+                            add = PrioritizedLookupElement.withPriority(add, -122006);
+                            list.add(add);
                         }
                     });
         });
+        result.addAllElements(list);
     }
 
     public static boolean isInJavaContext(PsiElement position) {
