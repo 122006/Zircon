@@ -21,7 +21,7 @@
 
 ---------------
 
-1. 支持android、java等所有使用javac的项目
+1. 支持android、springboot、javaFX等所有使用java语言的项目（javac）
 
 ---------------
 
@@ -46,7 +46,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.1.3'
+        classpath 'com.github.122006.Zircon:gradle:3.1.4'
     }
 }
 ````
@@ -63,17 +63,17 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.1.3</version>
+            <version>3.1.4</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>base</artifactId>
-            <version>3.1.3</version>
+            <version>3.1.4</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.1.3</version>
+            <version>3.1.4</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -106,7 +106,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.0.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.1.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -142,9 +142,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.3
+### v3.1.4
 
-1. 修复了一个导致编译时间过长的问题
+1. gradle插件支持使用id方式引入
 
 <details>
   <summary>历史依赖更新</summary>
@@ -176,11 +176,15 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 支持在成员方法引用中对外部引用调用拓展方法的情况
 
+### v3.1.3
+
+1. 修复了一个导致编译时间过长的问题
+
 </details>
 
-### idea插件3.0
+### idea插件3.1
 
-1. 重构了拓展方法及自动提示。现在已支持代理泛型推断及泛型数组推断
+1. 增强了模板字符串和拓展函数的联合效果。使用拓展函数支持自动引包
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -222,6 +226,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 在idea 203以上版本支持了拓展方法引用处点击跳转。203以下版本会跳转到代理对象
 
+### idea插件3.0
+
+1. 重构了拓展方法及自动提示。现在已支持代理泛型推断及泛型数组推断
 
 
 </details>
