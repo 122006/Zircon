@@ -3,11 +3,11 @@ plugins {
     id 'org.jetbrains.intellij' version '1.13.2'
 }
 group 'com.by122006.zircon'
-version '3.1'
+version '3.2'
 
 compileJava {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 }
 
 buildPlugin {
@@ -23,7 +23,7 @@ repositories {
 }
 patchPluginXml{
     sinceBuild="203.*"
-    untilBuild="300"
+    untilBuild="233.*"
 }
 dependencies {
     implementation project(":base")
@@ -32,6 +32,6 @@ dependencies {
 //IU-202.7319.50
 intellij  {
     plugins = ['java']
-    version = "2022.1"
+    version = "2023.3"
     type = "IC"
 }

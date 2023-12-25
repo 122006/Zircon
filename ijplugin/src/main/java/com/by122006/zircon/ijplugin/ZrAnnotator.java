@@ -10,6 +10,7 @@ import com.intellij.codeInspection.dataFlow.CommonDataflow;
 import com.intellij.codeInspection.dataFlow.TypeConstraint;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
+import com.intellij.formatting.service.FormattingServiceUtil;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -26,7 +27,39 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.*;
+import com.intellij.psi.CommonClassNames;
+import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.JavaTokenType;
+import com.intellij.psi.PsiAnnotation;
+import com.intellij.psi.PsiAnnotationMemberValue;
+import com.intellij.psi.PsiArrayInitializerMemberValue;
+import com.intellij.psi.PsiArrayType;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassObjectAccessExpression;
+import com.intellij.psi.PsiClassType;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiElementFactory;
+import com.intellij.psi.PsiExpression;
+import com.intellij.psi.PsiExpressionList;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiImportList;
+import com.intellij.psi.PsiJavaFile;
+import com.intellij.psi.PsiJavaToken;
+import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiMethod;
+import com.intellij.psi.PsiMethodCallExpression;
+import com.intellij.psi.PsiMethodReferenceExpression;
+import com.intellij.psi.PsiModifier;
+import com.intellij.psi.PsiParameter;
+import com.intellij.psi.PsiParameterList;
+import com.intellij.psi.PsiParenthesizedExpression;
+import com.intellij.psi.PsiPolyadicExpression;
+import com.intellij.psi.PsiPrimitiveType;
+import com.intellij.psi.PsiReference;
+import com.intellij.psi.PsiReferenceExpression;
+import com.intellij.psi.PsiType;
+import com.intellij.psi.PsiTypeElement;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -35,23 +68,32 @@ import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
 import com.siyeh.ig.psiutils.ImportUtils;
+import com.sun.tools.javac.parser.FStringFormatter;
 import com.sun.tools.javac.parser.Formatter;
-import com.sun.tools.javac.parser.*;
+import com.sun.tools.javac.parser.SStringFormatter;
+import com.sun.tools.javac.parser.StringRange;
+import com.sun.tools.javac.parser.ZrStringModel;
+
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.ExMethod;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
-import java.util.*;
+import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import zircon.ExMethod;
 
 
 public class ZrAnnotator implements Annotator {
@@ -172,6 +214,7 @@ public class ZrAnnotator implements Annotator {
                             if (file != null) {
                                 ImportUtils.addImportIfNeeded(containingClass, file);
                             }
+                            FormattingServiceUtil.formatElement(element, false);
                         }
 //                            });
                     }
@@ -267,7 +310,7 @@ public class ZrAnnotator implements Annotator {
                 }
             }).create();
         }
-        if (ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream().noneMatch(a -> a.method == method)) {
+        if (ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream().noneMatch(a -> a.method.isEquivalentTo(method))) {
             holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("need refresh cache").highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {
                 @Override
                 public @IntentionName @NotNull String getText() {
@@ -289,6 +332,7 @@ public class ZrAnnotator implements Annotator {
                     try {
                         method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
                         ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                        FormattingServiceUtil.formatElement(method.getContainingFile(), false);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

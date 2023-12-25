@@ -40,38 +40,41 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
-    <change-notes>support 'extension method'</change-notes>
-    <extensions defaultExtensionNs="com.intellij">
-        <!-- Add your extensions here -->
-        <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
-    </extensions>
-    <actions>
-    </actions>
-    <extensions defaultExtensionNs="com.intellij">
-        <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
-        <lang.parserDefinition language="JAVA"
-                               implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition"
-                               order="first"/>
-        <lang.syntaxHighlighter language="JAVA"
-                                implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter"
-                                order="first"/>
-        <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory"
-                            serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl"
+    <change-notes><![CDATA[
+        support 'extension method'<p>v3.2: Fix compatibility issues in idea2023.3 version</p>]]></change-notes>
+        <extensions defaultExtensionNs="com.intellij">
+            <!-- Add your extensions here -->
+            <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
+        </extensions>
+        <actions>
+        </actions>
+        <extensions defaultExtensionNs="com.intellij">
+            <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
+            <lang.parserDefinition language="JAVA"
+                                   implementationClass="com.by122006.zircon.ijplugin.ZrJavaParserDefinition"
+                                   order="first"/>
+            <lang.syntaxHighlighter language="JAVA"
+                                    implementationClass="com.by122006.zircon.ijplugin.ZrJavaFileHighlighter"
+                                    order="first"/>
+            <applicationService serviceInterface="com.intellij.lang.PsiBuilderFactory"
+                                serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl"
+                                overrides="true"/>
+            <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
+            <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
+            <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>
+            <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
+            <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>
+            <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
+            <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"
+                                  order="first"/>
+            <highlightVisitor implementation="com.by122006.zircon.ijplugin.ZrHighlightVisitor" order="first"/>
+            <projectService serviceInterface="com.intellij.psi.codeStyle.JavaCodeStyleManager"
+                            serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
                             overrides="true"/>
-        <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
-        <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
-        <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>
-        <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
-        <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>
-        <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
-        <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"
-                              order="first"/>
-        <highlightVisitor implementation="com.by122006.zircon.ijplugin.ZrHighlightVisitor" order="first"/>
-        <projectService serviceInterface="com.intellij.psi.codeStyle.JavaCodeStyleManager"
-                        serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
-                        overrides="true"/>
-        <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
-        <findUsagesHandlerFactory implementation="com.by122006.zircon.ijplugin.ZrFindUsagesHandlerFactory"/>
-        <completion.contributor language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrCompletionContributor" order="last"/>
-    </extensions>
-</idea-plugin>
+            <lang.psiAugmentProvider implementation="com.by122006.zircon.ijplugin.ZrPsiAugmentProvider"/>
+            <findUsagesHandlerFactory implementation="com.by122006.zircon.ijplugin.ZrFindUsagesHandlerFactory"/>
+            <completion.contributor language="JAVA"
+                                    implementationClass="com.by122006.zircon.ijplugin.ZrCompletionContributor"
+                                    order="first"/>
+        </extensions>
+        </idea-plugin>

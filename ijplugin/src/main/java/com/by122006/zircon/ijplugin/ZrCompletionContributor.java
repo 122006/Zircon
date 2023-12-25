@@ -15,6 +15,7 @@ import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.ex.EditorEx;
+import com.intellij.openapi.editor.impl.EditorImpl;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.util.Iconable;
@@ -46,6 +47,7 @@ import com.intellij.util.containers.JBIterable;
 import com.siyeh.ig.psiutils.ImportUtils;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,7 +81,7 @@ public class ZrCompletionContributor extends CompletionContributor {
                         .filter(PsiClass.class)
                         .forEach(psiClass -> {
                             final PsiClassType classType = PsiTypesUtil.getClassType(psiClass);
-                            checkBySiteType(result, position, classType, false);
+                            checkBySiteType(result, position, classType, null);
                         });
 
             } else {
@@ -103,12 +105,14 @@ public class ZrCompletionContributor extends CompletionContributor {
         }
     }
 
-    private void checkBySiteType(CompletionResultSet result, PsiElement position, PsiType erasure, boolean isStatic) {
+    private void checkBySiteType(CompletionResultSet result, PsiElement position, PsiType erasure, @Nullable Boolean mustStatic) {
         final PsiClass aClass = JavaPsiFacade.getInstance(position.getProject()).findClass(JAVA_LANG_OBJECT, position.getResolveScope());
         List<LookupElement> list = new ArrayList<>();
         ZrPsiAugmentProvider.getCachedAllMethod(position.getProject()).forEach(cacheMethodInfo -> {
             ProgressManager.checkCanceled();
-            if (!cacheMethodInfo.isStatic && isStatic) return;
+            if (mustStatic != null) {
+                if (cacheMethodInfo.isStatic != mustStatic) return;
+            }
             cacheMethodInfo.targetType.stream().filter(b -> TypeConversionUtil.isAssignable(b, erasure) || b.equalsToText(JAVA_LANG_OBJECT))
                     .forEach(targetType -> {
                         PsiClass psiClass;
@@ -138,53 +142,63 @@ public class ZrCompletionContributor extends CompletionContributor {
                                             PsiFormatUtilBase.SHOW_NAME | PsiFormatUtilBase.SHOW_TYPE));
                             final PsiClass containingClass = cacheMethodInfo.method.getContainingClass();
                             builder = builder.withInsertHandler((InsertHandler) (context, item) -> {
-                                final Editor editor = context.getEditor();
-                                Document document = context.getDocument();
-                                int end;
-                                if (!(editor instanceof EditorEx)) {
-                                    end = position.getTextOffset() + method.getName().length();
-                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                        final PsiParameterList parameterList = method.getParameterList();
-                                        if (parameterList.isEmpty()) {
-                                            document.insertString(end, "()");
-                                            editor.getCaretModel().moveToOffset(end + 2);
-                                        } else {
-                                            final String params = Arrays.stream(parameterList.getParameters())
-                                                    .map(a -> "")
-                                                    .collect(Collectors.joining(", "));
-                                            document.insertString(end, "(" + params + ")");
-                                            editor.getCaretModel().moveToOffset(end + 1);
+                                try {
+                                    final Editor editor = context.getEditor();
+                                    Document document = context.getDocument();
+                                    int end;
+                                    if (editor instanceof EditorImpl) {
+                                        end = position.getTextOffset() + method.getName().length();
+                                        if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                            final PsiParameterList parameterList = method.getParameterList();
+                                            if (parameterList.isEmpty()) {
+                                                document.insertString(end, "()");
+                                                try {
+                                                    editor.getCaretModel().moveToOffset(end + 2);
+                                                } catch (Exception e) {
+                                                }
+                                            } else {
+                                                final String params = Arrays.stream(parameterList.getParameters())
+                                                        .map(a -> "")
+                                                        .collect(Collectors.joining(", "));
+                                                document.insertString(end, "(" + params + ")");
+                                                try {
+                                                    editor.getCaretModel().moveToOffset(end + 1);
+                                                } catch (Exception e) {
+                                                }
+                                            }
+                                        }
+                                    } else{
+                                        final EditorEx nowEditor = (EditorEx) editor;
+                                        end =nowEditor.getExpectedCaretOffset();
+                                        if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                            final PsiParameterList parameterList = method.getParameterList();
+                                            if (parameterList.isEmpty()) {
+                                                document.insertString(end, "()");
+                                            } else {
+                                                final String params = Arrays.stream(parameterList.getParameters())
+                                                        .map(a -> "")
+                                                        .collect(Collectors.joining(", "));
+                                                document.insertString(end, "(" + params + ")");
+                                            }
                                         }
                                     }
-                                } else{
-                                    final EditorEx nowEditor = (EditorEx) editor;
-                                    end =nowEditor.getExpectedCaretOffset();
-                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                        final PsiParameterList parameterList = method.getParameterList();
-                                        if (parameterList.isEmpty()) {
-                                            document.insertString(end, "()");
-                                        } else {
-                                            final String params = Arrays.stream(parameterList.getParameters())
-                                                    .map(a -> "")
-                                                    .collect(Collectors.joining(", "));
-                                            document.insertString(end, "(" + params + ")");
-                                        }
-                                    }
-                                }
 
-                                PsiDocumentManager.getInstance(editor.getProject()).commitDocument(document);
-                                final String qualifiedName = containingClass.getQualifiedName();
-                                final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
-                                if (canBeImported) {
-                                    if (!(editor instanceof EditorEx)) {
-                                        ImportUtils.addImportIfNeeded(containingClass, context.getFile());
-                                    } else {
-                                        final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
-                                        final PsiFile file = PsiManager.getInstance(editor.getProject()).findFile(virtualFile);
-                                        if (file != null) {
-                                            ImportUtils.addImportIfNeeded(containingClass, file);
+                                    PsiDocumentManager.getInstance(editor.getProject()).commitDocument(document);
+                                    final String qualifiedName = containingClass.getQualifiedName();
+                                    final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
+                                    if (canBeImported) {
+                                        if (!(editor instanceof EditorEx)) {
+                                            ImportUtils.addImportIfNeeded(containingClass, context.getFile());
+                                        } else {
+                                            final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
+                                            final PsiFile file = PsiManager.getInstance(editor.getProject()).findFile(virtualFile);
+                                            if (file != null) {
+                                                ImportUtils.addImportIfNeeded(containingClass, file);
+                                            }
                                         }
                                     }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
                                 }
                             });
                             final PsiType returnType = method.getReturnType();
