@@ -240,6 +240,8 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## 相关项目
 
 ### ExMethodUtil
-   项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能
+   项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能。
 
-   `implementation 'com.github.122006:ExMethodUtil:1.0.5'`
+   > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
+
+   `implementation 'com.github.122006:ExMethodUtil:1.0.6'`
