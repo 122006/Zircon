@@ -1,10 +1,10 @@
 package test;
 
 
+import zircon.example.ExString;
+
 import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 
 public class TextStringFormat {
@@ -19,6 +19,11 @@ public class TextStringFormat {
         {
             String test = f"tes";
             String will = "tes";
+            assertEquals(test, will);
+        }
+        {
+            String test = STR."testSTR\{"123".toInt()}";
+            String will = "testSTR123";
             assertEquals(test, will);
         }
         {

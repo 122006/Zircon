@@ -25,6 +25,10 @@
 
 ---------------
 
+### 使用示例
+
+![](others/exmethod_show3.png)
+
 ### 使用说明
 
 #### [内插模板字符串（点击跳转）](mds/README_ZrString.md)
@@ -106,7 +110,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.2.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.3.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -182,10 +186,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件3.2
+### idea插件3.3
 
-1. 修复idea2023.3版本的兼容性问题
-2. 当输入于变量后自动补全时，不再提示其静态方法
+1. 修复部分问题
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -234,6 +237,11 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件3.1
 
 1. 增强了模板字符串和拓展函数的联合效果。使用拓展函数支持自动引包
+
+### idea插件3.2
+
+1. 修复idea2023.3版本的兼容性问题
+2. 当输入于变量后自动补全时，不再提示其静态方法
 
 </details>
 

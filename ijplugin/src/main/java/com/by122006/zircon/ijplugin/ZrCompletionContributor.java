@@ -106,6 +106,9 @@ public class ZrCompletionContributor extends CompletionContributor {
     }
 
     private void checkBySiteType(CompletionResultSet result, PsiElement position, PsiType erasure, @Nullable Boolean mustStatic) {
+        if (TypeConversionUtil.isPrimitiveAndNotNull(erasure)){
+            return;
+        }
         final PsiClass aClass = JavaPsiFacade.getInstance(position.getProject()).findClass(JAVA_LANG_OBJECT, position.getResolveScope());
         List<LookupElement> list = new ArrayList<>();
         ZrPsiAugmentProvider.getCachedAllMethod(position.getProject()).forEach(cacheMethodInfo -> {

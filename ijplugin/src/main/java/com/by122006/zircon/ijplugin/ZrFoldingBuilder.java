@@ -26,6 +26,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class ZrFoldingBuilder extends FoldingBuilderEx {
+    ZirconSettings settings = ZirconSettings.getInstance();
     @NotNull
     @Override
     public FoldingDescriptor[] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
@@ -33,6 +34,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
         if (root.getLanguage() != JavaLanguage.INSTANCE || quick) {
             return FoldingDescriptor.EMPTY;
         }
+        if (!settings.ZrStringFoldEnable) return FoldingDescriptor.EMPTY;
         final List<FoldingDescriptor> result = new ArrayList<>();
         root.accept(new JavaRecursiveElementWalkingVisitor() {
             @Override
@@ -58,7 +60,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
                                         textRange = new TextRange(start + textOffset, a.endIndex + 1 + textOffset);
                                     } else
                                         textRange = new TextRange(a.startIndex + textOffset, a.endIndex + textOffset);
-                                    if (textRange.getLength() < 14) return null;
+                                    if (textRange.getLength() < settings.ZrStringFoldCharCount) return null;
                                     if (text.matches("[0-9A-Za-z_\\u4e00-\\u9fa5$]+(?:\\(\\))?")) return null;
                                     return new FoldingDescriptor(expression, textRange);
                                 }).filter(Objects::nonNull).collect(Collectors.toList());

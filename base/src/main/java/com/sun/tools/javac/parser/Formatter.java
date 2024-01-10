@@ -5,19 +5,37 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public interface Formatter {
-//    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
+    //    Logger logger = Logger.getLogger(Formatter.class.getSimpleName());
     List<Formatter> FORMATTERS = new ArrayList<>();
     List<String> PREFIXES = new ArrayList<>();
 
+    static List<String> getAllFormattersClazz() {
+        List<String> clazzList=new ArrayList<>();
+        clazzList.add("com.sun.tools.javac.parser.SStringFormatter");
+        clazzList.add("com.sun.tools.javac.parser.FStringFormatter");
+        clazzList.add("com.sun.tools.javac.parser.STRStringFormatter");
+        return clazzList;
+    }
+
+    @SuppressWarnings("unchecked")
     static List<Formatter> getAllFormatters() {
         if (!FORMATTERS.isEmpty()) {
             return FORMATTERS;
         }
-        List<Class<? extends Formatter>> classes = Arrays.asList(SStringFormatter.class, FStringFormatter.class);
+        List<Class<? extends Formatter>> classes = getAllFormattersClazz()
+                .stream()
+                .map(a -> {
+                    try {
+                        return (Class<? extends Formatter>) Class.forName(a);
+                    } catch (ClassNotFoundException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }).filter(Objects::nonNull)
+                .collect(Collectors.toList());
         List<Formatter> collect = classes.stream().map(a -> {
             try {
                 return (Formatter) a.getConstructor().newInstance();
@@ -57,8 +75,8 @@ public interface Formatter {
 //                    .replace( "\\\\" , "\\");
 //            return toStr;
 //        }
-        String toStr = text.replaceAll( "\\\\?([a-z0-9\"']{1})", "$1" )
-                .replace( "\\\\", "\\" );
+        String toStr = text.replaceAll("\\\\?([a-z0-9\"']{1})", "$1")
+                           .replace("\\\\", "\\");
         return toStr;
     }
 

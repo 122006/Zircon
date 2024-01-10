@@ -42,7 +42,7 @@ public class SStringFormatter implements Formatter {
                     }
                     items.add(Item.loadStringToken(startIndex, startIndex, stringRange.stringVal));
                 } else {
-                    throw new Error("\"[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]\\n原始字符串：\" + text");
+                    throw new Error("\"[error(使用了"+prefix()+"字符串语法不支持格式化字符串功能，请使用f前缀字符串)]\\n原始字符串：\" + text");
                 }
             }
         }
@@ -73,7 +73,7 @@ public class SStringFormatter implements Formatter {
                     stringBuilder.append(stringRange.stringVal);
                     stringBuilder.append("\"");
                 } else {
-                    System.err.println("[error(使用了$字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
+                    System.err.println("[error(使用了"+prefix()+"字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
                 }
             }
             stringBuilder.append(")");

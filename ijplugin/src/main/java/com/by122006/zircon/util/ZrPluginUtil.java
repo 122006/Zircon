@@ -1,22 +1,22 @@
 package com.by122006.zircon.util;
 
+import com.by122006.zircon.ijplugin.ZirconSettings;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiPackage;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
-import com.intellij.psi.util.PsiModificationTracker;
+
 import zircon.ExMethod;
 
 public class ZrPluginUtil {
     public static synchronized boolean hasZrPlugin(Project project) {
         if (project.isDefault() || !project.isInitialized()) {
+            return false;
+        }
+        if (!ZirconSettings.getInstance().enableAll){
             return false;
         }
         ApplicationManager.getApplication().assertReadAccessAllowed();
