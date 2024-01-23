@@ -50,7 +50,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.1.4'
+        classpath 'com.github.122006.Zircon:gradle:3.1.5'
     }
 }
 ````
@@ -67,17 +67,17 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.1.4</version>
+            <version>3.1.5</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>base</artifactId>
-            <version>3.1.4</version>
+            <version>3.1.5</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.1.4</version>
+            <version>3.1.5</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -146,9 +146,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.4
+### v3.1.5
 
-1. gradle插件支持使用id方式引入
+1. 修复一个特殊情况下与已有方法同名异参的会解析错误问题
 
 <details>
   <summary>历史依赖更新</summary>
@@ -184,11 +184,15 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 修复了一个导致编译时间过长的问题
 
+### v3.1.4
+
+1. gradle插件支持使用id方式引入
+
 </details>
 
-### idea插件3.3
+### idea插件3.4
 
-1. 修复部分问题
+1. 强化自动补全功能对代理类泛型的支持
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -242,6 +246,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 修复idea2023.3版本的兼容性问题
 2. 当输入于变量后自动补全时，不再提示其静态方法
+
+### idea插件3.3
+
+1. 修复部分问题
 
 </details>
 

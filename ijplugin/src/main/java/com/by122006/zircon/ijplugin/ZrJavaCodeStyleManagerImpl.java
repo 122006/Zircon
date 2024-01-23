@@ -57,8 +57,8 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 public void visitMethodCallExpression(PsiMethodCallExpression element) {
                     super.visitMethodCallExpression(element);
                     final PsiMethod method = element.resolveMethod();
-                    if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                        final ZrPsiAugmentProvider.ZrPsiExtensionMethod zrMethod = (ZrPsiAugmentProvider.ZrPsiExtensionMethod) method;
+                    if (method instanceof ZrPsiExtensionMethod) {
+                        final ZrPsiExtensionMethod zrMethod = (ZrPsiExtensionMethod) method;
                         final PsiClass containingClass = zrMethod.getTargetMethod().getContainingClass();
                         if (containingClass != null && !inTheSamePackage(file, containingClass)) {
                             redundant.removeIf(a -> {

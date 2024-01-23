@@ -37,8 +37,8 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                     public void visitMethodCallExpression(PsiMethodCallExpression expression) {
                         super.visitMethodCallExpression(expression);
                         final PsiElement resolve = expression.resolveMethod();
-                        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                            final PsiClass containingClass = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
+                        if (resolve instanceof ZrPsiExtensionMethod) {
+                            final PsiClass containingClass = ((ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
                             if (containingClass==null)return;
                             cacheExMethodClasses.add(containingClass.getQualifiedName());
                         }
@@ -48,8 +48,8 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                     public void visitMethodReferenceExpression(PsiMethodReferenceExpression expression) {
                         super.visitMethodReferenceExpression(expression);
                         final PsiElement resolve = expression.resolve();
-                        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                            final PsiClass containingClass = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
+                        if (resolve instanceof ZrPsiExtensionMethod) {
+                            final PsiClass containingClass = ((ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
                             if (containingClass==null)return;
                             cacheExMethodClasses.add(containingClass.getQualifiedName());
                         }

@@ -1,5 +1,7 @@
 package com.sun.tools.javac.comp;
 
+import static com.sun.tools.javac.code.Flags.PARAMETER;
+
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Scope;
@@ -11,12 +13,18 @@ import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.Names;
 
-import java.util.*;
-
-import static com.sun.tools.javac.code.Flags.PARAMETER;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 
 @SuppressWarnings("rawtypes")
@@ -74,7 +82,7 @@ public class ZrResolve extends Resolve {
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
-                for (ExMethodInfo methodInfo : findRedirectMethod(name, method != methodNotFound)) {
+                for (ExMethodInfo methodInfo : findRedirectMethod(name, methodSymbolEnable(method))) {
                     final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                     if (nParams.size() == 0) continue;
                     if (!types.isCastable(site, nParams.get(0).type)) {
@@ -338,7 +346,7 @@ public class ZrResolve extends Resolve {
 
 
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
-        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, bestSoFar != methodNotFound);
+        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, methodSymbolEnable(bestSoFar));
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return ZrResolveEx.selectBestFromList(this, redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
 

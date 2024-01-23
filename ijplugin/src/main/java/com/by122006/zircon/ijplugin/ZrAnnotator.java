@@ -126,8 +126,8 @@ public class ZrAnnotator implements Annotator {
                     registerChangeFromFormatIntentionAction((PsiMethodCallExpression) element, holder);
                 }
                 final PsiMethod method = ((PsiMethodCallExpression) element).resolveMethod();
-                if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                    registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiAugmentProvider.ZrPsiExtensionMethod) method, holder);
+                if (method instanceof ZrPsiExtensionMethod) {
+                    registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiExtensionMethod) method, holder);
                 }
                 return;
             }
@@ -136,7 +136,7 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
-    private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiAugmentProvider.ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
+    private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
                                      .collect(Collectors.joining(" , "));
@@ -323,7 +323,7 @@ public class ZrAnnotator implements Annotator {
                   }).create();
         }
         final boolean b = ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream()
-                                              .noneMatch(a -> a.method.isEquivalentTo(method));
+                                              .noneMatch(a -> a.method.isValid() && a.method.isEquivalentTo(method));
         if (b) {
             holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("need refresh cache")
                   .highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {
@@ -396,7 +396,7 @@ public class ZrAnnotator implements Annotator {
                             holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement)
                                   .tooltip("!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
                         } else {
-                            registerSiteAnnotation(holder, typeElement, type.getCanonicalText(), null);
+                            registerSiteAnnotation(holder, typeElement, null, null);
                         }
 
                     }
@@ -664,7 +664,12 @@ public class ZrAnnotator implements Annotator {
     }
 
     private void checkFStringError(@NotNull PsiElement element, ZrStringModel build, AnnotationHolder holder) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Class<?> aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
+        Class<?> aClass;
+        try {
+            aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
+        } catch (ClassNotFoundException e) {
+            aClass = Class.forName("com.siyeh.ig.FormatDecode");
+        }
         final Method decode = aClass.getMethod("decode", String.class, int.class);
         decode.setAccessible(true);
         build.getList().stream().map(a -> {

@@ -3,19 +3,22 @@ package test;
 import org.junit.jupiter.api.Test;
 import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
+import test.TestExMethodImpl;
+import test.TestNoEncounteredMethod;
+import zircon.ExMethod;
+import zircon.data.ThrowConsumer;
+import zircon.data.ThrowPredicate;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
+import zircon.example.ExString;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.function.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "unchecked", "CodeBlock2Expr", "unused"})
+@SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
 public class TestExMethodImpl {
     @SuppressWarnings("AccessStaticViaInstance")
     @Test
@@ -60,7 +63,8 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> {
                     String[] strs = {"123"};
-                    return strs.emptyStringArrayRStringArray().emptyStringArrayRStringArray1().emptyStringArrayRStringArray2();
+                    return strs.emptyStringArrayRStringArray().emptyStringArrayRStringArray1()
+                               .emptyStringArrayRStringArray2();
                 }, () -> {
                     String[] strs = {"123"};
                     return TestExMethod.emptyStringArrayRStringArray2(TestExMethod.emptyStringArrayRStringArray1(TestExMethod.emptyStringArrayRStringArray(strs)));
@@ -381,19 +385,19 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").subList(0, 3).find(a -> a.endsWith("123")),
                 () -> ExCollection.find(Arrays.asList("123", "456", "789").subList(0, 3), a -> a.endsWith("123")));
-        String bString="456";
+        String bString = "456";
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456", "789").forEach((bString::toInteger2)),
                 () -> Arrays.asList("123", "456", "789").forEach(t -> bString.toInteger2(t)));
         checkMethodInvokes(
-                () -> Arrays.asList("123", "456", "789").forEach(( "456"::toInteger2)),
+                () -> Arrays.asList("123", "456", "789").forEach(("456"::toInteger2)),
                 () -> Arrays.asList("123", "456", "789").forEach(t -> "456".toInteger2(t)));
         checkMethodInvokes(
                 () -> {
-                    final Function<String,Integer> testLambda = bString::toInteger2;
+                    final Function<String, Integer> testLambda = bString::toInteger2;
                 },
                 () -> {
-                    final Function<String,Integer> testLambda3 = str2 -> bString.toInteger2(str2);
+                    final Function<String, Integer> testLambda3 = str2 -> bString.toInteger2(str2);
                 });
         checkMethodInvokes(
                 () -> {
@@ -412,6 +416,12 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
                 () -> TestExMethod.asList(123, 456));
+        checkMethodInvokes(
+                () -> Arrays.asList(123, 456).sort(),
+                () -> TestExMethod.asList(123, 456).sort());
+        checkMethodInvokes(
+                () -> Arrays.asList(123, 456).sort(Comparator.comparing(a->a)),
+                () -> TestExMethod.asList(123, 456).sort(Comparator.comparing(a->a)));
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456"),
                 () -> TestExMethod.asList("123", "456"));
@@ -439,23 +449,130 @@ public class TestExMethodImpl {
         );
         checkMethodInvokes(
                 () -> str.testGenericTransformMethod("123"),
-                () -> TestExMethod.testGenericTransformMethod(str,"123"));
+                () -> TestExMethod.testGenericTransformMethod(str, "123"));
         checkMethodInvokes(
                 () -> str.testGenericTransformMethod2("123"),
-                () -> TestExMethod.testGenericTransformMethod2(str,"123"));
+                () -> TestExMethod.testGenericTransformMethod2(str, "123"));
         checkMethodInvokes(
                 () -> hashMap.testGenericTransformMethod("123"),
-                () -> TestExMethod.testGenericTransformMethod(hashMap,"123"));
+                () -> TestExMethod.testGenericTransformMethod(hashMap, "123"));
         checkMethodInvokes(
                 () -> hashMap.testGenericTransformMethodRSet("123"),
-                () -> TestExMethod.testGenericTransformMethodRSet(hashMap,"123"));
+                () -> TestExMethod.testGenericTransformMethodRSet(hashMap, "123"));
         checkMethodInvokes(
                 () -> hashMap.testGenericTransformMethodRSet(str),
-                () -> TestExMethod.testGenericTransformMethodRSet(hashMap,str));
+                () -> TestExMethod.testGenericTransformMethodRSet(hashMap, str));
         checkMethodInvokes(
                 () -> hashMap.testGenericTransformMethodRSet2(str),
-                () -> TestExMethod.testGenericTransformMethodRSet2(hashMap,str));
+                () -> TestExMethod.testGenericTransformMethodRSet2(hashMap, str));
+        hashMap.put("1", 2);
+        checkMethodInvokes(
+                () -> {
+                    Consumer<Consumer<? extends String>> consumer = s -> {
+
+                    };
+                    final Consumer<? extends String> t = this.$throw2((a) -> {
+                        a.length();
+//                        System.out.println(a.getClass());
+                    });
+//
+                    final Consumer<? extends String> t2 = self(this.$throw2((a) -> {
+                        a.length();
+//                        System.out.println(a.getClass());
+                    }));
+                    final Consumer<? extends String> t3 = self("123".$throw3((a) -> {
+                        a.length();
+                    }));
+                    hashMap.keySet().forEach($throw2(a -> {
+                        a.length();
+                    }));
+//                    consumer.accept(t);
+                },
+                () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
+                    a.length();
+                }))
+        );
+        final Runnable runnable = () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
+            a.length();
+        }));
+        checkMethodInvokes(
+                () -> {
+                    hashMap.keySet().findAll($throw((ThrowPredicate<String>) a -> {
+                        return true;
+                    }));
+                },
+                () -> hashMap.keySet().findAll(Object.<String>$throw((ThrowPredicate<String>) a -> {
+                    return true;
+                }))
+        );
+        Function<String, ? extends Number> findByString = string -> {
+            return string.toInt();
+        };
+        checkMethodInvokes(
+                () -> {
+                    return findByString.apply("123").convert(re -> {
+                        return re.intValue();
+                    });
+                },
+                () -> 123
+        );
+        ArrayList<Pair<Integer, String>> pairs = new ArrayList<>();
+        final ArrayList<Integer> singleList = new ArrayList<>();
+//        singleList.forEachPair((a,b) -> a.notNull()) ;
+        pairs.forEachPair((a,b)->a.isNull());
+        forEachPair(pairs,(a,b)->{a.notNull();});
         testEnd();
+    }
+
+    public <M> M self(M t) {
+        return t;
+    }
+
+    @ExMethod(ex = {Object.class})
+    public static <T> Consumer<T> $throw2(ThrowConsumer<T> action) {
+        return (t) -> {
+            try {
+                action.accept(t);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+
+    @ExMethod
+    public static <T> Consumer<T> $throw3(Object object, Consumer<T> action) {
+        return (t) -> {
+            try {
+                action.accept(t);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
+
+    public static class Pair<T, M> {
+        T first;
+        M second;
+
+        public Pair(T first, M second) {
+            this.first = first;
+            this.second = second;
+        }
+    }
+
+    public static <E, M, V> Map<M, V> groupBy(Collection<E> collection, Function<E, M> function, Function<List<E>, V> valueMap) {
+        if (collection == null) return null;
+        Map<M, List<E>> map = new HashMap<>();
+        for (E e : collection) {
+            map.computeIfAbsent(function.apply(e), k -> new ArrayList<>()).add(e);
+        }
+        return new HashMap<M,V>().let(a -> {
+            map.forEach((key, value) -> a.put(key, valueMap.apply(value)));
+        });
+    }
+    @ExMethod
+    public static <T, M> void forEachPair(List<Pair<T, M>> pairs, BiConsumer<T, M> action) {
+        pairs.forEach(a -> action.accept(a.first, a.second));
     }
 
     public void throwAssertionFailedError(String message, Object expected, Object actual) {

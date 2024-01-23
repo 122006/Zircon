@@ -1,9 +1,16 @@
 package test;
 
-import zircon.ExMethod;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
+
+import zircon.ExMethod;
 
 public class TestExMethod {
     static List<String> methodNames = new ArrayList<>();
@@ -316,13 +323,13 @@ public class TestExMethod {
     }
     @ExMethod
     public static <T,R> Set<T> testGenericTransformMethodRSet(HashMap<T,R> param1, List<T> param2) {
-        final Set<T> ts = param1.keySet();
+        final Set<T> ts = new HashSet<>(param1.keySet());
         ts.addAll(param2);
         return ts;
     }
     @ExMethod
     public static <K,R> Set<K> testGenericTransformMethodRSet2(HashMap<K,R> param1, List<K> param2) {
-        final Set<K> ts = param1.keySet();
+        final Set<K> ts = new HashSet<>(param1.keySet());
         ts.addAll(param2);
         return ts;
     }

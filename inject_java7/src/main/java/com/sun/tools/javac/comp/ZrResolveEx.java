@@ -10,9 +10,8 @@ import java.util.stream.Collectors;
 
 public class ZrResolveEx {
     static Symbol selectBestFromList(ZrResolve zrResolve, List<ZrResolve.ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
-        if (bestSoFar != zrResolve.methodNotFound && !(bestSoFar instanceof Symbol.MethodSymbol)) {
-            return bestSoFar;
-        }
+        if (bestSoFar instanceof Resolve.ResolveError && !(bestSoFar instanceof Resolve.AmbiguityError)) bestSoFar = zrResolve.methodNotFound;
+
         java.util.List<List> newResult = new ArrayList<>();
         Symbol lastMethodSymbol = zrResolve.methodNotFound;
         exInfo:

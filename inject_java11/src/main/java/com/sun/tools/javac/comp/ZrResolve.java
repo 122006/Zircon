@@ -1,7 +1,13 @@
 package com.sun.tools.javac.comp;
 
+import static com.sun.tools.javac.code.Flags.PARAMETER;
+
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.ReflectionUtil;
@@ -9,15 +15,19 @@ import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.tree.TreeTranslator;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.Names;
 
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static com.sun.tools.javac.code.Flags.PARAMETER;
 
 @SuppressWarnings("unchecked")
 public class ZrResolve extends Resolve {
@@ -160,8 +170,7 @@ public class ZrResolve extends Resolve {
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired());
 //            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
-                Symbol method2 = method;
-                for (ExMethodInfo methodInfo : findRedirectMethod(name, method != methodNotFound)) {
+                for (ExMethodInfo methodInfo : findRedirectMethod(name, methodSymbolEnable(method))) {
                     final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                     if (nParams.size() == 0) continue;
                     if (!types.isCastable(site, nParams.get(0).type)) {
@@ -170,7 +179,7 @@ public class ZrResolve extends Resolve {
                     final JCTree.JCLambda lambdaTree = createLambdaTree(referenceTree, methodInfo);
                     throw new NeedReplaceLambda(lambdaTree, referenceTree, methodInfo);
                 }
-                return method2;
+                return method;
             }
             Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes, method, phase.isBoxingRequired(), phase.isVarargsRequired(), true);
             if (!methodSymbolEnable(method2)) method2 = method;
@@ -338,9 +347,7 @@ public class ZrResolve extends Resolve {
     }
 
     Symbol selectBestFromList(List<ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
-        if (bestSoFar != methodNotFound && !(bestSoFar instanceof Symbol.MethodSymbol)) {
-            return bestSoFar;
-        }
+        if (bestSoFar instanceof ResolveError && !(bestSoFar instanceof AmbiguityError)) bestSoFar = methodNotFound;
         java.util.List<List> newResult = new ArrayList<>();
         Symbol lastMethodSymbol = methodNotFound;
         exInfo:
@@ -378,7 +385,6 @@ public class ZrResolve extends Resolve {
             }
 
         }
-//        System.out.println("bestSoFar:"+bestSoFar+"   find:"+methodSymbolList);
         if (newResult.isEmpty()) {
             return bestSoFar instanceof Symbol.MethodSymbol ? bestSoFar : lastMethodSymbol;
         }
@@ -425,7 +431,7 @@ public class ZrResolve extends Resolve {
 
 
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
-        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, bestSoFar != methodNotFound);
+        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, methodSymbolEnable(bestSoFar));
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {

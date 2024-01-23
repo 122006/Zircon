@@ -879,8 +879,8 @@ public final class ZrImportHelper {
             }
             if (child instanceof PsiMethodCallExpression || child instanceof PsiMethodReferenceExpression) {
                 final PsiElement method = (child instanceof PsiMethodCallExpression) ? ((PsiMethodCallExpression) child).resolveMethod() : ((PsiMethodReferenceExpression) child).resolve();
-                if (method instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod) {
-                    final String qualifiedName = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) method).targetMethod
+                if (method instanceof ZrPsiExtensionMethod) {
+                    final String qualifiedName = ((ZrPsiExtensionMethod) method).targetMethod
                             .getContainingClass().getQualifiedName();
                     if (!Objects.equals(qualifiedName, ClassUtil.extractPackageName(thisPackageName))) {
                         imports.add(new Import(qualifiedName, false));

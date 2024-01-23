@@ -1,18 +1,30 @@
 package com.sun.tools.javac.comp;
 
-import com.sun.tools.javac.code.*;
+import static com.sun.tools.javac.code.Flags.PARAMETER;
+
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.JCDiagnostic;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.Names;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-
-import static com.sun.tools.javac.code.Flags.PARAMETER;
 
 @SuppressWarnings("unchecked")
 public class ZrResolve extends Resolve {
@@ -86,7 +98,7 @@ public class ZrResolve extends Resolve {
 //            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
-                for (ExMethodInfo methodInfo : findRedirectMethod(name, method != methodNotFound)) {
+                for (ExMethodInfo methodInfo : findRedirectMethod(name, methodSymbolEnable(method))) {
                     final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                     if (nParams.size() == 0) continue;
                     if (!types.isCastable(site, nParams.get(0).type)) {
@@ -188,7 +200,6 @@ public class ZrResolve extends Resolve {
 
         @Override
         Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
-//            System.out.println("==============doLookup  site:" + site + " name:" + name + " phase:" + phase);
             final Symbol bestSoFar = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired());
             final Symbol newSymbol = findMethod2(env, site, name, argtypes, typeargtypes, bestSoFar, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
             if ((newSymbol instanceof Symbol.MethodSymbol && !(bestSoFar instanceof Symbol.MethodSymbol)) || ((newSymbol instanceof Symbol.MethodSymbol) && (bestSoFar instanceof Symbol.MethodSymbol) && newSymbol != bestSoFar)) {
@@ -244,25 +255,26 @@ public class ZrResolve extends Resolve {
             do {
                 scanEl = false;
                 final ArrayList<Name> names = new ArrayList<>(allPackages.keySet());
-                names.stream().filter(name -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> name.toString().startsWith(a)))
-                        .filter(name -> hasScan.stream().noneMatch(a -> Objects.equals(name, a)))
-                        .forEach(name -> {
-                            final Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> moduleSymbolPackageSymbolMap = allPackages.get(name);
-                            moduleSymbolPackageSymbolMap.values().forEach(a -> {
-                                final java.util.List<Symbol> enclosedElements;
-                                try {
-                                    enclosedElements = a.getEnclosedElements();
-                                } catch (Exception e) {
-                                    return;
-                                }
-                                enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
-                                    final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
-                                    scanMethod(classSymbol);
-                                });
-                            });
-                            scanEl = true;
-                            hasScan.add(name);
-                        });
+                names.stream().filter(name -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> name.toString()
+                                                                                                             .startsWith(a)))
+                     .filter(name -> hasScan.stream().noneMatch(a -> Objects.equals(name, a)))
+                     .forEach(name -> {
+                         final Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> moduleSymbolPackageSymbolMap = allPackages.get(name);
+                         moduleSymbolPackageSymbolMap.values().forEach(a -> {
+                             final java.util.List<Symbol> enclosedElements;
+                             try {
+                                 enclosedElements = a.getEnclosedElements();
+                             } catch (Exception e) {
+                                 return;
+                             }
+                             enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
+                                 final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
+                                 scanMethod(classSymbol);
+                             });
+                         });
+                         scanEl = true;
+                         hasScan.add(name);
+                     });
             } while (scanEl);
             lastScanMapCount = allPackages.size();
         }
@@ -277,36 +289,45 @@ public class ZrResolve extends Resolve {
             final Symbol.ClassSymbol c1 = (Symbol.ClassSymbol) c;
             scanMethod(c1);
         });
-        members.getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream().anyMatch(annotation -> annotation.type.toString().equals(clazzName))).forEach(symbol -> {
-            Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
-            symbol.getAnnotationMirrors().stream().filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst().ifPresent(compound -> {
-                try {
-                    final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
-                    final Attribute ex = compound.member(names.fromString("ex"));
-                    if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
-                        exMethodInfo.targetClass = (List<Attribute.Class>) ex.getValue();
-                    }
-                    final Attribute cover = compound.member(names.fromString("cover"));
-                    if (cover != null) {
-                        exMethodInfo.cover = (boolean) cover.getValue();
-                    }
-                    exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
-                    if (exMethodInfo.cover) {
-                        final List<ExMethodInfo> list = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                        coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
-                    }
-                    final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                    redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
-                } catch (Exception exc) {
-                    exc.printStackTrace();
-                }
-            });
-        });
+        members.getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream()
+                                                                                    .anyMatch(annotation -> annotation.type
+                                                                                            .toString()
+                                                                                            .equals(clazzName)))
+               .forEach(symbol -> {
+                   Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
+                   symbol.getAnnotationMirrors().stream()
+                         .filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst()
+                         .ifPresent(compound -> {
+                             try {
+                                 final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
+                                 final Attribute ex = compound.member(names.fromString("ex"));
+                                 if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
+                                     exMethodInfo.targetClass = (List<Attribute.Class>) ex.getValue();
+                                 }
+                                 final Attribute cover = compound.member(names.fromString("cover"));
+                                 if (cover != null) {
+                                     exMethodInfo.cover = (boolean) cover.getValue();
+                                 }
+                                 exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
+                                 if (exMethodInfo.cover) {
+                                     final List<ExMethodInfo> list = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
+                                     coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
+                                 }
+                                 final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
+                                 redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
+                             } catch (Exception exc) {
+                                 exc.printStackTrace();
+                             }
+                         });
+               });
     }
 
     public static List<Attribute.Class> getMethodStaticExType(Names names, Symbol.MethodSymbol symbol) {
         final String clazz = "zircon.ExMethod";
-        final Optional<Attribute.Compound> exMethod = symbol.getAnnotationMirrors().stream().filter(annotation -> annotation.type.toString().equals(clazz)).findFirst();
+        final Optional<Attribute.Compound> exMethod = symbol.getAnnotationMirrors().stream()
+                                                            .filter(annotation -> annotation.type.toString()
+                                                                                                 .equals(clazz))
+                                                            .findFirst();
         if (exMethod.isPresent()) {
             final Attribute.Compound compound = exMethod.get();
             final Attribute ex = compound.member(names.fromString("ex"));
@@ -343,9 +364,7 @@ public class ZrResolve extends Resolve {
     }
 
     Symbol selectBestFromList(List<ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
-        if (bestSoFar != methodNotFound && !(bestSoFar instanceof Symbol.MethodSymbol)) {
-            return bestSoFar;
-        }
+        if (bestSoFar instanceof ResolveError && !(bestSoFar instanceof AmbiguityError)) bestSoFar = methodNotFound;
         java.util.List<List> newResult = new ArrayList<>();
         Symbol lastMethodSymbol = methodNotFound;
         exInfo:
@@ -388,7 +407,8 @@ public class ZrResolve extends Resolve {
             return bestSoFar instanceof Symbol.MethodSymbol ? bestSoFar : lastMethodSymbol;
         }
         List<ExMethodInfo> finalMethodSymbol = List.nil();
-        final java.util.List<List> coverList = newResult.stream().filter(a -> ((ExMethodInfo) (a.get(1))).cover).collect(Collectors.toList());
+        final java.util.List<List> coverList = newResult.stream().filter(a -> ((ExMethodInfo) (a.get(1))).cover)
+                                                        .collect(Collectors.toList());
         if (bestSoFar != methodNotFound && coverList.isEmpty()) {
             return bestSoFar;
         } else {
@@ -430,7 +450,7 @@ public class ZrResolve extends Resolve {
 
 
     protected Symbol findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
-        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, bestSoFar != methodNotFound);
+        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, methodSymbolEnable(bestSoFar));
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {
