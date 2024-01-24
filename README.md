@@ -50,7 +50,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.1.5'
+        classpath 'com.github.122006.Zircon:gradle:3.1.6'
     }
 }
 ````
@@ -67,17 +67,17 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.6</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>base</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.6</version>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.1.5</version>
+            <version>3.1.6</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -146,9 +146,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.5
+### v3.1.6
 
 1. 修复一个特殊情况下与已有方法同名异参的会解析错误问题
+2. 修复强制覆盖原有实现方法时，使用方法引用会提示引用重复的问题
 
 <details>
   <summary>历史依赖更新</summary>
