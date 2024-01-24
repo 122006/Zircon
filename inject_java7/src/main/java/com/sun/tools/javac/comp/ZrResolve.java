@@ -1,6 +1,7 @@
 package com.sun.tools.javac.comp;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
+import static com.sun.tools.javac.code.TypeTag.NONE;
 
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.Attribute;
@@ -101,6 +102,12 @@ public class ZrResolve extends Resolve {
 
         @Override
         ReferenceLookupHelper unboundLookup(Infer.InferenceContext inferenceContext) {
+            if (TreeInfo.isStaticSelector(referenceTree.expr, names)) {
+                if (argtypes.nonEmpty() && (argtypes.head.hasTag(NONE) ||
+                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), oSite))) {
+                    return new ZrMethodReferenceLookupHelper(referenceTree, name, oSite, argtypes, typeargtypes, maxPhase);
+                }
+            }
             return helper.unboundLookup(inferenceContext);
         }
 

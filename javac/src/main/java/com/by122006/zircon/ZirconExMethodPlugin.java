@@ -1,12 +1,7 @@
 package com.by122006.zircon;
 
-import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
-
-import javax.annotation.processing.Processor;
-import java.util.Iterator;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ZirconExMethodPlugin extends ZirconPlugin {

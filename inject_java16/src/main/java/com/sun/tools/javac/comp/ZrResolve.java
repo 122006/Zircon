@@ -1,6 +1,7 @@
 package com.sun.tools.javac.comp;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
+import static com.sun.tools.javac.code.TypeTag.NONE;
 
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Scope;
@@ -26,7 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings( "unchecked")
 public class ZrResolve extends Resolve {
 
     private Symbol methodNotFound = ReflectionUtil.getDeclaredField(this, Resolve.class, "methodNotFound");
@@ -95,7 +96,6 @@ public class ZrResolve extends Resolve {
         @SuppressWarnings({"unchecked", "rawtypes"})
         final Symbol lookup(Env<AttrContext> env, MethodResolutionPhase phase) {
             final Symbol method = findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired());
-//            final Symbol symbol = TreeInfo.symbol(((JCTree.JCMemberReference) env.tree).getQualifierExpression());
             if (!TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 Symbol method2 = method;
                 for (ExMethodInfo methodInfo : findRedirectMethod(name, methodSymbolEnable(method))) {
@@ -117,6 +117,12 @@ public class ZrResolve extends Resolve {
 
         @Override
         ReferenceLookupHelper unboundLookup(InferenceContext inferenceContext) {
+            if (TreeInfo.isStaticSelector(referenceTree.expr, names)) {
+                if (argtypes.nonEmpty() && (argtypes.head.hasTag(NONE) ||
+                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), oSite))) {
+                    return new ZrMethodReferenceLookupHelper(referenceTree, name, oSite, argtypes, typeargtypes, maxPhase);
+                }
+            }
             return helper.unboundLookup(inferenceContext);
         }
 
@@ -158,7 +164,7 @@ public class ZrResolve extends Resolve {
             ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
-                final Name nameA = names.fromString("$zr$a" + i);
+                final Name nameA = names.fromString( "$zr$a" + i);
                 Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, param.type, syms.noSymbol);
                 jcVariableDecls.add(maker.VarDef(symA, null));
                 jcIdents.add(maker.Ident(symA));
@@ -172,7 +178,7 @@ public class ZrResolve extends Resolve {
             jcIdents.add(memberReference.expr);
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
-                final Name nameA = names.fromString("$zr$a" + i);
+                final Name nameA = names.fromString( "$zr$a" + i);
                 Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, param.type, syms.noSymbol);
                 symA.adr = 1 << i;
                 jcVariableDecls.add(maker.VarDef(symA, null));
@@ -242,7 +248,7 @@ public class ZrResolve extends Resolve {
     int lastScanMapCount = 0;
     boolean scanEl = false;
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings( "unchecked")
     public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName, boolean onlyCover) {
         if (redirectMethodSymbolMap == null) {
             redirectMethodSymbolMap = new HashMap<>();
@@ -300,11 +306,11 @@ public class ZrResolve extends Resolve {
                          .ifPresent(compound -> {
                              try {
                                  final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
-                                 final Attribute ex = compound.member(names.fromString("ex"));
+                                 final Attribute ex = compound.member(names.fromString( "ex"));
                                  if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
                                      exMethodInfo.targetClass = (List<Attribute.Class>) ex.getValue();
                                  }
-                                 final Attribute cover = compound.member(names.fromString("cover"));
+                                 final Attribute cover = compound.member(names.fromString( "cover"));
                                  if (cover != null) {
                                      exMethodInfo.cover = (boolean) cover.getValue();
                                  }
@@ -330,9 +336,9 @@ public class ZrResolve extends Resolve {
                                                             .findFirst();
         if (exMethod.isPresent()) {
             final Attribute.Compound compound = exMethod.get();
-            final Attribute ex = compound.member(names.fromString("ex"));
+            final Attribute ex = compound.member(names.fromString( "ex"));
             if (ex != null && ((List<Attribute.Class>) ex.getValue()).size() > 0) {
-                @SuppressWarnings("unchecked") final List<Attribute.Class> value = (List<Attribute.Class>) ex.getValue();
+                @SuppressWarnings( "unchecked") final List<Attribute.Class> value = (List<Attribute.Class>) ex.getValue();
                 return value;
             }
         }
@@ -352,7 +358,7 @@ public class ZrResolve extends Resolve {
 
     public static class NeedReplaceLambda extends RuntimeException {
         public NeedReplaceLambda(JCTree.JCLambda bestSoFar, JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
-            super("搜索到不支持且被拓展的非静态方法引用：" + memberReference + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + bestSoFar + "\n请至github联系开发者以修复该情况");
+            super( "搜索到不支持且被拓展的非静态方法引用：" + memberReference + "\n暂不支持该拓展形式,请替换为lambda表达式：\n" + bestSoFar + "\n请至github联系开发者以修复该情况");
             this.bestSoFar = bestSoFar;
             this.memberReference = memberReference;
             this.methodInfo = methodInfo;

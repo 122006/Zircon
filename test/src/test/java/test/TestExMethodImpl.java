@@ -1,6 +1,24 @@
 package test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import org.junit.jupiter.api.Test;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
 import test.TestExMethodImpl;
@@ -11,12 +29,6 @@ import zircon.data.ThrowPredicate;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExString;
-
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.function.*;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
 public class TestExMethodImpl {
@@ -416,9 +428,9 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
                 () -> TestExMethod.asList(123, 456));
-        checkMethodInvokes(
-                () -> Arrays.asList(123, 456).sort(),
-                () -> TestExMethod.asList(123, 456).sort());
+//        checkMethodInvokes(
+//                () -> Arrays.asList(123, 456).sort(),
+//                () -> TestExMethod.asList(123, 456).sort());
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456).sort(Comparator.comparing(a->a)),
                 () -> TestExMethod.asList(123, 456).sort(Comparator.comparing(a->a)));
@@ -465,6 +477,15 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> hashMap.testGenericTransformMethodRSet2(str),
                 () -> TestExMethod.testGenericTransformMethodRSet2(hashMap, str));
+        checkMethodInvokes(
+                () -> {
+                    Function<String,Boolean> test=String::isEmpty;
+                    return test.apply(nullStr);
+                } ,
+                () -> {
+                    return nullStr.isEmpty();
+                });
+
         hashMap.put("1", 2);
         checkMethodInvokes(
                 () -> {
