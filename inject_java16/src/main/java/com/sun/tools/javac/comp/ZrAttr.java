@@ -2,6 +2,7 @@ package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
@@ -11,8 +12,6 @@ import com.sun.tools.javac.util.List;
 import java.lang.reflect.Field;
 import java.util.Objects;
 import java.util.Optional;
-
-import static com.sun.tools.javac.code.TypeTag.VOID;
 
 public class ZrAttr extends Attr {
     private final Context context;
@@ -55,6 +54,7 @@ public class ZrAttr extends Attr {
 
         return zrAttr;
     }
+
     @Override
     public void visitVarDef(JCTree.JCVariableDecl that) {
         try {
@@ -62,10 +62,10 @@ public class ZrAttr extends Attr {
         } catch (ZrResolve.NeedReplaceLambda needReplaceLambda) {
             JCTree.JCExpression initializer = that.getInitializer();
             while (initializer instanceof JCTree.JCParens) {
-                initializer=((JCTree.JCParens) initializer).getExpression();
+                initializer = ((JCTree.JCParens) initializer).getExpression();
             }
             if (Objects.equals(initializer.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
-                that.init=needReplaceLambda.bestSoFar;
+                that.init = needReplaceLambda.bestSoFar;
             }
             super.visitVarDef(that);
         }
@@ -81,7 +81,7 @@ public class ZrAttr extends Attr {
             for (int i = 0; i < arguments.size(); i++) {
                 JCTree.JCExpression argument = arguments.get(i);
                 while (argument instanceof JCTree.JCParens) {
-                    argument=((JCTree.JCParens) argument).getExpression();
+                    argument = ((JCTree.JCParens) argument).getExpression();
                 }
                 if (Objects.equals(argument.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                     newList = newList.append(needReplaceLambda.bestSoFar);
@@ -95,13 +95,14 @@ public class ZrAttr extends Attr {
             final JCTree.JCMethodInvocation oldTree = make.Apply(that.typeargs, that.meth, that.args);
 
             final Symbol bestSoFar = redirectMethod.bestSoFar;
-            if (bestSoFar.owner==null){
+            if (bestSoFar.owner == null) {
                 System.err.println(bestSoFar);
                 System.err.println(bestSoFar.owner);
             }
             final JCTree.JCFieldAccess add = make.Select(make.Ident(bestSoFar.owner), bestSoFar.name);
             final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
             if (methodStaticExType.isEmpty()) {
+                // no static
                 if (that.meth instanceof JCTree.JCFieldAccess) {
                     that.args = that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected);
                 } else if (that.meth instanceof JCTree.JCIdent) {
@@ -115,11 +116,13 @@ public class ZrAttr extends Attr {
                 final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) oldMeth).selected;
                 final boolean staticInvoke = selected.hasTag(JCTree.Tag.IDENT) || TreeInfo.isStaticSelector(selected, names);
                 if (!staticInvoke) {
-                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs).findRedirectMethod(bestSoFar.getSimpleName(),false).stream().filter(a -> a.methodSymbol == bestSoFar)
+                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs)
+                            .findRedirectMethod(bestSoFar.getSimpleName(), false).stream()
+                            .filter(a -> a.methodSymbol == bestSoFar)
                             .findFirst();
                     if (first.isPresent()) {
                         if (first.get().isStatic) {
-                            if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(VOID)) {
+                            if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(TypeTag.VOID)) {
                                 throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", oldTree);
                             } else {
                                 final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
@@ -138,7 +141,6 @@ public class ZrAttr extends Attr {
             super.visitApply(that);
         }
     }
-
 
 
     public static Object get(Object obj, String field) {

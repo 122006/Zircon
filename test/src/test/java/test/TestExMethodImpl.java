@@ -17,7 +17,10 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
@@ -432,8 +435,8 @@ public class TestExMethodImpl {
 //                () -> Arrays.asList(123, 456).sort(),
 //                () -> TestExMethod.asList(123, 456).sort());
         checkMethodInvokes(
-                () -> Arrays.asList(123, 456).sort(Comparator.comparing(a->a)),
-                () -> TestExMethod.asList(123, 456).sort(Comparator.comparing(a->a)));
+                () -> Arrays.asList(123, 456).sort(Comparator.comparing(a -> a)),
+                () -> TestExMethod.asList(123, 456).sort(Comparator.comparing(a -> a)));
         checkMethodInvokes(
                 () -> Arrays.asList("123", "456"),
                 () -> TestExMethod.asList("123", "456"));
@@ -479,11 +482,44 @@ public class TestExMethodImpl {
                 () -> TestExMethod.testGenericTransformMethodRSet2(hashMap, str));
         checkMethodInvokes(
                 () -> {
-                    Function<String,Boolean> test=String::isEmpty;
+                    final TestExMethod.ChildClass2 testById = "test".findTestById(123);
+                    testById.let2(a -> {
+                        a.testStaticMethod();
+                    });
+                },
+                () -> {
+                    nullStr.nullOr("test").let2(a -> a.length());
+                    "test".findTestById(123).testStaticMethod();
+                    "test".findTestById(123).let2((TestExMethod.FatherClass a) -> {
+                        a.testStaticMethod();
+                    });
+                });
+        checkMethodInvokes(
+                () -> {
+                    Function<String, Boolean> test = String::isEmpty;
                     return test.apply(nullStr);
-                } ,
+                },
                 () -> {
                     return nullStr.isEmpty();
+                });
+        checkMethodInvokes(
+                () -> {
+                    Function<int[], IntStream> test1 = array -> Arrays.stream(array);
+                    return test1.apply(null);
+                },
+                () -> {
+                    return Arrays.stream((int[]) null);
+                });
+        checkMethodInvokes(
+                () -> {
+                    IntStream stream = Arrays.stream((int[]) null);
+                    Function<IntUnaryOperator, IntStream> test0 = stream::map;
+                    return test0.apply(a -> a);
+                },
+                () -> {
+                    IntStream stream = (IntStream) null;
+                    Function<IntUnaryOperator, IntStream> test0 = stream::map;
+                    return test0.apply(a -> a);
                 });
 
         hashMap.put("1", 2);
@@ -513,6 +549,9 @@ public class TestExMethodImpl {
                     a.length();
                 }))
         );
+        Class<?>[] classes = Stream.of(String.class, Integer.class).map(Object::getClass).toArray(Class<?>[]::new);
+        Boolean[] classesNames = Stream.of(String.class, Integer.class).map(Object::getClass).map(String::valueOf)
+                                       .map(String::isEmpty).toArray(Boolean[]::new);
         final Runnable runnable = () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
             a.length();
         }));
@@ -540,14 +579,17 @@ public class TestExMethodImpl {
         ArrayList<Pair<Integer, String>> pairs = new ArrayList<>();
         final ArrayList<Integer> singleList = new ArrayList<>();
 //        singleList.forEachPair((a,b) -> a.notNull()) ;
-        pairs.forEachPair((a,b)->a.isNull());
-        forEachPair(pairs,(a,b)->{a.notNull();});
+        pairs.forEachPair((a, b) -> a.isNull());
+        forEachPair(pairs, (a, b) -> {
+            a.notNull();
+        });
         testEnd();
     }
 
     public <M> M self(M t) {
         return t;
     }
+
 
     @ExMethod(ex = {Object.class})
     public static <T> Consumer<T> $throw2(ThrowConsumer<T> action) {
@@ -558,6 +600,22 @@ public class TestExMethodImpl {
                 throw new RuntimeException(e);
             }
         };
+    }
+
+    @ExMethod
+    public static <T> T let2(T obj, ThrowConsumer<? super T> supplier) {
+        if (obj == null) return null;
+        try {
+            supplier.accept(obj);
+            return obj;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> T findTestById(String str, int id) {
+        return (T) new TestExMethod.ChildClass2();
     }
 
     @ExMethod
@@ -587,10 +645,11 @@ public class TestExMethodImpl {
         for (E e : collection) {
             map.computeIfAbsent(function.apply(e), k -> new ArrayList<>()).add(e);
         }
-        return new HashMap<M,V>().let(a -> {
+        return new HashMap<M, V>().let(a -> {
             map.forEach((key, value) -> a.put(key, valueMap.apply(value)));
         });
     }
+
     @ExMethod
     public static <T, M> void forEachPair(List<Pair<T, M>> pairs, BiConsumer<T, M> action) {
         pairs.forEach(a -> action.accept(a.first, a.second));

@@ -70,6 +70,8 @@ public class ZrResolve extends Resolve {
         MethodReferenceLookupHelper helper;
         Type oSite;
 
+        boolean isExMethod;
+
 
         ZrMethodReferenceLookupHelper(JCTree.JCMemberReference referenceTree, Name name, Type site, List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
@@ -96,16 +98,22 @@ public class ZrResolve extends Resolve {
             }
 
             Symbol method2 = findMethod2(env, oSite, name, argtypes, typeargtypes, method, phase.isBoxingRequired(), phase.isVarargsRequired(), true, true);
-            if (!methodSymbolEnable(method2)) method2 = method;
-            return method2;
+            if (!methodSymbolEnable(method2)) {
+                isExMethod = false;
+                return method;
+            } else {
+                isExMethod = true;
+                return method2;
+            }
         }
+
 
         @Override
         ReferenceLookupHelper unboundLookup(Infer.InferenceContext inferenceContext) {
-            if (TreeInfo.isStaticSelector(referenceTree.expr, names)) {
+            if (isExMethod && TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 if (argtypes.nonEmpty() && (argtypes.head.hasTag(NONE) ||
                         types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), oSite))) {
-                    return new ZrMethodReferenceLookupHelper(referenceTree, name, oSite, argtypes, typeargtypes, maxPhase);
+                    return this;
                 }
             }
             return helper.unboundLookup(inferenceContext);

@@ -8,9 +8,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import zircon.ExMethod;
+import zircon.example.ExReflection;
 
 public class TestExMethod {
     static List<String> methodNames = new ArrayList<>();
@@ -252,18 +255,21 @@ public class TestExMethod {
         vkHashMap.put(vk, vk2);
         return vkHashMap;
     }
+
     @ExMethod
     public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV(HashMap<M, N> list, Class<M> key, Class<N> value, Class<V> vk, Class<K> vk2) {
         methodNames.add("hashMapRClassMapV(h,m,n,v");
         final HashMap<V, K> vkHashMap = new HashMap<>();
         return vkHashMap;
     }
+
     @ExMethod
     public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV2(HashMap<?, N> list, Class<M> key, Class<?> value, Class<V> vk, Class<K> vk2) {
         methodNames.add("hashMapRClassMapV2(h,m,n,v");
         final HashMap<V, K> vkHashMap = new HashMap<>();
         return vkHashMap;
     }
+
     @ExMethod
     public static <M, N, V, K> HashMap<V, K> hashMapRClassMapV3(HashMap<?, N> list, Class<?> key, Class<N> value, Class<V> vk, Class<K> vk2) {
         methodNames.add("hashMapRClassMapV3(h,m,n,v");
@@ -282,8 +288,9 @@ public class TestExMethod {
         methodNames.add("toInteger2(s");
         return Integer.parseInt(integer);
     }
+
     @ExMethod
-    public static Integer toInteger2(String integer,String str2) {
+    public static Integer toInteger2(String integer, String str2) {
         methodNames.add("toInteger2(s,s2");
         return Integer.parseInt(integer);
     }
@@ -298,6 +305,7 @@ public class TestExMethod {
         methodNames.add("isBlank(s");
         return str == null || str.length() == 0;
     }
+
     @ExMethod
     public static <T> T nullOr2(T obj, T or) {
         return obj == null ? or : obj;
@@ -308,27 +316,45 @@ public class TestExMethod {
     public static <T> T testGenericTransformMethod(List<T> param1, T param2) {
         return param1.get(0);
     }
+
     @ExMethod
     public static <E> E testGenericTransformMethod2(List<E> param1, E param2) {
         return param1.get(0);
     }
 
     @ExMethod
-    public static <T,R> R testGenericTransformMethod(HashMap<T,R> param1, T param2) {
+    public static <T, R> R testGenericTransformMethod(HashMap<T, R> param1, T param2) {
         return param1.get(param2);
     }
+
     @ExMethod
-    public static <T,R> Set<T> testGenericTransformMethodRSet(HashMap<T,R> param1, T param2) {
+    public static <T, R> Set<T> testGenericTransformMethodRSet(HashMap<T, R> param1, T param2) {
         return param1.keySet();
     }
+
     @ExMethod
-    public static <T,R> Set<T> testGenericTransformMethodRSet(HashMap<T,R> param1, List<T> param2) {
+    public static <T, R> Set<T> testGenericTransformMethodRSet(HashMap<T, R> param1, List<T> param2) {
         final Set<T> ts = new HashSet<>(param1.keySet());
         ts.addAll(param2);
         return ts;
     }
+
+    @ExMethod(ex = Arrays.class, cover = true)
+    public static <T> IntStream stream(int[] array) {
+        if (array == null) return null;
+        return Arrays.stream(array, 0, array.length);
+    }
+
+
+    @ExMethod(cover = true)
+    public static <T> IntStream map(IntStream intStream, IntUnaryOperator operator) {
+        if (intStream == null) return null;
+        if (operator == null) return null;
+        return intStream.reflectionInvokeMethod("map", operator);
+    }
+
     @ExMethod
-    public static <K,R> Set<K> testGenericTransformMethodRSet2(HashMap<K,R> param1, List<K> param2) {
+    public static <K, R> Set<K> testGenericTransformMethodRSet2(HashMap<K, R> param1, List<K> param2) {
         final Set<K> ts = new HashSet<>(param1.keySet());
         ts.addAll(param2);
         return ts;
@@ -366,6 +392,13 @@ public class TestExMethod {
 
     public static class ChildClass extends FatherClass {
         public static void oSameNameExtendClass() {
+        }
+    }
+    public static class ChildClass2 extends FatherClass {
+        public static void oSameNameExtendClass() {
+        }
+        public  String testExtendClass() {
+            return "testExtendClass";
         }
     }
 
