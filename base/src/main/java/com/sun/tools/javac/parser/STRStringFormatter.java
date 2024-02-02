@@ -10,7 +10,6 @@ public class STRStringFormatter extends SStringFormatter {
 
     @Override
     public ZrStringModel build(String text) {
-        System.err.println(text);
         ZrStringModel model = new ZrStringModel();
         model.setFormatter(this);
         List<StringRange> list = model.getList();
@@ -67,7 +66,6 @@ public class STRStringFormatter extends SStringFormatter {
         }
         model.setOriginalString(text);
         model.setEndQuoteIndex(text.length() - 1);
-        System.err.println(model);
         return model;
     }
 

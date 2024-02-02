@@ -10,10 +10,8 @@ import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
 import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public class ZrAttr extends Attr {
     private final Context context;
@@ -56,6 +54,7 @@ public class ZrAttr extends Attr {
 
         return zrAttr;
     }
+
 
     @Override
     public void visitVarDef(JCTree.JCVariableDecl that) {
@@ -152,11 +151,7 @@ public class ZrAttr extends Attr {
             return f.get(obj);
         } catch (Exception e) {
             throw new RuntimeException(e);
-
         }
-    }
-    public static <T> Stream<T> flat(Stream<List<T>> stream) {
-        return stream.flatMap(Collection::stream);
     }
 
     public static void set(Object obj, String field, Object val) {

@@ -490,9 +490,15 @@ public class TestExMethodImpl {
                 () -> {
                     nullStr.nullOr("test").let2(a -> a.length());
                     "test".findTestById(123).testStaticMethod();
-                    "test".findTestById(123).let2((TestExMethod.FatherClass a) -> {
+//                    "test".findTestById(123).let2((a) -> {
+//                        a.testStaticMethod();
+//                    });
+                    "test".findTestById(123).let3(new TestExMethod.ChildClass2(), (a) -> {
                         a.testStaticMethod();
                     });
+//                    "test".findTestById(123).let4("123", (a) -> {
+//                        a.testStaticMethod();
+//                    },a->a.toInt());
                 });
         checkMethodInvokes(
                 () -> {
@@ -604,6 +610,28 @@ public class TestExMethodImpl {
 
     @ExMethod
     public static <T> T let2(T obj, ThrowConsumer<? super T> supplier) {
+        if (obj == null) return null;
+        try {
+            supplier.accept(obj);
+            return obj;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @ExMethod
+    public static <T> T let3(T obj, T obj2, ThrowConsumer<? super T> supplier) {
+        if (obj == null) return null;
+        try {
+            supplier.accept(obj);
+            return obj;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @ExMethod
+    public static <T, M> T let4(T obj, M m, ThrowConsumer<? super T> supplier, ThrowConsumer<? super M> supplier2) {
         if (obj == null) return null;
         try {
             supplier.accept(obj);

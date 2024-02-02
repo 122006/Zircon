@@ -112,15 +112,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 startIndex++;
             }
 
-            if (startIndex >= getReaderBuflen() - 1) return super.readToken();
             String usePrefix = null;
 
             for (String prefix : getPrefixes()) {
-                int endIndex = startIndex + prefix.length();
+                final int length = prefix.length();
+                int endIndex = startIndex + length;
+                if (startIndex >= getReaderBuflen() - length) return super.readToken();
                 if (charAt(endIndex) == '"' && subChars(startIndex, endIndex).equals(prefix)) {
                     usePrefix = prefix;
                 }
-
             }
 
             if (usePrefix == null) return super.readToken();
