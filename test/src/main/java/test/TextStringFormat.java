@@ -21,11 +21,11 @@ public class TextStringFormat {
             String will = "tes";
             assertEquals(test, will);
         }
-//        {
-//            String test = STR."testSTR\{"123".toInt()}";
-//            String will = "testSTR123";
-//            assertEquals(test, will);
-//        }
+        {
+            String test = STR."testSTR\{"123".toInt()}";
+            String will = "testSTR123";
+            assertEquals(test, will);
+        }
         {
             String add = "test";
             String test = f"fwe ${add}";

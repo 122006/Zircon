@@ -13,10 +13,17 @@ public interface Formatter {
     List<String> PREFIXES = new ArrayList<>();
 
     static List<String> getAllFormattersClazz() {
-        List<String> clazzList=new ArrayList<>();
+        List<String> clazzList = new ArrayList<>();
         clazzList.add("com.sun.tools.javac.parser.SStringFormatter");
         clazzList.add("com.sun.tools.javac.parser.FStringFormatter");
+        if (!javaVersionUpper(21))
+            clazzList.add("com.sun.tools.javac.parser.STRStringFormatter");
         return clazzList;
+    }
+
+    public static boolean javaVersionUpper(int versionCode) {
+        final String version = System.getProperty("java.version");
+        return Integer.parseInt(version.split("\\.")[0]) >= versionCode;
     }
 
     @SuppressWarnings("unchecked")
@@ -55,7 +62,6 @@ public interface Formatter {
     }
 
     public String prefix();
-
 
     public String printOut(List<StringRange> build, String text);
 
