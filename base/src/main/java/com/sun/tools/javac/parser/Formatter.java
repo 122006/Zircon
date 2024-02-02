@@ -16,7 +16,6 @@ public interface Formatter {
         List<String> clazzList=new ArrayList<>();
         clazzList.add("com.sun.tools.javac.parser.SStringFormatter");
         clazzList.add("com.sun.tools.javac.parser.FStringFormatter");
-        clazzList.add("com.sun.tools.javac.parser.STRStringFormatter");
         return clazzList;
     }
 
