@@ -10,7 +10,6 @@ import com.intellij.codeInspection.dataFlow.CommonDataflow;
 import com.intellij.codeInspection.dataFlow.TypeConstraint;
 import com.intellij.codeInspection.util.IntentionFamilyName;
 import com.intellij.codeInspection.util.IntentionName;
-import com.intellij.formatting.service.FormattingServiceUtil;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -60,6 +59,7 @@ import com.intellij.psi.PsiReferenceExpression;
 import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeElement;
 import com.intellij.psi.PsiWhiteSpace;
+import com.intellij.psi.impl.source.codeStyle.CodeStyleManagerImpl;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -222,7 +222,7 @@ public class ZrAnnotator implements Annotator {
                                   if (file != null) {
                                       ImportUtils.addImportIfNeeded(containingClass, file);
                                   }
-                                  FormattingServiceUtil.formatElement(element, false);
+                                  CodeStyleManagerImpl.getInstance(project).reformat(element);
                               }
 //                            });
                           }
@@ -347,7 +347,7 @@ public class ZrAnnotator implements Annotator {
                           try {
                               method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
                               ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                              FormattingServiceUtil.formatElement(method.getContainingFile(), false);
+                              CodeStyleManagerImpl.getInstance(project).reformat(method.getContainingFile());
                           } catch (Exception e) {
                               e.printStackTrace();
                           }

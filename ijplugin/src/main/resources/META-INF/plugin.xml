@@ -41,7 +41,7 @@
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
     <change-notes><![CDATA[
-        support 'extension method'<p>v3.2: Fix compatibility issues in idea2023.3 version</p>
+        support 'extension method'<p>v3.4: Strengthening the support of automatic completion function for proxy class generics</p>
         ]]></change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
