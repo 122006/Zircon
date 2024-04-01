@@ -95,6 +95,8 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         List<PsiType> targetType = new ArrayList<>();
         boolean isStatic = false;
         boolean cover = false;
+
+        boolean innerInvoker = false;
         String name;
         PsiMethod method;
     }

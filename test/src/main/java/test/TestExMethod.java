@@ -2,6 +2,7 @@ package test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -394,10 +395,12 @@ public class TestExMethod {
         public static void oSameNameExtendClass() {
         }
     }
+
     public static class ChildClass2 extends FatherClass {
         public static void oSameNameExtendClass() {
         }
-        public  String testExtendClass() {
+
+        public String testExtendClass() {
             return "testExtendClass";
         }
     }
@@ -466,5 +469,27 @@ public class TestExMethod {
             errorSave.add(assertionError.getMessage() + "\n" + assertionError.getStackTrace()[1]);
         }
     }
+
+    @ExMethod
+    public static <E> List<E> flatTest(Collection<List<E>> collection) {
+        if (collection == null) return null;
+        List<E> list = new ArrayList<E>();
+        for (List<E> e : collection) {
+            list.addAll(e);
+        }
+        return list;
+    }
+
+    @ExMethod
+    public static <E, M extends List<E>> List<E> flatTest2(Collection<M> collection) {
+        if (collection == null) return null;
+        List<E> list = new ArrayList<E>();
+        for (List<E> e : collection) {
+            list.addAll(e);
+        }
+        return list;
+    }
+
+
 
 }

@@ -79,7 +79,7 @@ public class TestExMethodImpl {
                 () -> {
                     String[] strs = {"123"};
                     return strs.emptyStringArrayRStringArray().emptyStringArrayRStringArray1()
-                               .emptyStringArrayRStringArray2();
+                            .emptyStringArrayRStringArray2();
                 }, () -> {
                     String[] strs = {"123"};
                     return TestExMethod.emptyStringArrayRStringArray2(TestExMethod.emptyStringArrayRStringArray1(TestExMethod.emptyStringArrayRStringArray(strs)));
@@ -557,10 +557,12 @@ public class TestExMethodImpl {
         );
         Class<?>[] classes = Stream.of(String.class, Integer.class).map(Object::getClass).toArray(Class<?>[]::new);
         Boolean[] classesNames = Stream.of(String.class, Integer.class).map(Object::getClass).map(String::valueOf)
-                                       .map(String::isEmpty).toArray(Boolean[]::new);
+                .map(String::isEmpty).toArray(Boolean[]::new);
         final Runnable runnable = () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
             a.length();
         }));
+        final List<Integer> integers2 = new ArrayList<ArrayList<Integer>>().flatTest();
+        final List<Integer> integers1 = new ArrayList<List<Integer>>().flatTest();
         checkMethodInvokes(
                 () -> {
                     hashMap.keySet().findAll($throw((ThrowPredicate<String>) a -> {
@@ -589,7 +591,15 @@ public class TestExMethodImpl {
         forEachPair(pairs, (a, b) -> {
             a.notNull();
         });
+        List<String> flat = list.flat();
+        List<String> flat4 = list.flatTest2();
         testEnd();
+    }
+
+    public void expectedCompileFail() {
+        ArrayList<ArrayList<String>> list = new ArrayList<>();
+        List<String> flat2 = list.flatTest();
+        List<String> flat3 = new ArrayList<>().flat();
     }
 
     public <M> M self(M t) {

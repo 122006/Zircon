@@ -196,9 +196,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件3.4
+### idea插件3.5
 
-1. 强化自动补全功能对代理类泛型的支持
+1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -256,6 +256,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件3.3
 
 1. 修复部分问题
+
+### idea插件3.4
+
+1. 强化自动补全功能对代理类泛型的支持
 
 </details>
 
