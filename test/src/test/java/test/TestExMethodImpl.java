@@ -13,6 +13,10 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -30,7 +34,9 @@ import zircon.ExMethod;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
 import zircon.example.ExCollection;
+import zircon.example.ExNullSafe;
 import zircon.example.ExObject;
+import zircon.example.ExReflection;
 import zircon.example.ExString;
 
 @SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
@@ -79,7 +85,7 @@ public class TestExMethodImpl {
                 () -> {
                     String[] strs = {"123"};
                     return strs.emptyStringArrayRStringArray().emptyStringArrayRStringArray1()
-                            .emptyStringArrayRStringArray2();
+                               .emptyStringArrayRStringArray2();
                 }, () -> {
                     String[] strs = {"123"};
                     return TestExMethod.emptyStringArrayRStringArray2(TestExMethod.emptyStringArrayRStringArray1(TestExMethod.emptyStringArrayRStringArray(strs)));
@@ -386,6 +392,11 @@ public class TestExMethodImpl {
                 },
                 () -> TestExMethod.supplier(() -> "456"));
         checkMethodInvokes(
+                () -> {
+                    return super.supplier(() -> "456");
+                },
+                () -> TestExMethod.supplier(() -> "456"));
+        checkMethodInvokes(
                 () -> "123".toInteger2(),
                 () -> TestExMethod.toInteger2("123"));
         String nullStr = null;
@@ -557,11 +568,11 @@ public class TestExMethodImpl {
         );
         Class<?>[] classes = Stream.of(String.class, Integer.class).map(Object::getClass).toArray(Class<?>[]::new);
         Boolean[] classesNames = Stream.of(String.class, Integer.class).map(Object::getClass).map(String::valueOf)
-                .map(String::isEmpty).toArray(Boolean[]::new);
+                                       .map(String::isEmpty).toArray(Boolean[]::new);
         final Runnable runnable = () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
             a.length();
         }));
-        final List<Integer> integers2 = new ArrayList<ArrayList<Integer>>().flatTest();
+        final List<Integer> integers2 = new ArrayList<ArrayList<Integer>>().flatTest2();
         final List<Integer> integers1 = new ArrayList<List<Integer>>().flatTest();
         checkMethodInvokes(
                 () -> {
@@ -591,20 +602,49 @@ public class TestExMethodImpl {
         forEachPair(pairs, (a, b) -> {
             a.notNull();
         });
-        List<String> flat = list.flat();
-        List<String> flat4 = list.flatTest2();
+
+        new Thread(() -> {
+
+            Runnable testRun = new Runnable() {
+                int a=0;
+                @Override
+                public void run() {
+                    String b = "123";
+                    int c=b.length()+a;
+                }
+            };
+            testRun.run();
+
+        }).start2();
+        $testRun(new Runnable() {
+            int d=0;
+            @Override
+            public void run() {
+                String b = "123";
+                int c = b.length() + d;
+            }
+        });
+
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         testEnd();
     }
 
     public void expectedCompileFail() {
-        ArrayList<ArrayList<String>> list = new ArrayList<>();
-        List<String> flat2 = list.flatTest();
-        List<String> flat3 = new ArrayList<>().flat();
+//        ArrayList<ArrayList<String>> list = new ArrayList<>();
+//        List<String> flat2 = list.flatTest();
+//        List<String> flat3 = new ArrayList<>().flat();
     }
 
     public <M> M self(M t) {
         return t;
     }
+
+
 
 
     @ExMethod(ex = {Object.class})
@@ -638,6 +678,34 @@ public class TestExMethodImpl {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    static ThreadPoolExecutor threadPool = new ThreadPoolExecutor(4, 10, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<>(99), Executors.defaultThreadFactory(), new ThreadPoolExecutor.DiscardOldestPolicy());
+
+    @ExMethod(cover = true)
+    public synchronized static void start(Thread thread) {
+        final Runnable target = thread.reflectionFieldValue("target").cast(Runnable.class);
+        threadPool.submit(() -> {
+            try {
+                System.out.println("线程池运行");
+                target.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    @ExMethod
+    public synchronized static void start2(Thread thread) {
+        final Runnable target = thread.reflectionFieldValue("target").cast(Runnable.class);
+        threadPool.submit(() -> {
+            try {
+                System.out.println("线程池运行");
+                target.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @ExMethod

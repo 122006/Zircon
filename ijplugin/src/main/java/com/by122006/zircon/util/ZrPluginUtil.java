@@ -78,9 +78,6 @@ public class ZrPluginUtil {
             }
             return isAssignableSite(deepComponentType, deepComponentType2, parameters, allowExtend);
         }
-//        if (psiType1 instanceof PsiClassType && psiType2 instanceof PsiClassType) {
-//            return TypeConversionUtil.areTypesConvertible(psiType1, psiType2);
-//        }
         if (psiType1.equals(psiType2) || (allowExtend && TypeConversionUtil.isAssignable(psiType1, psiType2)))
             return true;
         if (psiType1 instanceof PsiClassType && psiType2 instanceof PsiClassType) {
@@ -129,17 +126,7 @@ public class ZrPluginUtil {
                 }
                 return false;
             };
-            if (predicate.test((PsiClassType) psiType2)) {
-                return true;
-            }
-//            return Arrays.stream(psiType2.getSuperTypes())
-//                         .filter(PsiType::isValid)
-//                         .filter(nType2 -> !PsiTypesUtil.compareTypes(nType2, erasure1,true))
-//                         .filter(nType2 -> nType2 instanceof PsiClassType && TypeConversionUtil.isAssignable(erasure1, nType2))
-//                         .map(PsiClassType.class::cast)
-//                         .anyMatch(predicate);
-
-
+            return predicate.test((PsiClassType) psiType2);
         }
         return false;
     }

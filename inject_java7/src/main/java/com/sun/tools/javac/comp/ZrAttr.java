@@ -1,23 +1,26 @@
 package com.sun.tools.javac.comp;
 
+import static com.sun.tools.javac.code.TypeTag.VOID;
+
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Kinds;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.TypeAnnotations;
+import com.sun.tools.javac.code.TypeTag;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.Log;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 
 import java.util.Objects;
 import java.util.Optional;
-
-import static com.sun.tools.javac.code.Flags.*;
-import static com.sun.tools.javac.code.TypeTag.*;
 
 public class ZrAttr extends Attr {
     private final Context context;
@@ -59,17 +62,31 @@ public class ZrAttr extends Attr {
         }
     }
 
+
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
-        try {
+        Name methName = TreeInfo.name(that.meth);
+        boolean isConstructorCall = methName == this.names._this || methName == this.names._super;
+        if (isConstructorCall) {
             super.visitApply(that);
+        } else
+            visitNoConstructorApply(that);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void visitNoConstructorApply(JCTree.JCMethodInvocation that) {
+        Env<AttrContext> localEnv = this.env.dup(that, ((AttrContext) this.env.info).dup());
+        Name methName = TreeInfo.name(that.meth);
+        ListBuffer<Type> argtypesBuf = new ListBuffer();
+        int kind;
+        try {
+            kind = this.attribArgs(Kinds.VAL, that.args, localEnv, argtypesBuf);
         } catch (ZrResolve.NeedReplaceLambda needReplaceLambda) {
-            List<JCTree.JCExpression> arguments = that.getArguments();
             List<JCTree.JCExpression> newList = List.nil();
-            for (int i = 0; i < arguments.size(); i++) {
-                JCTree.JCExpression argument = arguments.get(i);
+            for (int i = 0; i < that.args.size(); i++) {
+                JCTree.JCExpression argument = that.args.get(i);
                 while (argument instanceof JCTree.JCParens) {
-                    argument=((JCTree.JCParens) argument).getExpression();
+                    argument = ((JCTree.JCParens) argument).getExpression();
                 }
                 if (Objects.equals(argument.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                     newList = newList.append(needReplaceLambda.bestSoFar);
@@ -78,24 +95,33 @@ public class ZrAttr extends Attr {
                 }
             }
             that.args = newList;
-            super.visitApply(that);
+            kind = this.attribArgs(Kinds.VAL, that.args, localEnv, argtypesBuf);
+        }
+        List argtypes = argtypesBuf.toList();
+        List<Type> typeargtypes = this.attribAnyTypes(that.typeargs, localEnv);
+        final Type pt = this.resultInfo.pt;
+        Type site = this.newMethodTemplate(pt, argtypes, typeargtypes);
+        Type encl;
+        try {
+            encl = this.attribTree(that.meth, localEnv, new ResultInfo(kind, site, this.resultInfo.checkContext));
         } catch (ZrResolve.NeedRedirectMethod redirectMethod) {
             final JCTree.JCMethodInvocation oldTree = make.Apply(that.typeargs, that.meth, that.args);
-
             final Symbol bestSoFar = redirectMethod.bestSoFar;
-            if (bestSoFar.owner == null) {
-                System.err.println(bestSoFar);
-                System.err.println(bestSoFar.owner);
-            }
             final JCTree.JCFieldAccess add = make.Select(make.Ident(bestSoFar.owner), bestSoFar.name);
             final List<Attribute.Class> methodStaticExType = ZrResolve.getMethodStaticExType(names, (Symbol.MethodSymbol) bestSoFar);
             if (methodStaticExType.isEmpty()) {
                 if (that.meth instanceof JCTree.JCFieldAccess) {
-                    that.args = that.args.prepend(((JCTree.JCFieldAccess) that.meth).selected);
+                    final JCTree.JCExpression prepend = ((JCTree.JCFieldAccess) that.meth).selected;
+                    that.args = that.args.prepend(prepend);
+                    argtypes = argtypes.prepend(prepend.type);
                 } else if (that.meth instanceof JCTree.JCIdent) {
-                    that.args = that.args.prepend(make.Ident(names._this));
+                    final Type enclClassType = localEnv.enclClass.type;
+                    final JCTree.JCExpression ident = make.This(enclClassType);
+                    that.args = that.args.prepend(ident);
+                    argtypes = argtypes.prepend(ident.type);
                 }
             }
+            site = this.newMethodTemplate(pt, argtypes, typeargtypes);
             JCTree.JCExpression oldMeth = that.meth;
             that.meth = add;
             that.type = redirectMethod.bestSoFar.type;
@@ -103,7 +129,9 @@ public class ZrAttr extends Attr {
                 final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) oldMeth).selected;
                 final boolean staticInvoke = selected.hasTag(JCTree.Tag.IDENT) || TreeInfo.isStaticSelector(selected, names);
                 if (!staticInvoke) {
-                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs).findRedirectMethod(bestSoFar.getSimpleName(),false).stream().filter(a -> a.methodSymbol == bestSoFar)
+                    final Optional<ZrResolve.ExMethodInfo> first = ((ZrResolve) rs)
+                            .findRedirectMethod(bestSoFar.getSimpleName(), false).stream()
+                            .filter(a -> a.methodSymbol == bestSoFar)
                             .findFirst();
                     if (first.isPresent()) {
                         if (first.get().isStatic) {
@@ -122,14 +150,26 @@ public class ZrAttr extends Attr {
                                 that.typeargs = List.nil();
                                 that.meth = and;
                                 that.args = List.of(selected, copy);
-                                super.visitApply(that);
+                                this.visitApply(that);
                                 return;
                             }
                         }
                     }
                 }
             }
-            super.visitApply(that);
+            encl = this.attribTree(that.meth, localEnv, new ResultInfo(kind, site, this.resultInfo.checkContext));
+//            System.out.println("==============\n" + oldTree + "=>\n" + that);
         }
+
+        Type restype = encl.getReturnType();
+        if (restype.hasTag(TypeTag.WILDCARD)) {
+            throw new AssertionError(encl);
+        }
+        Type qualifier = that.meth.hasTag(JCTree.Tag.SELECT) ? ((JCTree.JCFieldAccess) that.meth).selected.type : this.env.enclClass.sym.type;
+        restype = this.adjustMethodReturnType(qualifier, methName, argtypes, restype);
+        this.chk.checkRefTypes(that.typeargs, typeargtypes);
+        this.result = this.check(that, this.types.capture(restype), Kinds.VAL, this.resultInfo);
+        this.chk.validate(that.typeargs, localEnv);
+
     }
 }

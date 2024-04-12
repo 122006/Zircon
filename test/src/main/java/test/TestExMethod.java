@@ -18,7 +18,10 @@ import zircon.example.ExReflection;
 
 public class TestExMethod {
     static List<String> methodNames = new ArrayList<>();
-
+    @ExMethod(ex = {Object.class})
+    public static <T> void $testRun(Runnable action) {
+        action.run();
+    }
     @ExMethod
     public static void emptyStringRVoid(String str) {
         methodNames.add("emptyStringRVoid(String");
