@@ -50,7 +50,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.1.8'
+        classpath 'com.github.122006.Zircon:gradle:3.1.9'
     }
 }
 ````
@@ -63,21 +63,16 @@ Step 2.在需要使用插件的module的`build.gradle`首行引入插件`apply p
 <details>
   <summary>使用Maven构建项目(点击展开)</summary>
 Step 1. 增加依赖
-
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.1.8</version>
-        </dependency>
-	    <dependency>
-            <groupId>com.github.122006.Zircon</groupId>
-            <artifactId>base</artifactId>
-            <version>3.1.8</version>
+            <version>3.1.9</version>
+            <scope>provied</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.1.8</version>
+            <version>3.1.9</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -146,9 +141,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.8
+### v3.1.9
 
-1. 修复idea中使用Maven构建项目build错误的问题
+1. 重用已解析的参数类型提高编译速度。
+2. 修复罕见情况下的多层匿名类指向错误的问题
 
 <details>
   <summary>历史依赖更新</summary>
@@ -193,6 +189,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 修复一个特殊情况下与已有方法同名异参的会解析错误问题
 2. 修复强制覆盖原有实现方法时，使用方法引用会提示引用重复的问题
+
+### v3.1.8
+
+1. 修复idea中使用Maven构建项目build错误的问题
 
 </details>
 
