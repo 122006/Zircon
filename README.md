@@ -63,6 +63,7 @@ Step 2.在需要使用插件的module的`build.gradle`首行引入插件`apply p
 <details>
   <summary>使用Maven构建项目(点击展开)</summary>
 Step 1. 增加依赖
+
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
