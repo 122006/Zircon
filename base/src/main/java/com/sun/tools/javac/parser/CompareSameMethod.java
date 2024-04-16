@@ -8,8 +8,8 @@ public class CompareSameMethod {
         String[] split = env.nowClassName.split("\\.");
         for (int i = 0; i < split.length; i++) {
             String s = split[i];
-            final boolean equals1 = methodOwnerClassNameInfo1[i].equals(s);
-            final boolean equals2 = methodOwnerClassNameInfo2[i].equals(s);
+            final boolean equals1 = methodOwnerClassNameInfo1.length > i && methodOwnerClassNameInfo1[i].equals(s);
+            final boolean equals2 = methodOwnerClassNameInfo2.length > i && methodOwnerClassNameInfo2[i].equals(s);
             if (equals1 && equals2) {
                 continue;
             }
