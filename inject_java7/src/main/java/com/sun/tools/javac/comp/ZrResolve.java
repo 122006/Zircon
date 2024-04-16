@@ -164,6 +164,9 @@ public class ZrResolve extends Resolve {
 
     @Override
     Symbol resolveQualifiedMethod(JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
+        if (pos==null){
+            return super.resolveQualifiedMethod(pos, env, location, site, name, argtypes, typeargtypes);
+        }
         return resolveQualifiedMethod(new MethodResolutionContext(), pos, env, location, site, name, argtypes, typeargtypes);
     }
 

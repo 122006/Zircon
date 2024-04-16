@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,10 +35,12 @@ import zircon.ExMethod;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
 import zircon.example.ExCollection;
-import zircon.example.ExNullSafe;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;
 import zircon.example.ExString;
+import test.child.ChildExMethod;
+import test.NearExMethod;
+
 
 @SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
 public class TestExMethodImpl {
@@ -584,9 +587,17 @@ public class TestExMethodImpl {
                     return true;
                 }))
         );
+        checkMethodInvokes(
+                () -> {
+                    "123".testSameMethod1(Integer.valueOf(1), "");
+                },
+                () -> {
+                    NearExMethod.testSameMethod1("123", Integer.valueOf(1), "");
+                });
         Function<String, ? extends Number> findByString = string -> {
             return string.toInt();
         };
+
         checkMethodInvokes(
                 () -> {
                     return findByString.apply("123").convert(re -> {
@@ -594,6 +605,12 @@ public class TestExMethodImpl {
                     });
                 },
                 () -> 123
+        );
+        checkMethodInvokes(
+                () -> {
+                    return "123".toLongValue();
+                },
+                () -> toLongValue("123")
         );
         ArrayList<Pair<Integer, String>> pairs = new ArrayList<>();
         final ArrayList<Integer> singleList = new ArrayList<>();
@@ -606,18 +623,20 @@ public class TestExMethodImpl {
         new Thread(() -> {
 
             Runnable testRun = new Runnable() {
-                int a=0;
+                int a = 0;
+
                 @Override
                 public void run() {
                     String b = "123";
-                    int c=b.length()+a;
+                    int c = b.length() + a;
                 }
             };
             testRun.run();
 
         }).start2();
         $testRun(new Runnable() {
-            int d=0;
+            int d = 0;
+
             @Override
             public void run() {
                 String b = "123";
@@ -631,13 +650,25 @@ public class TestExMethodImpl {
             throw new RuntimeException(e);
         }
 
+
+        nullStr.equals("123");
+
         testEnd();
+
+    }
+
+    @ExMethod
+    public static long toLongValue(String str) {
+        if (str == null) return 0;
+        TestExMethod.methodNames.add("toLongValue");
+        return Long.parseLong(str);
     }
 
     public void expectedCompileFail() {
 //        ArrayList<ArrayList<String>> list = new ArrayList<>();
 //        List<String> flat2 = list.flatTest();
 //        List<String> flat3 = new ArrayList<>().flat();
+        final TestM<TData> getA = (TData::getA);
     }
 
     public <M> M self(M t) {
@@ -645,7 +676,17 @@ public class TestExMethodImpl {
     }
 
 
+    static interface TestM<T> extends Serializable {
+        Object get(T source) throws Exception;
+    }
 
+    static class TData {
+        String a = "123";
+
+        public String getA() {
+            return a;
+        }
+    }
 
     @ExMethod(ex = {Object.class})
     public static <T> Consumer<T> $throw2(ThrowConsumer<T> action) {

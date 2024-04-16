@@ -3,6 +3,7 @@ package com.sun.tools.javac.comp;
 import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.parser.CompareSameMethod;
 import com.sun.tools.javac.util.List;
 
 import java.util.ArrayList;
@@ -14,19 +15,29 @@ public class ZrResolveEx {
 
         java.util.List<List> newResult = new ArrayList<>();
         Symbol lastMethodSymbol = zrResolve.methodNotFound;
+        java.util.List<ZrResolve.ExMethodInfo> sortList = new ArrayList<>(methodSymbolList);
+        sortList.sort((a1, a2) -> {
+            final CompareSameMethod.MethodInfo<ZrResolve.ExMethodInfo> info1 = CompareSameMethod.MethodInfo.create(a1.methodSymbol.owner
+                    .getQualifiedName().toString(), a1);
+            final CompareSameMethod.MethodInfo<ZrResolve.ExMethodInfo> info2 = CompareSameMethod.MethodInfo.create(a2.methodSymbol.owner
+                    .getQualifiedName().toString(), a2);
+            return CompareSameMethod.compare(CompareSameMethod.CompareEnv.create(env.enclClass.sym
+                    .getQualifiedName()
+                    .toString()), info1, info2);
+        });
         exInfo:
-        for (ZrResolve.ExMethodInfo methodInfo : methodSymbolList) {
+        for (ZrResolve.ExMethodInfo methodInfo : sortList) {
             List<Type> newArgTypes = argtypes;
             if (!methodInfo.isStatic) {
                 Type type = methodInfo.methodSymbol.getParameters().head.type.baseType();
                 type = zrResolve.types.erasure(type);
 
                 if (!memberReference) newArgTypes = newArgTypes.prepend(site);
-                final Symbol best = zrResolve.selectBest(env, type, newArgTypes, typeargtypes, methodInfo.methodSymbol, lastMethodSymbol, allowBoxing, useVarargs, operator);
+                final Symbol best = zrResolve.selectBest(env, type, newArgTypes, typeargtypes, methodInfo.methodSymbol, zrResolve.methodNotFound, allowBoxing, useVarargs, operator);
                 if (best == methodInfo.methodSymbol && best instanceof Symbol.MethodSymbol) {
                     lastMethodSymbol = methodInfo.methodSymbol;
-                    newResult.add(List.of(methodInfo.methodSymbol.owner.type, methodInfo));
-                    break;
+                    newResult.add(List.of(type, methodInfo));
+                    continue;
                 } else {
                     lastMethodSymbol = best;
                 }
@@ -35,11 +46,11 @@ public class ZrResolveEx {
                     final Type type = clazz.classType.baseType();
                     final boolean sameType = type.equals(site);
                     if (sameType || zrResolve.types.isAssignable(site, type)) {
-                        final Symbol best = zrResolve.selectBest(env, type, argtypes, typeargtypes, methodInfo.methodSymbol, lastMethodSymbol, allowBoxing, useVarargs, operator);
+                        final Symbol best = zrResolve.selectBest(env, type, argtypes, typeargtypes, methodInfo.methodSymbol, zrResolve.methodNotFound, allowBoxing, useVarargs, operator);
                         if (best == methodInfo.methodSymbol && best instanceof Symbol.MethodSymbol) {
                             lastMethodSymbol = methodInfo.methodSymbol;
-                            newResult.add(List.of(methodInfo.methodSymbol.owner.type, methodInfo));
-                            break exInfo;
+                            newResult.add(List.of(type, methodInfo));
+                            continue exInfo;
                         } else {
                             lastMethodSymbol = best;
                         }
@@ -87,7 +98,7 @@ public class ZrResolveEx {
             finalMethodSymbol.stream().skip(2).forEach(info -> ambiguityError.addAmbiguousSymbol(info.methodSymbol));
             return ambiguityError;
         } else {
-            return finalMethodSymbol.head.methodSymbol;
+            return finalMethodSymbol.last().methodSymbol;
         }
     }
 

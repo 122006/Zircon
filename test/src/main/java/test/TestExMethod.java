@@ -17,7 +17,7 @@ import zircon.ExMethod;
 import zircon.example.ExReflection;
 
 public class TestExMethod {
-    static List<String> methodNames = new ArrayList<>();
+    public static List<String> methodNames = new ArrayList<>();
     @ExMethod(ex = {Object.class})
     public static <T> void $testRun(Runnable action) {
         action.run();

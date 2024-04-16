@@ -142,10 +142,11 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.1.9
+### v3.2.0
 
 1. 重用已解析的参数类型提高编译速度。
 2. 修复罕见情况下的多层匿名类指向错误的问题
+3. 现在如果存在多个匹配的拓展方法实现，会自动使用路径最相近的实现
 
 <details>
   <summary>历史依赖更新</summary>
