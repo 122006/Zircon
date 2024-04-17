@@ -18,10 +18,12 @@ import zircon.example.ExReflection;
 
 public class TestExMethod {
     public static List<String> methodNames = new ArrayList<>();
+
     @ExMethod(ex = {Object.class})
     public static <T> void $testRun(Runnable action) {
         action.run();
     }
+
     @ExMethod
     public static void emptyStringRVoid(String str) {
         methodNames.add("emptyStringRVoid(String");
@@ -31,6 +33,11 @@ public class TestExMethod {
     public static String emptyStringRString(String str) {
         methodNames.add("emptyStringRString(String");
         return str;
+    }
+
+    @ExMethod(cover = true)
+    public static boolean equals(Object obj1, Object obj2) {
+        return Objects.equals(obj1, obj2);
     }
 
     @ExMethod
@@ -492,7 +499,6 @@ public class TestExMethod {
         }
         return list;
     }
-
 
 
 }

@@ -325,7 +325,7 @@ public class ZrAnnotator implements Annotator {
         final boolean b = ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream()
                                               .noneMatch(a -> a.method.isValid() && a.method.isEquivalentTo(method));
         if (b) {
-            holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("need refresh cache")
+            holder.newSilentAnnotation(HighlightSeverity.WARNING).range(collect.get(0)).tooltip("need refresh cache")
                   .highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {
                       @Override
                       public @IntentionName @NotNull String getText() {

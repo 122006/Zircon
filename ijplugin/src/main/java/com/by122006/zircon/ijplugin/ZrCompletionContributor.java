@@ -143,6 +143,9 @@ public class ZrCompletionContributor extends CompletionContributor {
                            } else if (targetType instanceof PsiClassType) {
                                psiClass = PsiTypesUtil.getPsiClass(targetType);
                                if (targetType.equalsToText(JAVA_LANG_OBJECT)) {
+                                   if (cacheMethodInfo.isStatic && !psiType.equalsToText(JAVA_LANG_OBJECT)) {
+                                       return;
+                                   }
                                    psiClass = aClass;
                                }
                            } else {
@@ -225,7 +228,8 @@ public class ZrCompletionContributor extends CompletionContributor {
                                });
                                final PsiType returnType = method.getReturnType();
                                if (returnType != null) {
-                                   builder = builder.withTypeText(substitutor.substitute(returnType).getPresentableText());
+                                   builder = builder.withTypeText(substitutor.substitute(returnType)
+                                                                             .getPresentableText());
                                }
                                if (targetType.equals(TypeConversionUtil.erasure(psiType))) {
                                    builder = builder.bold();
@@ -234,7 +238,8 @@ public class ZrCompletionContributor extends CompletionContributor {
                                if (cacheMethodInfo.isStatic) {
                                    builder = builder.appendTailText(" static for " + targetType.getPresentableText() + " by " + name, true);
                                } else {
-                                   final PsiParameter parameter = cacheMethodInfo.method.getParameterList().getParameter(0);
+                                   final PsiParameter parameter = cacheMethodInfo.method.getParameterList()
+                                                                                        .getParameter(0);
                                    builder = builder.appendTailText(" for " + (parameter == null ? "unknown" : parameter
                                            .getType().getPresentableText()) + " by " + name, true);
                                }

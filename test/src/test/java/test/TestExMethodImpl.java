@@ -395,11 +395,6 @@ public class TestExMethodImpl {
                 },
                 () -> TestExMethod.supplier(() -> "456"));
         checkMethodInvokes(
-                () -> {
-                    return super.supplier(() -> "456");
-                },
-                () -> TestExMethod.supplier(() -> "456"));
-        checkMethodInvokes(
                 () -> "123".toInteger2(),
                 () -> TestExMethod.toInteger2("123"));
         String nullStr = null;
@@ -612,6 +607,12 @@ public class TestExMethodImpl {
                 },
                 () -> toLongValue("123")
         );
+        checkMethodInvokes(
+                () -> {
+                    return equals("123");
+                },
+                () -> TestExMethodImpl.this.equals("123")
+        );
         ArrayList<Pair<Integer, String>> pairs = new ArrayList<>();
         final ArrayList<Integer> singleList = new ArrayList<>();
 //        singleList.forEachPair((a,b) -> a.notNull()) ;
@@ -657,6 +658,13 @@ public class TestExMethodImpl {
 
     }
 
+
+    @Override
+    public boolean equals(Object obj) {
+        TestExMethod.methodNames.add("equals"+obj);
+        return super.equals(obj);
+    }
+
     @ExMethod
     public static long toLongValue(String str) {
         if (str == null) return 0;
@@ -668,6 +676,11 @@ public class TestExMethodImpl {
 //        ArrayList<ArrayList<String>> list = new ArrayList<>();
 //        List<String> flat2 = list.flatTest();
 //        List<String> flat3 = new ArrayList<>().flat();
+//        checkMethodInvokes(
+//                () -> {
+//                    return super.supplier(() -> "456");//不支持super.xx()调用
+//                },
+//                () -> TestExMethod.supplier(() -> "456"))
         final TestM<TData> getA = (TData::getA);
     }
 

@@ -66,6 +66,7 @@ import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.IncorrectOperationException;
+import com.sun.tools.javac.parser.CompareSameMethod;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -86,7 +87,10 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import zircon.ExMethod;
+import zircon.example.ExCollection;
+import zircon.example.ExStream;
 
+@SuppressWarnings("UnstableApiUsage")
 public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     private static final Logger LOG = Logger.getInstance(ZrPsiAugmentProvider.class.getName());
 
@@ -188,9 +192,9 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         final List<PsiExtensionMethod> emptyResult = Collections.emptyList();
         if (!ZrPluginUtil.hasZrPlugin(siteClass.getProject())) return emptyResult;
         if (DumbService.isDumb(context.getProject())) return emptyResult;
-        final List<CacheMethodInfo> allCacheMethodInfoList = getCachedAllMethod(siteClass.getProject()).stream()
-                                                                                                       .filter(a -> Objects.equals(a.name, nameHint))
-                                                                                                       .collect(Collectors.toList());
+        List<CacheMethodInfo> allCacheMethodInfoList = getCachedAllMethod(siteClass.getProject()).stream()
+                                                                                                 .filter(a -> Objects.equals(a.name, nameHint))
+                                                                                                 .collect(Collectors.toList());
         if (allCacheMethodInfoList.isEmpty()) return emptyResult;
         Predicate<CacheMethodInfo> predicate;
         final PsiType ownType;
@@ -242,7 +246,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             predicate = a -> true;
         }
         if (ownType == null) return emptyResult;
-        final List<CacheMethodInfo> psiMethods = allCacheMethodInfoList.stream()
+        List<CacheMethodInfo> psiMethods = allCacheMethodInfoList.stream()
                                                                        .filter(a -> !a.cover)
                                                                        .filter(predicate)
                                                                        .collect(Collectors.toList());
@@ -251,15 +255,15 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         final LanguageLevel languageLevel = PsiUtil.getLanguageLevel(siteClass);
         if (ownClass == null) return emptyResult;
         if (PsiUtil.isArrayClass(ownClass)) {
-            final List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
-                return methodInfo.targetType.stream()
-                                            .filter(type1 -> ZrPluginUtil.isAssignableSite(methodInfo.method, ownType))
+            List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
+                return methodInfo.targetType.filter(type1 -> ZrPluginUtil.isAssignableSite(methodInfo.method, ownType))
                                             .map(type -> {
                                                 final PsiClass targetClass = ownType instanceof PsiCapturedWildcardType ? PsiTypesUtil.getPsiClass(TypeConversionUtil.erasure(ownType)) : siteClass;
                                                 return buildMethodBy(methodInfo.isStatic, targetClass, methodInfo.method, ownType);
                                             })
-                                            .filter(Objects::nonNull).collect(Collectors.toList());
+                                            .filterNoNull();
             }).flatMap(Collection::stream).collect(Collectors.toList());
+            filterSameMethods(context, collect);
             return collect;
         }
 
@@ -269,6 +273,8 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             return methodInfo.targetType.stream().filter(type -> {
                 try {
                     type = TypeConversionUtil.erasure(type);
+                } catch (ProcessCanceledException processCanceledException) {
+                    throw processCanceledException;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -310,10 +316,35 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 return true;
             })).collect(Collectors.toList());
         }).flatMap(Collection::stream).collect(Collectors.toList());
-
+        filterSameMethods(context, collect);
         return collect;
 
     }
+
+    @Nullable
+    private List<PsiExtensionMethod> filterSameMethods(@NotNull PsiElement context, List<PsiExtensionMethod> psiMethods) {
+        Function<PsiElement, String> getPsiClassName = (e) -> {
+            final PsiClass psiClass = PsiTreeUtil.getTopmostParentOfType(e, PsiClass.class);
+            if (psiClass == null) return null;
+            return psiClass.getQualifiedName();
+        };
+        final String apply = getPsiClassName.apply(context);
+        if (apply != null) {
+            final List<PsiExtensionMethod> list1 = psiMethods
+                    .groupBy(a -> a.getTargetMethod().getSignature(PsiSubstitutor.EMPTY))
+                    .values().stream().map(list -> {
+                        final CompareSameMethod.CompareEnv env = CompareSameMethod.CompareEnv.create(apply);
+                        list.sort((a, b) -> -CompareSameMethod.compare(env
+                                , CompareSameMethod.MethodInfo.create(getPsiClassName.apply(a.getTargetMethod()), a)
+                                , CompareSameMethod.MethodInfo.create(getPsiClassName.apply(b.getTargetMethod()), b)));
+                        return list.limit(1);
+                    }).filterNoNull().flat().filterNoNull().list();
+            psiMethods.clear();
+            psiMethods.addAll(list1);
+        }
+        return psiMethods;
+    }
+
 
     static final Key cachedAllExMethod = Key.create("CachedAllExMethod");
 

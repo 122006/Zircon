@@ -202,8 +202,20 @@ public class ZrResolve extends Resolve {
 
     @Override
     Symbol resolveQualifiedMethod(JCDiagnostic.DiagnosticPosition pos, Env<AttrContext> env, Symbol location, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes) {
-        if (pos==null){
+        if (pos == null) {
             return super.resolveQualifiedMethod(pos, env, location, site, name, argtypes, typeargtypes);
+        }
+        JCTree that = env.tree;
+        if (that instanceof JCTree.JCMethodInvocation) {
+            final JCTree.JCExpression meth = ((JCTree.JCMethodInvocation) that).meth;
+            if (meth instanceof JCTree.JCFieldAccess) {
+                final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) meth).selected;
+                if (selected instanceof JCTree.JCIdent) {
+                    if (((JCTree.JCIdent) selected).getName() == this.names._super) {
+                        return super.resolveQualifiedMethod(pos, env, location, site, name, argtypes, typeargtypes);
+                    }
+                }
+            }
         }
         return resolveQualifiedMethod(new MethodResolutionContext(), pos, env, location, site, name, argtypes, typeargtypes);
     }
