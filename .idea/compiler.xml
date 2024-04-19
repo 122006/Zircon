@@ -12,6 +12,7 @@
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
           <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
         </processorPath>
+        <module name="Zircon.ijplugin.main" />
         <module name="Zircon.test.test" />
       </profile>
       <profile name="Gradle Imported" enabled="true">
@@ -26,17 +27,12 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
-      <module name="JavaStringFormat.Zircon.inject_java11" target="11" />
       <module name="JavaStringFormat.Zircon.inject_java11.main" target="1.8" />
       <module name="JavaStringFormat.Zircon.inject_java11.main~1" target="1.8" />
       <module name="JavaStringFormat.Zircon.inject_java11.test" target="11" />
       <module name="JavaStringFormat.Zircon.inject_java11.test~1" target="11" />
-      <module name="Zircon.inject_java11" target="11" />
-      <module name="Zircon.inject_java11.main" target="1.8" />
-      <module name="Zircon.inject_java11.test" target="11" />
-      <module name="Zircon.inject_java7" target="1.8" />
-      <module name="Zircon.inject_java7.main" target="1.8" />
-      <module name="Zircon.inject_java7.test" target="1.8" />
+      <module name="JavaStringFormat.Zircon.inject_java11.test~2" target="11" />
+      <module name="JavaStringFormat.Zircon.inject_java11.test~3" target="11" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
@@ -44,6 +40,7 @@
       <module name="Zircon.base.main" options="-Xlint:unchecked --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
       <module name="Zircon.ijplugin.main" options="--add-modules java.base" />
       <module name="Zircon.inject_java11.main" options="--add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
+      <module name="Zircon.javac.main" options="--add-exports jdk.compiler/com.sun.tools.javac.comp=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.api=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.main=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.parser=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.util=com.by122006.zircon" />
       <module name="Zircon.test.main" options="--add-modules java.base" />
       <module name="Zircon.test.test" options="--add-modules java.base" />
     </option>

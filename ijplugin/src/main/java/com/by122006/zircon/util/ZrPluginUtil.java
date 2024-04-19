@@ -28,6 +28,8 @@ import zircon.ExMethod;
 
 public class ZrPluginUtil {
     public static synchronized boolean hasZrPlugin(Project project) {
+        if (project==null)
+            return false;
         if (project.isDefault() || !project.isInitialized()) {
             return false;
         }

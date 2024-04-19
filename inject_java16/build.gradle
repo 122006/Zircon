@@ -11,9 +11,13 @@ repositories {
     }
 }
 dependencies {
-//    implementation files("${System.getProperty('java.home')}/../lib/tools.jar")
     implementation project(":base")
     implementation project(":zircon")
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8

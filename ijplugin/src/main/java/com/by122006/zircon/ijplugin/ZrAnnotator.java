@@ -322,8 +322,9 @@ public class ZrAnnotator implements Annotator {
                       }
                   }).create();
         }
+        final PsiManager manager = method.getManager();
         final boolean b = ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream()
-                                              .noneMatch(a -> a.method.isValid() && a.method.isEquivalentTo(method));
+                                              .noneMatch(a -> a.method.isValid() && manager.areElementsEquivalent(a.method,method));
         if (b) {
             holder.newSilentAnnotation(HighlightSeverity.WARNING).range(collect.get(0)).tooltip("need refresh cache")
                   .highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {

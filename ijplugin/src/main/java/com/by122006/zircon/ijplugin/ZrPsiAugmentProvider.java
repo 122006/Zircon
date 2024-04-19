@@ -57,6 +57,7 @@ import com.intellij.psi.impl.source.PsiExtensibleClass;
 import com.intellij.psi.impl.source.resolve.graphInference.PsiGraphInferenceHelper;
 import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.CachedValue;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -120,9 +121,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                                                         })
                                                         .filter(Objects::nonNull)
                                                         .flatMap(Collection::stream).map(element -> {
-                        final PsiMethod method = PsiTreeUtil.getParentOfType(element, PsiMethod.class);
-                        if (method == null) return null;
-                        return method;
+                        return PsiTreeUtil.getParentOfType(element, PsiMethod.class);
                     }).filter(Objects::nonNull).distinct().filter(PsiElement::isValid).map(method -> {
                         final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
                         if (annotation == null) return null;
@@ -141,13 +140,11 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                                 cacheMethodInfo.targetType.add(type);
                             } else if (ex instanceof PsiArrayInitializerMemberValue) {
                                 final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
-                                final List<PsiType> psiTypes = Arrays.stream(initializers).map(a -> {
+                                cacheMethodInfo.targetType = Arrays.stream(initializers).map(a -> {
                                     final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
                                     if (childOfType == null) return null;
-                                    final PsiType type = childOfType.getType();
-                                    return type;
+                                    return childOfType.getType();
                                 }).filter(Objects::nonNull).collect(Collectors.toList());
-                                cacheMethodInfo.targetType = psiTypes;
                             } else {
                                 System.out.println(ex.getText() + "[" + ex.getClass().getName());
                             }
@@ -172,12 +169,12 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                                                                                         .getType().getCanonicalText()))
                                                                                 .collect(Collectors.toList());
                             if (typeParameters.isEmpty()) {
-                                cacheMethodInfo.targetType = Arrays.asList(TypeConversionUtil.erasure(parameter.getType()));
+                                cacheMethodInfo.targetType = Collections.singletonList(TypeConversionUtil.erasure(parameter.getType()));
                             } else {
                                 final PsiClassType[] referencedTypes = typeParameters.get(0).getExtendsList()
                                                                                      .getReferencedTypes();
                                 final PsiClassType typeByName = PsiClassType.getJavaLangObject(annotation.getManager(), GlobalSearchScope.projectScope(project));
-                                cacheMethodInfo.targetType = referencedTypes.length == 0 ? Arrays.asList(typeByName) : Arrays.asList(referencedTypes);
+                                cacheMethodInfo.targetType = referencedTypes.length == 0 ? List.of(typeByName) : Arrays.asList(referencedTypes);
                             }
                         }
                         return cacheMethodInfo;
@@ -237,22 +234,18 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             }
         } else if (context instanceof PsiJavaCodeReferenceElement) {
             ownType = PsiTypesUtil.getClassType(siteClass);
-            predicate = extensionMethod -> {
-                if (!extensionMethod.isStatic) return false;
-                return true;
-            };
+            predicate = extensionMethod -> extensionMethod.isStatic;
         } else {
             ownType = PsiTypesUtil.getClassType(siteClass);
             predicate = a -> true;
         }
         if (ownType == null) return emptyResult;
         List<CacheMethodInfo> psiMethods = allCacheMethodInfoList.stream()
-                                                                       .filter(a -> !a.cover)
-                                                                       .filter(predicate)
-                                                                       .collect(Collectors.toList());
+                                                                 .filter(a -> !a.cover)
+                                                                 .filter(predicate)
+                                                                 .collect(Collectors.toList());
         final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(siteClass.getManager().getProject());
         if (elementFactory == null) return emptyResult;
-        final LanguageLevel languageLevel = PsiUtil.getLanguageLevel(siteClass);
         if (ownClass == null) return emptyResult;
         if (PsiUtil.isArrayClass(ownClass)) {
             List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
@@ -267,7 +260,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             return collect;
         }
 
-        List<PsiMethod> ownMethods = siteClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) siteClass).getOwnMethods() : Arrays.asList();
+        List<PsiMethod> ownMethods = siteClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) siteClass).getOwnMethods() : List.of();
 
         final List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
             return methodInfo.targetType.stream().filter(type -> {
@@ -346,7 +339,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     }
 
 
-    static final Key cachedAllExMethod = Key.create("CachedAllExMethod");
+    static final Key<CachedValue<List<CacheMethodInfo>>> cachedAllExMethod = Key.create("CachedAllExMethod");
 
     public static synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull Project project) {
         return CachedValuesManager.getManager(project)
@@ -437,7 +430,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 Supplier<PsiParameterList> supplier = () -> {
                     if (isStatic) return targetMethod.getParameterList();
                     else {
-
                         final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
                         final LightParameterListBuilder lightParameterListBuilder = new LightParameterListBuilder(targetMethod.getManager(), targetMethod.getLanguage());
                         for (int i = 1; i < parameters.length; i++) {
@@ -492,9 +484,11 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 }
                 assert newBound.isValid() : newBound.getClass() + "; " + bound.isValid();
                 if (newBound instanceof PsiWildcardType) {
-                    final PsiType newBoundBound = ((PsiWildcardType) newBound).getBound();
-                    return !((PsiWildcardType) newBound).isBounded() ? PsiWildcardType.createUnbounded(wildcardType.getManager())
-                            : rebound(wildcardType, newBoundBound);
+                    if (!((PsiWildcardType) newBound).isBounded())
+                        return PsiWildcardType.createUnbounded(wildcardType.getManager());
+                    final PsiType unbound = ((PsiWildcardType) newBound).getBound();
+                    assert unbound != null;
+                    return rebound(wildcardType, unbound);
                 }
 
                 return newBound == PsiType.NULL ? newBound : rebound(wildcardType, newBound);

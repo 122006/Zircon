@@ -11,16 +11,19 @@ repositories {
     }
 }
 dependencies {
-    compileOnly files("${System.getProperty('java.home')}/../lib/tools.jar")
+    compileClasspath files("/tools/tools.jar")
     implementation project(":base")
     implementation project(":zircon")
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:deprecation" << "-XDignore:symbol.file"
-
-
 }
 task copyJavacClass(type: Copy) {
     from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"

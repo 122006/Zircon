@@ -1,25 +1,23 @@
 package com.by122006.zircon;
 
-import com.sun.source.util.*;
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.Plugin;
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import com.sun.source.util.TreeScanner;
 import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.JavaTokenizer;
-import com.sun.tools.javac.parser.ParserFactory;
-import com.sun.tools.javac.parser.ScannerFactory;
 import com.sun.tools.javac.parser.UnicodeReader;
-import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.concurrent.CompletionException;
+
+import sun.misc.Unsafe;
+
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Plugin {
@@ -35,15 +33,13 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
 
     @Override
     public void init(JavacTask task, String... args) {
+        supportJava9OrUpper();
         System.out.println("inject [" + getCName() + "] jdk:" + System.getProperty("java.version"));
         BasicJavacTask javacTask = (BasicJavacTask) task;
         task.addTaskListener(new TaskListener() {
             @Override
             public void started(TaskEvent event) {
-//                System.out.println("event:" + event.getSourceFile() + " " + event.getKind());
                 if (context != javacTask.getContext()) {
-//                    if (context != null)
-//                        System.out.println("context change:" + context + "=>" + javacTask.getContext());
                     context = javacTask.getContext();
                     isLoad = false;
                 }
@@ -72,9 +68,6 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             @Override
             public void finished(TaskEvent e) {
 
-//                if (e.getKind() == TaskEvent.Kind.ANALYZE) {
-//                    e.getCompilationUnit().accept(ZirconPlugin.this, null);
-//                }
             }
         });
     }
@@ -134,6 +127,74 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
     public static boolean javaVersionUpper(int versionCode) {
         final String version = System.getProperty("java.version");
         return Integer.parseInt(version.split("\\.")[0]) >= versionCode;
+    }
+
+    static boolean hasAddOpen = false;
+
+    /**
+     * thanks lombok
+     */
+    public static void supportJava9OrUpper() {
+        if (hasAddOpen) return;
+        hasAddOpen = true;
+        Class<?> cModule;
+        try {
+            cModule = Class.forName("java.lang.Module");
+        } catch (ClassNotFoundException e) {
+            return; //jdk8-; this is not needed.
+        }
+        try {
+            Class<?> cModuleLayer = null;
+            try {
+                cModuleLayer = Class.forName("java.lang.ModuleLayer");
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            Method mBoot = cModuleLayer.getDeclaredMethod("boot");
+            Object bootLayer = mBoot.invoke(null);
+            Class<?> cOptional = Class.forName("java.util.Optional");
+            Method mFindModule = cModuleLayer.getDeclaredMethod("findModule", String.class);
+            Object oCompilerO = mFindModule.invoke(bootLayer, "jdk.compiler");
+            final Object jdkCompilerModule = cOptional.getDeclaredMethod("get").invoke(oCompilerO);
+            Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
+            theUnsafe.setAccessible(true);
+            Unsafe unsafe = (Unsafe) theUnsafe.get(null);
+            String[] allPkgs = {
+                    "com.sun.tools.javac.code",
+                    "com.sun.tools.javac.comp",
+                    "com.sun.tools.javac.file",
+                    "com.sun.tools.javac.main",
+                    "com.sun.tools.javac.model",
+                    "com.sun.tools.javac.parser",
+                    "com.sun.tools.javac.processing",
+                    "com.sun.tools.javac.tree",
+                    "com.sun.tools.javac.util",
+                    "com.sun.tools.javac.jvm",
+                    "com.sun.tools.javac.api",
+            };
+            try {
+                final Field allUnnamedModuleField = cModule.getDeclaredField("ALL_UNNAMED_MODULE");
+                allUnnamedModuleField.setAccessible(true);
+                Method m = cModule.getDeclaredMethod("implAddOpens", String.class, cModule);
+                long firstFieldOffset = unsafe.objectFieldOffset(Parent.class.getDeclaredField("first"));
+                unsafe.putBooleanVolatile(m, firstFieldOffset, true);
+                final Object allUnnamedModule = allUnnamedModuleField.get(null);
+                for (String p : allPkgs) {
+                    m.invoke(jdkCompilerModule, p, allUnnamedModule);
+                }
+            } catch (NoSuchFieldException e) {
+                Method m = cModule.getDeclaredMethod("implAddOpensToAllUnnamed", String.class);
+                m.setAccessible(true);
+                long firstFieldOffset = unsafe.objectFieldOffset(Parent.class.getDeclaredField("first"));
+                unsafe.putBooleanVolatile(m, firstFieldOffset, true);
+                for (String p : allPkgs) {
+                    m.invoke(jdkCompilerModule, p);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
     }
 
     static <T> Class<T> reloadClassJavacVersion(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {

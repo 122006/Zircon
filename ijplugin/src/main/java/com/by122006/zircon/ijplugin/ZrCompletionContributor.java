@@ -7,7 +7,6 @@ import com.intellij.codeInsight.completion.CompletionContributor;
 import com.intellij.codeInsight.completion.CompletionParameters;
 import com.intellij.codeInsight.completion.CompletionResultSet;
 import com.intellij.codeInsight.completion.CompletionType;
-import com.intellij.codeInsight.completion.InsertHandler;
 import com.intellij.codeInsight.completion.PrioritizedLookupElement;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
@@ -18,6 +17,7 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.impl.EditorImpl;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.DumbService;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Iconable;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -121,9 +121,10 @@ public class ZrCompletionContributor extends CompletionContributor {
                 }
                 final List<PsiType> collect;
                 if (cacheMethodInfo.isStatic) {
-                    collect = cacheMethodInfo.targetType.stream().filter(b -> {
-                        return TypeConversionUtil.isAssignable(b, psiType) || b.equalsToText(JAVA_LANG_OBJECT);
-                    }).collect(Collectors.toList());
+                    collect = cacheMethodInfo.targetType
+                            .stream()
+                            .filter(b -> TypeConversionUtil.isAssignable(b, psiType) || b.equalsToText(JAVA_LANG_OBJECT))
+                            .collect(Collectors.toList());
                 } else {
                     final PsiType type = cacheMethodInfo.method.getParameterList().getParameters()[0].getType();
                     final PsiMethod method = cacheMethodInfo.method;
@@ -134,120 +135,127 @@ public class ZrCompletionContributor extends CompletionContributor {
                         collect = Collections.emptyList();
                     }
                 }
-                collect.stream()
-                       .forEach(targetType -> {
-                           PsiClass psiClass;
-                           if (targetType instanceof PsiArrayType) {
-                               final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(position.getProject());
-                               psiClass = elementFactory.getArrayClass(PsiUtil.getLanguageLevel(position.getProject()));
-                           } else if (targetType instanceof PsiClassType) {
-                               psiClass = PsiTypesUtil.getPsiClass(targetType);
-                               if (targetType.equalsToText(JAVA_LANG_OBJECT)) {
-                                   if (cacheMethodInfo.isStatic && !psiType.equalsToText(JAVA_LANG_OBJECT)) {
-                                       return;
-                                   }
-                                   psiClass = aClass;
-                               }
-                           } else {
-                               System.err.println("checkBySiteType fail :" + targetType.getClass());
-                               return;
-                           }
-                           if (psiClass == null) {
-                               return;
-                           }
-                           final ZrPsiExtensionMethod method = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method, psiType);
-                           if (method != null) {
-                               @NotNull PsiSubstitutor substitutor = PsiSubstitutor.EMPTY;
-                               LookupElementBuilder builder = LookupElementBuilder.create(method, method.getName())
-                                                                                  .withIcon(method.getIcon(Iconable.ICON_FLAG_VISIBILITY))
-                                                                                  .withPresentableText(method.getName())
-                                                                                  .withTailText(PsiFormatUtil.formatMethod(method, substitutor,
-                                                                                          PsiFormatUtilBase.SHOW_PARAMETERS,
-                                                                                          PsiFormatUtilBase.SHOW_NAME | PsiFormatUtilBase.SHOW_TYPE));
-                               final PsiClass containingClass = cacheMethodInfo.method.getContainingClass();
-                               builder = builder.withInsertHandler((InsertHandler) (context, item) -> {
-                                   try {
-                                       final Editor editor = context.getEditor();
-                                       Document document = context.getDocument();
-                                       int end;
-                                       if (editor instanceof EditorImpl) {
-                                           end = position.getTextOffset() + method.getName().length();
-                                           if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                               final PsiParameterList parameterList = method.getParameterList();
-                                               if (parameterList.isEmpty()) {
-                                                   document.insertString(end, "()");
-                                                   try {
-                                                       editor.getCaretModel().moveToOffset(end + 2);
-                                                   } catch (Exception e) {
-                                                   }
-                                               } else {
-                                                   final String params = Arrays.stream(parameterList.getParameters())
-                                                                               .map(a -> "")
-                                                                               .collect(Collectors.joining(", "));
-                                                   document.insertString(end, "(" + params + ")");
-                                                   try {
-                                                       editor.getCaretModel().moveToOffset(end + 1);
-                                                   } catch (Exception e) {
-                                                   }
-                                               }
-                                           }
-                                       } else {
-                                           final EditorEx nowEditor = (EditorEx) editor;
-                                           end = nowEditor.getExpectedCaretOffset();
-                                           if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                               final PsiParameterList parameterList = method.getParameterList();
-                                               if (parameterList.isEmpty()) {
-                                                   document.insertString(end, "()");
-                                               } else {
-                                                   final String params = Arrays.stream(parameterList.getParameters())
-                                                                               .map(a -> "")
-                                                                               .collect(Collectors.joining(", "));
-                                                   document.insertString(end, "(" + params + ")");
-                                               }
-                                           }
-                                       }
+                collect.forEach(targetType -> {
+                    PsiClass psiClass;
+                    if (targetType instanceof PsiArrayType) {
+                        final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(position.getProject());
+                        psiClass = elementFactory.getArrayClass(PsiUtil.getLanguageLevel(position.getProject()));
+                    } else if (targetType instanceof PsiClassType) {
+                        psiClass = PsiTypesUtil.getPsiClass(targetType);
+                        if (targetType.equalsToText(JAVA_LANG_OBJECT)) {
+                            if (cacheMethodInfo.isStatic && !psiType.equalsToText(JAVA_LANG_OBJECT)) {
+                                return;
+                            }
+                            psiClass = aClass;
+                        }
+                    } else {
+                        System.err.println("checkBySiteType fail :" + targetType.getClass());
+                        return;
+                    }
+                    if (psiClass == null) {
+                        return;
+                    }
+                    final ZrPsiExtensionMethod method = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method, psiType);
+                    if (method != null) {
+                        @NotNull PsiSubstitutor substitutor = PsiSubstitutor.EMPTY;
+                        LookupElementBuilder builder = LookupElementBuilder.create(method, method.getName())
+                                                                           .withIcon(method.getIcon(Iconable.ICON_FLAG_VISIBILITY))
+                                                                           .withPresentableText(method.getName())
+                                                                           .withTailText(PsiFormatUtil.formatMethod(method, substitutor,
+                                                                                   PsiFormatUtilBase.SHOW_PARAMETERS,
+                                                                                   PsiFormatUtilBase.SHOW_NAME | PsiFormatUtilBase.SHOW_TYPE));
+                        final PsiClass containingClass = cacheMethodInfo.method.getContainingClass();
+                        builder = builder.withInsertHandler((context, item) -> {
+                            try {
+                                final Editor editor = context.getEditor();
+                                Document document = context.getDocument();
+                                int end;
+                                if (editor instanceof EditorImpl) {
+                                    end = position.getTextOffset() + method.getName().length();
+                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                        final PsiParameterList parameterList = method.getParameterList();
+                                        if (parameterList.isEmpty()) {
+                                            document.insertString(end, "()");
+                                            try {
+                                                editor.getCaretModel().moveToOffset(end + 2);
+                                            } catch (Exception e) {
+                                                //do nothing
+                                            }
+                                        } else {
+                                            final String params = Arrays.stream(parameterList.getParameters())
+                                                                        .map(a -> "")
+                                                                        .collect(Collectors.joining(", "));
+                                            document.insertString(end, "(" + params + ")");
+                                            try {
+                                                editor.getCaretModel().moveToOffset(end + 1);
+                                            } catch (Exception e) {
+                                                //do nothing
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    final EditorEx nowEditor = (EditorEx) editor;
+                                    end = nowEditor.getExpectedCaretOffset();
+                                    if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
+                                        final PsiParameterList parameterList = method.getParameterList();
+                                        if (parameterList.isEmpty()) {
+                                            document.insertString(end, "()");
+                                        } else {
+                                            final String params = Arrays.stream(parameterList.getParameters())
+                                                                        .map(a -> "")
+                                                                        .collect(Collectors.joining(", "));
+                                            document.insertString(end, "(" + params + ")");
+                                        }
+                                    }
+                                }
 
-                                       PsiDocumentManager.getInstance(editor.getProject()).commitDocument(document);
-                                       final String qualifiedName = containingClass.getQualifiedName();
-                                       final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
-                                       if (canBeImported) {
-                                           if (!(editor instanceof EditorEx)) {
-                                               ImportUtils.addImportIfNeeded(containingClass, context.getFile());
-                                           } else {
-                                               final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
-                                               final PsiFile file = PsiManager.getInstance(editor.getProject())
-                                                                              .findFile(virtualFile);
-                                               if (file != null) {
-                                                   ImportUtils.addImportIfNeeded(containingClass, file);
-                                               }
-                                           }
-                                       }
-                                   } catch (Exception e) {
-                                       e.printStackTrace();
-                                   }
-                               });
-                               final PsiType returnType = method.getReturnType();
-                               if (returnType != null) {
-                                   builder = builder.withTypeText(substitutor.substitute(returnType)
-                                                                             .getPresentableText());
-                               }
-                               if (targetType.equals(TypeConversionUtil.erasure(psiType))) {
-                                   builder = builder.bold();
-                               }
-                               final String name = containingClass == null ? "unknown" : containingClass.getName();
-                               if (cacheMethodInfo.isStatic) {
-                                   builder = builder.appendTailText(" static for " + targetType.getPresentableText() + " by " + name, true);
-                               } else {
-                                   final PsiParameter parameter = cacheMethodInfo.method.getParameterList()
-                                                                                        .getParameter(0);
-                                   builder = builder.appendTailText(" for " + (parameter == null ? "unknown" : parameter
-                                           .getType().getPresentableText()) + " by " + name, true);
-                               }
-                               LookupElement add = builder;
-                               add = PrioritizedLookupElement.withPriority(add, -122006);
-                               list.add(add);
-                           }
-                       });
+                                final Project project = editor.getProject();
+                                if (project != null && containingClass != null) {
+                                    PsiDocumentManager.getInstance(project).commitDocument(document);
+                                    final String qualifiedName = containingClass.getQualifiedName();
+                                    if (qualifiedName != null) {
+                                        final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
+                                        if (canBeImported) {
+//                                            if (!(editor instanceof EditorEx)) {
+//                                                ImportUtils.addImportIfNeeded(containingClass, context.getFile());
+//                                            } else {
+                                            final VirtualFile virtualFile = editor.getVirtualFile();
+                                            final PsiFile file = PsiManager.getInstance(project)
+                                                                           .findFile(virtualFile);
+                                            if (file != null) {
+                                                ImportUtils.addImportIfNeeded(containingClass, file);
+                                            }
+//                                            }
+                                        }
+                                    }
+
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+                        final PsiType returnType = method.getReturnType();
+                        if (returnType != null) {
+                            builder = builder.withTypeText(substitutor.substitute(returnType)
+                                                                      .getPresentableText());
+                        }
+                        if (targetType.equals(TypeConversionUtil.erasure(psiType))) {
+                            builder = builder.bold();
+                        }
+                        final String name = containingClass == null ? "unknown" : containingClass.getName();
+                        if (cacheMethodInfo.isStatic) {
+                            builder = builder.appendTailText(" static for " + targetType.getPresentableText() + " by " + name, true);
+                        } else {
+                            final PsiParameter parameter = cacheMethodInfo.method.getParameterList()
+                                                                                 .getParameter(0);
+                            builder = builder.appendTailText(" for " + (parameter == null ? "unknown" : parameter
+                                    .getType().getPresentableText()) + " by " + name, true);
+                        }
+                        LookupElement add = builder;
+                        add = PrioritizedLookupElement.withPriority(add, -122006);
+                        list.add(add);
+                    }
+                });
             });
             result.addAllElements(list);
         } catch (PsiInvalidElementAccessException e) {
