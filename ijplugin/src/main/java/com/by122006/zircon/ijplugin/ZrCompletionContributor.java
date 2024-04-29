@@ -57,6 +57,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import zircon.example.ExReflection;
+
 public class ZrCompletionContributor extends CompletionContributor {
 
     @Override
@@ -143,7 +145,7 @@ public class ZrCompletionContributor extends CompletionContributor {
                     } else if (targetType instanceof PsiClassType) {
                         psiClass = PsiTypesUtil.getPsiClass(targetType);
                         if (targetType.equalsToText(JAVA_LANG_OBJECT)) {
-                            if (cacheMethodInfo.isStatic && !psiType.equalsToText(JAVA_LANG_OBJECT)) {
+                            if (!cacheMethodInfo.isStatic && mustStatic == null) {
                                 return;
                             }
                             psiClass = aClass;
@@ -219,7 +221,7 @@ public class ZrCompletionContributor extends CompletionContributor {
 //                                            if (!(editor instanceof EditorEx)) {
 //                                                ImportUtils.addImportIfNeeded(containingClass, context.getFile());
 //                                            } else {
-                                            final VirtualFile virtualFile = editor.getVirtualFile();
+                                            final VirtualFile virtualFile = editor.reflectionInvokeMethod("getVirtualFile");
                                             final PsiFile file = PsiManager.getInstance(project)
                                                                            .findFile(virtualFile);
                                             if (file != null) {

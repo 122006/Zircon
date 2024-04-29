@@ -2,14 +2,20 @@ plugins {
     id 'java'
     id 'org.jetbrains.intellij' version '1.13.2'
 }
+
 group 'com.by122006.zircon'
-version '3.5'
+version '3.6'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
 buildPlugin {
     buildSearchableOptions.enabled = false
 }
@@ -27,9 +33,9 @@ patchPluginXml{
     untilBuild="233.*"
 }
 dependencies {
-    implementation project(":base")
-    implementation project(":zircon")
-    annotationProcessor project(":javac")
+    annotationProcessor 'com.github.122006.zircon:javac:3.2.1'
+    implementation 'com.github.122006.zircon:zircon:3.2.1'
+    implementation 'com.github.122006.zircon:base:3.2.1'
     implementation 'com.github.122006:ExMethodUtil:1.1.1'
 }
 //IU-202.7319.50

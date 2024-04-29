@@ -3,16 +3,21 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.find.findUsages.FindUsagesHandler;
 import com.intellij.find.findUsages.FindUsagesHandlerFactory;
 import com.intellij.openapi.project.DumbService;
-import com.intellij.psi.*;
-import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.PsiAnnotation;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiMethod;
 import com.intellij.psi.util.PsiTypesUtil;
-import com.intellij.psi.util.PsiUtilCore;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.ExMethod;
 
-import java.util.*;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import zircon.ExMethod;
 
 public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
     @Override
@@ -27,7 +32,6 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
     public @Nullable FindUsagesHandler createFindUsagesHandler(@NotNull PsiElement element, boolean forHighlightUsages) {
         return new FindUsagesHandler(element) {
             @NotNull
-            @Override
             public PsiElement[] getSecondaryElements() {
                 final List<ZrPsiAugmentProvider.CacheMethodInfo> psiMethods
                         = ZrPsiAugmentProvider.getCachedAllMethod(element.getProject());

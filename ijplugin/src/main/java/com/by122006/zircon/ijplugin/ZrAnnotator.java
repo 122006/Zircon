@@ -360,7 +360,7 @@ public class ZrAnnotator implements Annotator {
                       }
                   }).create();
         }
-        final PsiAnnotation annotation = annotations[0];
+        final PsiAnnotation annotation = collect.get(0);
         PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
         if (ex != null) {
             if (ex instanceof PsiClassObjectAccessExpression) {

@@ -19,7 +19,6 @@ import com.intellij.psi.PsiParameterList;
 import com.intellij.psi.PsiReference;
 import com.intellij.psi.PsiReferenceList;
 import com.intellij.psi.PsiSubstitutor;
-import com.intellij.psi.PsiType;
 import com.intellij.psi.PsiTypeParameterList;
 import com.intellij.psi.augment.PsiExtensionMethod;
 import com.intellij.psi.impl.light.LightMethodBuilder;
@@ -32,6 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
+@SuppressWarnings("UnstableApiUsage")
 class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMethod {
     boolean isStatic;
     PsiClass targetClass;
@@ -140,8 +140,7 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
         return targetMethod.getParameterList().getParameter(isStatic ? index : (index + 1));
     }
 
-    @Override
-    public PsiType getReturnType() {
-        return super.getReturnType();
-    }
+//    public JvmAnnotation @NotNull [] getAnnotations(){
+//        return super.getAnnotations();
+//    }
 }

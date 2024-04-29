@@ -50,7 +50,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.0'
+        classpath 'com.github.122006.Zircon:gradle:3.2.1'
     }
 }
 ````
@@ -67,13 +67,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.0</version>
-            <scope>provied</scope>
+            <version>3.2.1</version>
+            <scope>provide</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.0</version>
+            <version>3.2.1</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -198,9 +198,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件3.5
+### idea插件3.6
 
-1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
+1. 功能性优化
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -262,6 +262,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件3.4
 
 1. 强化自动补全功能对代理类泛型的支持
+
+### idea插件3.5
+
+1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
 
 </details>
 

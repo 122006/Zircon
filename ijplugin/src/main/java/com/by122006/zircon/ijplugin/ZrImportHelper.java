@@ -382,7 +382,7 @@ public final class ZrImportHelper {
                     if (reference.getQualifier() != null) return;
                     JavaResolveResult resolveResult = reference.advancedResolve(false);
                     if (resolveResult.getElement() instanceof PsiClass) {
-                        var psiClass = (PsiClass) resolveResult.getElement();
+                        PsiClass psiClass = (PsiClass) resolveResult.getElement();
                         if (conflicts.contains(psiClass.getName())) {
                             if (resolveResult.getCurrentFileResolveScope() instanceof PsiImportStatementBase || isImplicitlyImported(psiClass.getQualifiedName(), file)) {
                                 String fqn = psiClass.getQualifiedName();
