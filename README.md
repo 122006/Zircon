@@ -104,7 +104,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.3.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.6.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -125,15 +125,6 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### 其他注意事项
 
 1. 请注意保持idea插件更新到最新。插件仓库审核有可能有滞后，请优先手动安装
-
---------------
-
-## TODO 后续更新计划
-
-1. **面板字符串**
-   > 形如`$"#{person.name}"`=`"person.name"`,或者`$"#{\.(\S+):person.name}"`=`"name"`。默认收缩
-
-   > 用于调试日志输出、打印字面量、sql等，可以考虑新建一个模板字符串类型
 
 --------------
 
