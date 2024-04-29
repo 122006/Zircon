@@ -3,6 +3,9 @@ include ':javac'
 include ':zircon'
 include ':base'
 include ':gradle_plugin'
+System.getProperties().forEach { key, value ->
+    System.out.println(key + ":" + value)
+}
 if (System.getProperty("JITPACK", "false") == "false") {
     include ':test'
     include ':inject_java7'
