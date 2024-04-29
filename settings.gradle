@@ -3,16 +3,14 @@ include ':javac'
 include ':zircon'
 include ':base'
 include ':gradle_plugin'
-System.getProperties().forEach { key, value ->
-    System.out.println(key + ":" + value)
-}
-if (System.getProperty("JITPACK", "false") == "false") {
+
+if (System.getProperty("user.name", "") == "jitpack") {
+    System.out.println("build by JITPACK")
+} else {
     include ':test'
     include ':inject_java7'
     include ':inject_java11'
     include ':inject_java16'
     include ':ijplugin'
-} else {
-    System.out.println("build by JITPACK")
 }
 

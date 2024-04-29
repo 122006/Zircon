@@ -24,15 +24,6 @@
         </processorPath>
         <module name="Zircon.test.main" />
       </profile>
-      <profile name="Gradle Imported" enabled="true">
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.122006.zircon/javac/3.2.1/cfc2e39b67ccb925368fc95f6251f7d37a2bf098/javac-3.2.1.jar" />
-          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.122006.zircon/base/3.2.1/5dfe7c2cd26057d9531612896bac1fc0ca81083d/base-3.2.1.jar" />
-          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.github.122006.zircon/zircon/3.2.1/c6f3da535e18ec1d51ecb15bd9b28686eaaa2ea7/zircon-3.2.1.jar" />
-        </processorPath>
-        <module name="Zircon.ijplugin.main" />
-      </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
       <module name="JavaStringFormat.Zircon.inject_java11.test" target="11" />
