@@ -12,6 +12,7 @@
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
           <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
         </processorPath>
+        <module name="Zircon.ijplugin.main" />
         <module name="Zircon.test.test" />
       </profile>
       <profile name="Gradle Imported" enabled="true">

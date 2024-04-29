@@ -33,7 +33,9 @@ dependencies {
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation('com.github.122006:ExMethodUtil:1.1.1')
+    implementation('com.github.122006:ExMethodUtil:1.1.3'){
+        exclude group: 'com.github.122006.zircon', module: 'zircon'
+    }
 //    implementation 'com.github.122006.Zircon:zircon:3.+'
 //    implementation 'com.github.122006:LinearHttp:1.2.8'
     implementation 'com.alibaba:fastjson:1.1.72.android'

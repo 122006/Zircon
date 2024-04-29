@@ -1,11 +1,9 @@
-# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a><a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a>
-
+# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a><a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html"><img src="https://img.shields.io/badge/JDK-8-green.svg" alt="jdk-8" /></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-11-green.svg" alt="jdk-11" /></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-17-green.svg" alt="jdk-17" /></a>
 -----------------
 
 ## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
 
-----------------  
-
+----------------
 #### 已支持的语法特性：
 
 ### 1. 全局拓展方法
@@ -50,7 +48,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.1'
+        classpath 'com.github.122006.Zircon:gradle:3.2.2'
     }
 }
 ````
@@ -67,13 +65,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.1</version>
+            <version>3.2.2</version>
             <scope>provide</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.1</version>
+            <version>3.2.2</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -142,11 +140,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.2.0
+### v3.2.2
 
-1. 重用已解析的参数类型提高编译速度。
-2. 修复罕见情况下的多层匿名类指向错误的问题
-3. 现在如果存在多个匹配的拓展方法实现，会自动使用路径最相近的实现
+1. 优化项目依赖结构
 
 <details>
   <summary>历史依赖更新</summary>
@@ -195,6 +191,12 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### v3.1.8
 
 1. 修复idea中使用Maven构建项目build错误的问题
+
+### v3.2.0
+
+1. 重用已解析的参数类型提高编译速度。
+2. 修复罕见情况下的多层匿名类指向错误的问题
+3. 现在如果存在多个匹配的拓展方法实现，会自动使用路径最相近的实现
 
 </details>
 
@@ -276,4 +278,4 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
    > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
 
-   `implementation 'com.github.122006:ExMethodUtil:1.0.6'`
+   `implementation 'com.github.122006:ExMethodUtil:1.1.3'`
