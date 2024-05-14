@@ -22,3 +22,48 @@ buildscript {
     }
 }
 
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    maven {
+        url uri('../../repo')
+    }
+    maven { url 'https://jitpack.io' }
+    mavenCentral()
+}
+ext {
+    testJavaVersion = Integer.valueOf(project.getProperties().getOrDefault('tjv', 22))// gradle testWithDiffJavaVersion -Ptjv=21
+}
+
+def allData = [
+        [version: 8, project: ":inject_java7"]
+        , [version: 11, project: ":inject_java11"]
+        , [version: 17, project: ":inject_java16"]]
+def useJavaVersion = allData.collect { it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
+
+task testWithDiffJavaVersion {
+    group "zircon"
+    dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
+    doLast {
+        project(":test").test.executeTests()
+    }
+}
+
+allData.forEach(data -> {
+    tasks.findByPath("${data.project}:copyJavacClass").dependsOn(tasks.findByPath("${data.project}:compileJava"))
+    tasks.findByPath("${data.project}:copyJavacClass").dependsOn(":javac:processResources")
+    task "buildClazzByJava${data.version}" {
+        group "zircon"
+        dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
+    }
+})
+
+
+task cleanAllClazz(type: Delete) {
+    delete "javac/src/main/resources/clazz/"
+}
+task buildClazzByAllJavaVersion {
+    group "zircon"
+    dependsOn allData.collect { "buildClazzByJava${it.version}" }
+}
+
+cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)

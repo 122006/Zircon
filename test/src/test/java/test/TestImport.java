@@ -1,7 +1,6 @@
 package test;
 
 import org.junit.jupiter.api.Test;
-
 import zircon.example.ExObject;
 import zircon.example.ExString;
 
@@ -18,7 +17,7 @@ public class TestImport {
         a23.nullOr("123");
         a23.nullOr("123");
 
-        String a23 = $"{${"".toBigDecimal()}}";
+        String a23 = $"{${"123".toBigDecimal()}}";
         a23 = "123";
 
 

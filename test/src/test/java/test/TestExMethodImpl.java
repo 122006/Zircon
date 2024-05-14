@@ -47,6 +47,8 @@ public class TestExMethodImpl {
     @SuppressWarnings("AccessStaticViaInstance")
     @Test
     public void test() {
+        System.out.println("java version:"+System.getProperty("java.version"));
+
         checkMethodInvokes(
                 () -> {
                     "123".emptyStringRString();
@@ -757,7 +759,6 @@ public class TestExMethodImpl {
                 System.out.println("线程池运行");
                 target.run();
             } catch (Exception e) {
-                e.printStackTrace();
             }
         });
     }

@@ -90,7 +90,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (items == null || itemsIndex >= items.size()) {
             items = null;
             int startIndex = reader.bp;
-            while (isBlankChar(charAt(startIndex)) && startIndex < reader.buflen) {
+            while (startIndex < reader.buflen && isBlankChar(charAt(startIndex))) {
                 startIndex++;
             }
             String usePrefix = null;
@@ -125,7 +125,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             String searchText = subChars(startIndex, endIndex);
             final ZrStringModel build = formatter.build(searchText);
             List<StringRange> group = build.getList();
-            endIndex =startIndex+ + build.getEndQuoteIndex()+1;
+            endIndex = startIndex + +build.getEndQuoteIndex() + 1;
             searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;

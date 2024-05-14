@@ -12,9 +12,14 @@ repositories {
     }
 }
 dependencies {
-    compileOnly files("${System.getProperty('java.home')}/../lib/tools.jar")
+    compileOnly project(":inject_java7").files("/tools/tools.jar")
     api project(":base")
     api project(":zircon")
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
 }
 jar {
     manifest {
@@ -27,7 +32,7 @@ jar {
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
+    options.compilerArgs << "-Xlint:deprecation" << "-XDignore.symbol.file"
 }
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava

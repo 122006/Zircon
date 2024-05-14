@@ -1,9 +1,18 @@
-# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a><a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html"><img src="https://img.shields.io/badge/JDK-8-green.svg" alt="jdk-8" /></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-11-green.svg" alt="jdk-11" /></a><a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-17-green.svg" alt="jdk-17" /></a>
+# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+
+<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a>
+<a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html"><img src="https://img.shields.io/badge/JDK-8-green.svg" alt="jdk-8" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-11-green.svg" alt="jdk-11" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-17-green.svg" alt="jdk-17" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-21-green.svg" alt="jdk-17" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-22-green.svg" alt="jdk-17" /></a>
 -----------------
 
 ## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
 
 ----------------
+
 #### 已支持的语法特性：
 
 ### 1. 全局拓展方法
@@ -20,6 +29,8 @@
 ---------------
 
 1. 支持android、springboot、javaFX等所有使用java语言的项目（javac）
+
+2. 支持java8~java22
 
 ---------------
 
@@ -130,7 +141,6 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-
 ### v3.2.2
 
 1. 优化项目依赖结构
@@ -173,7 +183,6 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. gradle插件支持使用id方式引入
 
-
 ### v3.1.6
 
 1. 修复一个特殊情况下与已有方法同名异参的会解析错误问题
@@ -199,6 +208,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
   <summary>历史idea插件更新</summary>
 
 ### idea插件2.0
+
 1. 支持`f-string`自动提示格式符及类型匹配错误
 2. 普通字符串支持自动识别转化为`$-string`
 
@@ -265,8 +275,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## 相关项目
 
 ### ExMethodUtil
-   项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能。
 
-   > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
+项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能。
 
-   `implementation 'com.github.122006:ExMethodUtil:1.1.3'`
+> Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
+
+`implementation 'com.github.122006:ExMethodUtil:1.1.3'`

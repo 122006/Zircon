@@ -1,10 +1,6 @@
 package com.by122006.zircon;
 
-import com.sun.source.util.JavacTask;
-import com.sun.source.util.Plugin;
-import com.sun.source.util.TaskEvent;
-import com.sun.source.util.TaskListener;
-import com.sun.source.util.TreeScanner;
+import com.sun.source.util.*;
 import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -15,8 +11,6 @@ import com.sun.tools.javac.util.Context;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-
-import sun.misc.Unsafe;
 
 
 @SuppressWarnings({"rawtypes", "unchecked"})
@@ -156,9 +150,6 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             Method mFindModule = cModuleLayer.getDeclaredMethod("findModule", String.class);
             Object oCompilerO = mFindModule.invoke(bootLayer, "jdk.compiler");
             final Object jdkCompilerModule = cOptional.getDeclaredMethod("get").invoke(oCompilerO);
-            Field theUnsafe = Unsafe.class.getDeclaredField("theUnsafe");
-            theUnsafe.setAccessible(true);
-            Unsafe unsafe = (Unsafe) theUnsafe.get(null);
             String[] allPkgs = {
                     "com.sun.tools.javac.code",
                     "com.sun.tools.javac.comp",
@@ -176,17 +167,14 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                 final Field allUnnamedModuleField = cModule.getDeclaredField("ALL_UNNAMED_MODULE");
                 allUnnamedModuleField.setAccessible(true);
                 Method m = cModule.getDeclaredMethod("implAddOpens", String.class, cModule);
-                long firstFieldOffset = unsafe.objectFieldOffset(Parent.class.getDeclaredField("first"));
-                unsafe.putBooleanVolatile(m, firstFieldOffset, true);
+                setAccessibleTrue(m);
                 final Object allUnnamedModule = allUnnamedModuleField.get(null);
                 for (String p : allPkgs) {
                     m.invoke(jdkCompilerModule, p, allUnnamedModule);
                 }
             } catch (NoSuchFieldException e) {
                 Method m = cModule.getDeclaredMethod("implAddOpensToAllUnnamed", String.class);
-                m.setAccessible(true);
-                long firstFieldOffset = unsafe.objectFieldOffset(Parent.class.getDeclaredField("first"));
-                unsafe.putBooleanVolatile(m, firstFieldOffset, true);
+                setAccessibleTrue(m);
                 for (String p : allPkgs) {
                     m.invoke(jdkCompilerModule, p);
                 }
@@ -194,6 +182,21 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
         } catch (Exception e) {
             e.printStackTrace();
             return;
+        }
+    }
+
+    private static void setAccessibleTrue(Method m) throws Exception {
+        try {
+            m.setAccessible(true);
+        } catch (Exception e) {
+            final Class<?> aClass = Class.forName("sun.misc.Unsafe");
+            Field theUnsafe = aClass.getDeclaredField("theUnsafe");
+            theUnsafe.setAccessible(true);
+            Object unsafe = theUnsafe.get(null);
+            final Method objectFieldOffset = aClass.getMethod("objectFieldOffset", Field.class);
+            long firstFieldOffset = (long) objectFieldOffset.invoke(unsafe,Parent.class.getDeclaredField("first"));
+            final Method putBooleanVolatile = aClass.getMethod("putBooleanVolatile", Object.class,long.class,boolean.class);
+            putBooleanVolatile.invoke(unsafe,m,firstFieldOffset,true);
         }
     }
 
@@ -230,7 +233,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             is.read(bytes);
             Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
                     String.class, byte[].class, int.class, int.class});
-            m.setAccessible(true);
+            setAccessibleTrue(m);
             return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);
         } catch (Exception e) {
             throw new Exception("Zircon编译错误，可能是使用了无法支持的java编译器", e);

@@ -108,7 +108,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         if (items == null || itemsIndex >= items.size()) {
             items = null;
             int startIndex = getReaderBp();
-            while (isBlankChar(charAt(startIndex)) && startIndex < getReaderBuflen()) {
+            while (startIndex < getReaderBuflen() && isBlankChar(charAt(startIndex))) {
                 startIndex++;
             }
 
@@ -149,7 +149,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             String searchText = subChars(startIndex, endIndex);
             final ZrStringModel build = formatter.build(searchText);
             List<StringRange> group = build.getList();
-            endIndex = startIndex + build.getEndQuoteIndex()+1;
+            endIndex = startIndex + build.getEndQuoteIndex() + 1;
             searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;
@@ -206,10 +206,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     private int getReaderBp() {
         return position();
     }
+
     char[] buffer;
 
     private char[] getReaderBuf() {
-        if (buffer!=null) return buffer;
+        if (buffer != null) return buffer;
         try {
             final Field bufferField = UnicodeReader.class.getDeclaredField("buffer");
             bufferField.setAccessible(true);

@@ -24,7 +24,7 @@ compileJava {
     targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
-task copyJavacClass(type: Copy,dependsOn: build) {
+task copyJavacClass(type: Copy) {
     from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/util"

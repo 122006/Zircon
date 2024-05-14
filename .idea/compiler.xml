@@ -28,6 +28,9 @@
     </annotationProcessing>
     <bytecodeTargetLevel target="8">
       <module name="JavaStringFormat.Zircon.inject_java11.test" target="11" />
+      <module name="Zircon.inject_java21" target="21" />
+      <module name="Zircon.inject_java21.main" target="1.8" />
+      <module name="Zircon.inject_java21.test" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
@@ -35,7 +38,7 @@
       <module name="Zircon.base.main" options="-Xlint:unchecked --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
       <module name="Zircon.ijplugin.main" options="--add-modules java.base" />
       <module name="Zircon.inject_java11.main" options="--add-exports jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED" />
-      <module name="Zircon.javac.main" options="--add-exports jdk.compiler/com.sun.tools.javac.comp=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.api=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.main=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.parser=com.by122006.zircon --add-exports jdk.compiler/com.sun.tools.javac.util=com.by122006.zircon" />
+      <module name="Zircon.javac.main" options="--add-exports jdk.compiler/com.sun.tools.javac.comp=com.by122006.zircon,ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.api=com.by122006.zircon,ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.main=com.by122006.zircon,ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.parser=com.by122006.zircon,ALL-UNNAMED --add-exports jdk.compiler/com.sun.tools.javac.util=com.by122006.zircon,ALL-UNNAMED" />
       <module name="Zircon.test.main" options="--add-modules java.base" />
       <module name="Zircon.test.test" options="--add-modules java.base" />
     </option>

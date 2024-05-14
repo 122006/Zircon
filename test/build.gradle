@@ -12,6 +12,8 @@ buildscript {
 apply plugin: 'java'
 //apply plugin: 'zircon'
 
+java.getToolchain().languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
+
 repositories {
     maven { url 'https://maven.aliyun.com/repository/public/' }
     maven {
@@ -27,13 +29,16 @@ repositories {
 
 test {
     useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed", "STANDARD_OUT", "STANDARD_ERROR"
+    }
 }
 dependencies {
     annotationProcessor project(":javac")
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation('com.github.122006:ExMethodUtil:1.1.3'){
+    implementation('com.github.122006:ExMethodUtil:1.1.3') {
         exclude group: 'com.github.122006.zircon', module: 'zircon'
     }
 //    implementation 'com.github.122006.Zircon:zircon:3.+'
@@ -45,7 +50,40 @@ dependencies {
     testAnnotationProcessor project(":javac")
 //    testImplementation project(":test")
 }
-tasks.withType(JavaCompile) {
-    it.options.compilerArgs << "-Xplugin:ZrExMethod"
-    it.options.compilerArgs << "-Xplugin:ZrString"
+//java {
+//    sourceCompatibility = JavaVersion.VERSION_22
+//    targetCompatibility = JavaVersion.VERSION_22
+//}
+tasks.withType(JavaCompile).configureEach {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
+    }
+    options.compilerArgs << "-Xplugin:ZrExMethod"
+    options.compilerArgs << "-Xplugin:ZrString"
+    def version = (it as JavaCompile).javaCompiler.get().metadata.languageVersion.asInt()
+    if (version >= 21) {
+        options.compilerArgs += "--enable-preview"
+    }
 }
+tasks.withType(Test).configureEach {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
+    }
+    if (rootProject.extensions.ext.testJavaVersion >= 21) {
+        jvmArgs += "--enable-preview"
+    }
+}
+tasks.withType(JavaExec).configureEach {
+    jvmArgs += "--enable-preview"
+}
+//tasks.withType(JavaCompile) {
+//    doFirst {
+//        it.options.compilerArgs << "-Xplugin:ZrExMethod"
+//        it.options.compilerArgs << "-Xplugin:ZrString"
+//        def version = (it as JavaCompile).javaCompiler.get().metadata.languageVersion.asInt()
+//        System.err.println("tasks.withType " + version)
+////    if (version >= 21) {
+////        it.options.compilerArgs << "--enable-preview"
+////    }
+//    }
+//}
