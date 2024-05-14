@@ -76,14 +76,3 @@ tasks.withType(Test).configureEach {
 tasks.withType(JavaExec).configureEach {
     jvmArgs += "--enable-preview"
 }
-//tasks.withType(JavaCompile) {
-//    doFirst {
-//        it.options.compilerArgs << "-Xplugin:ZrExMethod"
-//        it.options.compilerArgs << "-Xplugin:ZrString"
-//        def version = (it as JavaCompile).javaCompiler.get().metadata.languageVersion.asInt()
-//        System.err.println("tasks.withType " + version)
-////    if (version >= 21) {
-////        it.options.compilerArgs << "--enable-preview"
-////    }
-//    }
-//}
