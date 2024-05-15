@@ -52,7 +52,6 @@ public class STRStringFormatter extends SStringFormatter {
                     }
                     model.setOriginalString(text.substring(0, thisIndex + 1));
                     model.setEndQuoteIndex(thisIndex);
-                    System.err.println(text.substring(0, thisIndex + 1));
                     return model;
                 }
             }
