@@ -31,42 +31,46 @@ repositories {
     mavenCentral()
 }
 ext {
-    testJavaVersion = Integer.valueOf(project.getProperties().getOrDefault('tjv', 22))// gradle testWithDiffJavaVersion -Ptjv=21
+    testJavaVersion = Integer.valueOf(project.getProperties().getOrDefault('tjv', 22))
+// gradle testWithDiffJavaVersion -Ptjv=21
 }
+if (System.getProperty("user.name", "") != "jitpack") {
+    def allData = [
+            [version: 8, project: ":inject_java7"]
+            , [version: 11, project: ":inject_java11"]
+            , [version: 17, project: ":inject_java16"]]
+    def useJavaVersion = allData.collect { it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
 
-def allData = [
-        [version: 8, project: ":inject_java7"]
-        , [version: 11, project: ":inject_java11"]
-        , [version: 17, project: ":inject_java16"]]
-def useJavaVersion = allData.collect { it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
-
-task testWithDiffJavaVersion {
-    group "zircon"
-    dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
-    doLast {
-        project(":test").test.executeTests()
-    }
-}
-
-allData.forEach(data -> {
-    tasks.findByPath("${data.project}:copyJavacClass").dependsOn(tasks.findByPath("${data.project}:compileJava"))
-    tasks.findByPath("${data.project}:copyJavacClass").dependsOn(":javac:processResources")
-    task "cleanJava${data.version}Clazz"(type: Delete) {
-        delete "javac/src/main/resources/clazz/" + data.project.split("_")[1]
-    }
-    task "buildClazzByJava${data.version}" {
+    task testWithDiffJavaVersion {
         group "zircon"
-        dependsOn "${data.project}:clean", "${data.project}:compileJava", "cleanJava${data.version}Clazz", "${data.project}:copyJavacClass"
+        dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
+        doLast {
+            project(":test").test.executeTests()
+        }
     }
-})
+
+    allData.forEach(data -> {
+        tasks.findByPath("${data.project}:copyJavacClass").dependsOn(tasks.findByPath("${data.project}:compileJava"))
+        tasks.findByPath("${data.project}:copyJavacClass").dependsOn(":javac:processResources")
+        task "cleanJava${data.version}Clazz"(type: Delete) {
+            group "zircon"
+            delete "javac/src/main/resources/clazz/" + data.project.split("_")[1]
+        }
+        task "buildClazzByJava${data.version}" {
+            group "zircon"
+            dependsOn "${data.project}:clean", "${data.project}:compileJava", "cleanJava${data.version}Clazz", "${data.project}:copyJavacClass"
+        }
+    })
 
 
-task cleanAllClazz(type: Delete) {
-    delete "javac/src/main/resources/clazz/"
+    task cleanAllClazz(type: Delete) {
+        group "zircon"
+        delete "javac/src/main/resources/clazz/"
+    }
+    task buildClazzByAllJavaVersion {
+        group "zircon"
+        dependsOn allData.collect { "buildClazzByJava${it.version}" }
+    }
+
+    cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)
 }
-task buildClazzByAllJavaVersion {
-    group "zircon"
-    dependsOn allData.collect { "buildClazzByJava${it.version}" }
-}
-
-cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)
