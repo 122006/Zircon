@@ -7,7 +7,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    compileOnly rootProject.files("/tools/tools.jar")
+    compileOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
 }
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8

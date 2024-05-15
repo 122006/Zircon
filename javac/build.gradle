@@ -12,7 +12,7 @@ repositories {
     }
 }
 dependencies {
-    compileOnly rootProject.files("/tools/tools.jar")
+    compileOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
     api project(":base")
     api project(":zircon")
 }
