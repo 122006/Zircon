@@ -1,2 +1,7 @@
 jdk:
   - openjdk11
+before_install:
+  - ./custom_setup.sh
+install:
+  - ./gradlew clean install -xtest
+env:
