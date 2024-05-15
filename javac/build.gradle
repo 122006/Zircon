@@ -12,7 +12,7 @@ repositories {
     }
 }
 dependencies {
-    compileOnly files("/tools/tools.jar")
+    compileOnly project.files("/tools/tools.jar")
     api project(":base")
     api project(":zircon")
 }
