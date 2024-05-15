@@ -19,6 +19,9 @@
 
 > 自由拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
 
+![](others/exmethod_show4.gif)
+
+
 ### 2. 内插模板字符串
 
 `String text=$"My name is $ID.name ";//简单使用`
@@ -34,9 +37,6 @@
 
 ---------------
 
-### 使用示例
-
-![](others/exmethod_show3.png)
 
 ### 使用说明
 
