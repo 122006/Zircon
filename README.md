@@ -59,7 +59,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.2'
+        classpath 'com.github.122006.Zircon:gradle:3.2.3'
     }
 }
 ````
@@ -76,13 +76,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.2</version>
+            <version>3.2.3</version>
             <scope>provide</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.2</version>
+            <version>3.2.3</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -141,9 +141,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.2
+### v3.2.3
 
-1. 优化项目依赖结构
+1. 支持java21、java22
+2. 优化项目编译结构
 
 <details>
   <summary>历史依赖更新</summary>
@@ -198,6 +199,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 2. 修复罕见情况下的多层匿名类指向错误的问题
 3. 现在如果存在多个匹配的拓展方法实现，会自动使用路径最相近的实现
 
+### v3.2.2
+
+1. 优化项目依赖结构
 </details>
 
 ### idea插件3.6
