@@ -50,16 +50,15 @@ if (System.getProperty("user.name", "") != "jitpack") {
     }
 
     allData.forEach(data -> {
-        tasks.findByPath("${data.project}:copyJavacClass").dependsOn(tasks.findByPath("${data.project}:compileJava"))
-        tasks.findByPath("${data.project}:copyJavacClass").dependsOn(":javac:processResources")
         task "cleanJava${data.version}Clazz"(type: Delete) {
             group "zircon"
             delete "javac/src/main/resources/clazz/" + data.project.split("_")[1]
         }
         task "buildClazzByJava${data.version}" {
             group "zircon"
-            dependsOn "${data.project}:clean", "${data.project}:compileJava", "cleanJava${data.version}Clazz", "${data.project}:copyJavacClass"
+            dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
         }
+        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:compileJava", ":javac:processResources")
     })
 
 

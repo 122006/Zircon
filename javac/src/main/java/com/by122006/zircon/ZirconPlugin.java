@@ -194,9 +194,9 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             theUnsafe.setAccessible(true);
             Object unsafe = theUnsafe.get(null);
             final Method objectFieldOffset = aClass.getMethod("objectFieldOffset", Field.class);
-            long firstFieldOffset = (long) objectFieldOffset.invoke(unsafe,Parent.class.getDeclaredField("first"));
-            final Method putBooleanVolatile = aClass.getMethod("putBooleanVolatile", Object.class,long.class,boolean.class);
-            putBooleanVolatile.invoke(unsafe,m,firstFieldOffset,true);
+            long firstFieldOffset = (long) objectFieldOffset.invoke(unsafe, Parent.class.getDeclaredField("first"));
+            final Method putBooleanVolatile = aClass.getMethod("putBooleanVolatile", Object.class, long.class, boolean.class);
+            putBooleanVolatile.invoke(unsafe, m, firstFieldOffset, true);
         }
     }
 
@@ -223,11 +223,10 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             return (Class<T>) outcl.loadClass(claz);
         } catch (ClassNotFoundException e) {
         }
-        try {
-            String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
-            InputStream is = path.startsWith("/") ? ZirconPlugin.class.getResourceAsStream(path) : incl.getResourceAsStream(path);
+        String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
+        try (InputStream is = path.startsWith("/") ? ZirconPlugin.class.getResourceAsStream(path) : incl.getResourceAsStream(path);) {
             if (is == null) {
-                throw new RuntimeException("找不到对应类:" + claz);
+                throw new RuntimeException("dismiss class:  " + claz + ", in path:" + path);
             }
             byte[] bytes = new byte[is.available()];
             is.read(bytes);

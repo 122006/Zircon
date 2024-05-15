@@ -11,7 +11,7 @@ repositories {
     }
 }
 dependencies {
-    compileOnly files("/tools/tools.jar")
+    compileOnly project(":javac").files("/tools/tools.jar")
     implementation project(":base")
     implementation project(":zircon")
 }
