@@ -43,6 +43,7 @@
 #### [内插模板字符串（点击跳转）](mds/README_ZrString.md)
 
 #### [全局拓展方法（点击跳转）](mds/README_ZrExMethod.md)
+> 如何定义一个拓展方法？[*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
 
 ### 插件引入
 

@@ -12,6 +12,9 @@
 
 > 在项目任意位置中，声明一个包含注解`@ExMethod`的方法。后续你可以在项目任何地方中使用这个方法。
 
+> 如何定义一个拓展方法？[*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
+
+
 #### 1.添加静态方法
 
 ``` 
