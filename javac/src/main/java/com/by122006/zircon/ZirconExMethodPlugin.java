@@ -42,4 +42,8 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
         getInstance(ZrResolve, context);
     }
+
+    public boolean autoStart() {
+        return true;
+    }
 }

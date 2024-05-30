@@ -30,7 +30,7 @@ repositories {
 }
 patchPluginXml {
     sinceBuild = "203.*"
-    untilBuild = "233.*"
+    untilBuild = "243.*"
 }
 dependencies {
     annotationProcessor project(":javac")
@@ -40,7 +40,7 @@ dependencies {
 //IU-202.7319.50
 intellij {
     plugins = ['java']
-    version = "2022.1"
+    version = "2024.1"
     type = "IC"
 }
 

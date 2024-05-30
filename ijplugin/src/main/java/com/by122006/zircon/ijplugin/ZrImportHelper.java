@@ -1,13 +1,10 @@
 package com.by122006.zircon.ijplugin;
 
-import static java.util.stream.Collectors.toSet;
-
 import com.by122006.zircon.util.ZrUtil;
 import com.google.common.base.Predicates;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.ImportFilter;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
-import com.intellij.codeInsight.daemon.impl.analysis.HighlightingFeature;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.jsp.JspSpiUtil;
 import com.intellij.lang.ASTNode;
@@ -16,35 +13,7 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.JavaRecursiveElementVisitor;
-import com.intellij.psi.JavaRecursiveElementWalkingVisitor;
-import com.intellij.psi.JavaResolveResult;
-import com.intellij.psi.JspPsiUtil;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiCompiledElement;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementFactory;
-import com.intellij.psi.PsiField;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiFileFactory;
-import com.intellij.psi.PsiImportList;
-import com.intellij.psi.PsiImportStatement;
-import com.intellij.psi.PsiImportStatementBase;
-import com.intellij.psi.PsiImportStaticStatement;
-import com.intellij.psi.PsiJavaCodeReferenceElement;
-import com.intellij.psi.PsiJavaFile;
-import com.intellij.psi.PsiJavaReference;
-import com.intellij.psi.PsiLiteralExpression;
-import com.intellij.psi.PsiMember;
-import com.intellij.psi.PsiMethod;
-import com.intellij.psi.PsiMethodCallExpression;
-import com.intellij.psi.PsiMethodReferenceExpression;
-import com.intellij.psi.PsiModifier;
-import com.intellij.psi.PsiNameHelper;
-import com.intellij.psi.PsiPackage;
-import com.intellij.psi.PsiReference;
-import com.intellij.psi.PsiResolveHelper;
+import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleSettings;
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings;
 import com.intellij.psi.codeStyle.PackageEntry;
@@ -74,30 +43,18 @@ import com.intellij.util.containers.MultiMap;
 import com.intellij.util.containers.NotNullList;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ZrStringModel;
-
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * copy from
@@ -174,8 +131,9 @@ public final class ZrImportHelper {
         classesToUseSingle.addAll(toReimport);
 
         try {
-            boolean stringTemplates = Arrays.stream(HighlightingFeature.values()).filter(a->a.name().equals("STRING_TEMPLATES"))
-                    .map(a->a.isAvailable(file)).findFirst().orElse(false);
+//            boolean stringTemplates = Arrays.stream(HighlightingFeature.values()).filter(a->a.name().equals("STRING_TEMPLATES"))
+//                    .map(a->a.isAvailable(file)).findFirst().orElse(false);
+            boolean stringTemplates=true;
             StringBuilder text = buildImportListText(resultList, classesOrPackagesToImportOnDemand.keySet(), classesToUseSingle, stringTemplates);
             for (PsiElement nonImport : nonImports) {
                 text.append("\n").append(nonImport.getText());

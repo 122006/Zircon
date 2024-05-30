@@ -44,4 +44,8 @@ public class ZirconStringPlugin extends ZirconPlugin {
         set(parserFactory, "scannerFactory", instance);
     }
 
+    public boolean autoStart() {
+        return true;
+    }
+
 }

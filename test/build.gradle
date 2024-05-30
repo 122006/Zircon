@@ -58,8 +58,10 @@ tasks.withType(JavaCompile).configureEach {
     javaCompiler = javaToolchains.compilerFor {
         languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
     }
-    options.compilerArgs << "-Xplugin:ZrExMethod"
-    options.compilerArgs << "-Xplugin:ZrString"
+    if (rootProject.extensions.ext.testJavaVersion <= 11) {
+        options.compilerArgs << "-Xplugin:ZrExMethod"
+        options.compilerArgs << "-Xplugin:ZrString"
+    }
     def version = (it as JavaCompile).javaCompiler.get().metadata.languageVersion.asInt()
     if (version >= 21) {
         options.compilerArgs += "--enable-preview"
