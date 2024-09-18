@@ -80,7 +80,8 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
 
     @Override
     public PsiReference @NotNull [] getReferences() {
-        return new PsiReference[]{getReference()};
+        final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager().getProject());
+        return new PsiReference[]{getReference(), elementFactory.createClassReferenceElement(targetClass)};
     }
 
     @Override
@@ -88,7 +89,7 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
         final PsiClass containingClass = targetMethod.getContainingClass();
         if (containingClass == null) return null;
         final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager()
-                                                                                            .getProject());
+                .getProject());
         return elementFactory.createClassReferenceElement(containingClass);
     }
 
@@ -109,12 +110,12 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
                 final Object refCountHolder = myRefCountHolder.get(highlightVisitor);
                 if (refCountHolder != null) {
                     final Method registerImportStatement = refCountHolder.getClass()
-                                                                         .getDeclaredMethod("registerImportStatement", PsiReference.class, PsiImportStatementBase.class);
+                            .getDeclaredMethod("registerImportStatement", PsiReference.class, PsiImportStatementBase.class);
                     final PsiReference reference = getReference();
                     final PsiClass containingClass = targetMethod.getContainingClass();
                     if (containingClass == null) return;
                     final PsiImportStatement importStatement = PsiElementFactory.getInstance(getProject())
-                                                                                .createImportStatement(containingClass);
+                            .createImportStatement(containingClass);
                     registerImportStatement.invoke(registerImportStatement, reference, importStatement);
                 }
             } catch (ProcessCanceledException e) {

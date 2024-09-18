@@ -1,25 +1,7 @@
 package test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import org.junit.jupiter.api.Test;
-
-import java.io.Serializable;
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.IntUnaryOperator;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
+import test.NearExMethod;
 import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
 import test.TestExMethodImpl;
@@ -31,8 +13,19 @@ import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;
 import zircon.example.ExString;
-import test.child.ChildExMethod;
-import test.NearExMethod;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.function.*;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 
 @SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
@@ -40,7 +33,7 @@ public class TestExMethodImpl {
     @SuppressWarnings("AccessStaticViaInstance")
     @Test
     public void test() {
-        System.out.println("java version:"+System.getProperty("java.version"));
+        System.out.println("java version:" + System.getProperty("java.version"));
 
         checkMethodInvokes(
                 () -> {
@@ -83,7 +76,7 @@ public class TestExMethodImpl {
                 () -> {
                     String[] strs = {"123"};
                     return strs.emptyStringArrayRStringArray().emptyStringArrayRStringArray1()
-                               .emptyStringArrayRStringArray2();
+                            .emptyStringArrayRStringArray2();
                 }, () -> {
                     String[] strs = {"123"};
                     return TestExMethod.emptyStringArrayRStringArray2(TestExMethod.emptyStringArrayRStringArray1(TestExMethod.emptyStringArrayRStringArray(strs)));
@@ -527,7 +520,7 @@ public class TestExMethodImpl {
                     return test0.apply(a -> a);
                 },
                 () -> {
-                    IntStream stream = (IntStream) null;
+                    IntStream stream = null;
                     Function<IntUnaryOperator, IntStream> test0 = stream::map;
                     return test0.apply(a -> a);
                 });
@@ -561,7 +554,7 @@ public class TestExMethodImpl {
         );
         Class<?>[] classes = Stream.of(String.class, Integer.class).map(Object::getClass).toArray(Class<?>[]::new);
         Boolean[] classesNames = Stream.of(String.class, Integer.class).map(Object::getClass).map(String::valueOf)
-                                       .map(String::isEmpty).toArray(Boolean[]::new);
+                .map(String::isEmpty).toArray(Boolean[]::new);
         final Runnable runnable = () -> hashMap.keySet().forEach(ExObject.$throw(a -> {
             a.length();
         }));
@@ -619,7 +612,7 @@ public class TestExMethodImpl {
         new Thread(() -> {
 
             Runnable testRun = new Runnable() {
-                int a = 0;
+                final int a = 0;
 
                 @Override
                 public void run() {
@@ -631,7 +624,7 @@ public class TestExMethodImpl {
 
         }).start2();
         $testRun(new Runnable() {
-            int d = 0;
+            final int d = 0;
 
             @Override
             public void run() {
@@ -650,9 +643,9 @@ public class TestExMethodImpl {
         nullStr.equals("123");
 
 
-        String a= Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
+        String a = Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
 
-        String a= Optional.ofNullable(nullStr).orElse(null);
+        String b = Optional.ofNullable(nullStr).orElse(null);
 
         testEnd();
 
@@ -661,7 +654,7 @@ public class TestExMethodImpl {
 
     @Override
     public boolean equals(Object obj) {
-        TestExMethod.methodNames.add("equals"+obj);
+        TestExMethod.methodNames.add("equals" + obj);
         return super.equals(obj);
     }
 
@@ -689,7 +682,7 @@ public class TestExMethodImpl {
     }
 
 
-    static interface TestM<T> extends Serializable {
+    interface TestM<T> extends Serializable {
         Object get(T source) throws Exception;
     }
 

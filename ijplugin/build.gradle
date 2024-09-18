@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.by122006.zircon'
-version '3.7'
+version '3.8'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11

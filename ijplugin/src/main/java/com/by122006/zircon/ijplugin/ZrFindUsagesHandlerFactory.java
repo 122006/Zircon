@@ -3,21 +3,19 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.find.findUsages.FindUsagesHandler;
 import com.intellij.find.findUsages.FindUsagesHandlerFactory;
 import com.intellij.openapi.project.DumbService;
-import com.intellij.psi.PsiAnnotation;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiMethod;
+import com.intellij.openapi.project.Project;
+import com.intellij.psi.*;
+import com.intellij.psi.impl.source.PsiClassReferenceType;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTypesUtil;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.ExMethod;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
-import zircon.ExMethod;
 
 public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
     @Override
@@ -33,14 +31,24 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
         return new FindUsagesHandler(element) {
             @NotNull
             public PsiElement[] getSecondaryElements() {
+                final Project project = element.getProject();
                 final List<ZrPsiAugmentProvider.CacheMethodInfo> psiMethods
-                        = ZrPsiAugmentProvider.getCachedAllMethod(element.getProject());
+                        = ZrPsiAugmentProvider.getCachedAllMethod(project);
                 final Optional<ZrPsiAugmentProvider.CacheMethodInfo> first = psiMethods.stream().filter(a -> a.method == element)
                         .findFirst();
-                if (!first.isPresent()) return PsiElement.EMPTY_ARRAY;
+                if (first.isEmpty()) return PsiElement.EMPTY_ARRAY;
                 final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = first.get();
                 final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
-                    final PsiClass psiClass = PsiTypesUtil.getPsiClass(type);
+                    PsiClass psiClass;
+                    if (type instanceof PsiClassReferenceType) {
+                        final String qualifiedName = ((PsiClassReferenceType) type).getReference().getQualifiedName();
+                        final PsiClass[] classes = JavaPsiFacade.getInstance(project)
+                                .findClasses(qualifiedName, GlobalSearchScope.allScope(project));
+                        psiClass = classes.length > 0 ? classes[0] : null;
+                    } else {
+                        psiClass = PsiTypesUtil.getPsiClass(type);
+
+                    }
                     if (psiClass == null) return null;
                     return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method,PsiTypesUtil.getClassType(psiClass));
                 }).filter(Objects::nonNull).collect(Collectors.toList());

@@ -6,6 +6,9 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.main.iml" filepath="$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.test.iml" filepath="$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/JavaStringFormat.main.iml" filepath="$PROJECT_DIR$/.idea/modules/JavaStringFormat.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ijplugin/Zircon.ijplugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/ijplugin/Zircon.ijplugin.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/Zircon.test.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test/Zircon.test.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/Zircon.test.test.iml" filepath="$PROJECT_DIR$/.idea/modules/test/Zircon.test.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.test.iml" filepath="$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.test.iml" />
     </modules>

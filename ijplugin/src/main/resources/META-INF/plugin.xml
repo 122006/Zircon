@@ -41,13 +41,28 @@
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
     <change-notes><![CDATA[
-        support 'extension method'<p>v3.4: Strengthening the support of automatic completion function for proxy class generics</p>
+        support 'extension method'<p>v3.4: Strengthening the support of automatic completion function for proxy class
+            generics</p>
         ]]></change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
-        <postStartupActivity implementation="com.by122006.zircon.ijplugin.ZrStartupActivity"/>
     </extensions>
     <actions>
+        <group id="Zircon" popup="true" text="Zircon">
+            <separator/>
+            <action id="com.by122006.zircon.ijplugin.ZrReplaceAllAction"
+                    class="com.by122006.zircon.ijplugin.ZrReplaceAllAction"
+                    text="[ZrMethod] Replace All with Extension Method"
+                    description="Replace all normal methods modified by @ExMethod as extension methods">
+            </action>
+            <action id="com.by122006.zircon.ijplugin.ZrDeReplaceAllAction"
+                    class="com.by122006.zircon.ijplugin.ZrDeReplaceAllAction"
+                    text="[ZrMethod] Replace All with Normal Method"
+                    description="Replace all extension methods modified by @ExMethod  as normal methods">
+            </action>
+            <add-to-group group-id="EditMenu" anchor="last"/>
+        </group>
+
     </actions>
     <extensions defaultExtensionNs="com.intellij">
         <languageInjector implementation="com.by122006.zircon.ijplugin.ZrStringLiteralInjector" order="first"/>
