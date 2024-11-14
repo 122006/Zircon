@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/IdeaProjects.Zircon.test.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test/IdeaProjects.Zircon.test.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/IdeaProjects.Zircon.test.test.iml" filepath="$PROJECT_DIR$/.idea/modules/test/IdeaProjects.Zircon.test.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/inject_java11/JavaStringFormat.Zircon.inject_java11.test.iml" filepath="$PROJECT_DIR$/.idea/modules/inject_java11/JavaStringFormat.Zircon.inject_java11.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.main.iml" filepath="$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.test.iml" filepath="$PROJECT_DIR$/.idea/modules/code/JavaStringFormat.code.test.iml" />
@@ -11,6 +13,7 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/Zircon.test.test.iml" filepath="$PROJECT_DIR$/.idea/modules/test/Zircon.test.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.main.iml" filepath="$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.test.iml" filepath="$PROJECT_DIR$/.idea/modules/test/com.122006.JavaStringFormat.test.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/ijplugin/com.by122006.zircon.Zircon.ijplugin.main.iml" filepath="$PROJECT_DIR$/.idea/modules/ijplugin/com.by122006.zircon.Zircon.ijplugin.main.iml" />
     </modules>
   </component>
 </project>

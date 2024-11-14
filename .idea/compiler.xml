@@ -12,8 +12,8 @@
           <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
           <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
         </processorPath>
-        <module name="Zircon.ijplugin.main" />
-        <module name="Zircon.test.test" />
+        <module name="com.by122006.zircon.Zircon.ijplugin.main" />
+        <module name="IdeaProjects.Zircon.test.test" />
       </profile>
       <profile name="Gradle Imported" enabled="true">
         <outputRelativeToContentRoot value="true" />
@@ -24,6 +24,16 @@
           <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
         </processorPath>
         <module name="Zircon.test.main" />
+      </profile>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$PROJECT_DIR$/javac/build/libs/javac.jar" />
+          <entry name="$PROJECT_DIR$/../../../.m2/caches/modules-2/files-2.1/org.projectlombok/lombok/1.18.20/18bcea7d5df4d49227b4a0743a536208ce4825bb/lombok-1.18.20.jar" />
+          <entry name="$PROJECT_DIR$/base/build/libs/base.jar" />
+          <entry name="$PROJECT_DIR$/zircon/build/libs/zircon.jar" />
+        </processorPath>
+        <module name="IdeaProjects.Zircon.test.main" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel target="8">

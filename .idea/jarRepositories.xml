@@ -86,5 +86,20 @@
       <option name="name" value="maven2" />
       <option name="url" value="file:/$PROJECT_DIR$/../../repo/" />
     </remote-repository>
+    <remote-repository>
+      <option name="id" value="maven2" />
+      <option name="name" value="maven2" />
+      <option name="url" value="file:/$PROJECT_DIR$/../../repo" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="IntelliJ Platform Dependencies Repository" />
+      <option name="name" value="IntelliJ Platform Dependencies Repository" />
+      <option name="url" value="https://cache-redirector.jetbrains.com/intellij-dependencies" />
+    </remote-repository>
+    <remote-repository>
+      <option name="id" value="JetBrains Marketplace Repository" />
+      <option name="name" value="JetBrains Marketplace Repository" />
+      <option name="url" value="https://cache-redirector.jetbrains.com/plugins.jetbrains.com/maven" />
+    </remote-repository>
   </component>
 </project>

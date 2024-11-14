@@ -26,6 +26,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 
 @SuppressWarnings({"Convert2MethodRef", "ResultOfMethodCallIgnored", "MismatchedReadAndWriteOfArray", "CodeBlock2Expr", "unused"})
@@ -642,8 +643,9 @@ public class TestExMethodImpl {
 
         nullStr.equals("123");
 
-
-        String a = Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
+        assertThrows(RuntimeException.class, () -> {
+            String a = Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
+        });
 
         String b = Optional.ofNullable(nullStr).orElse(null);
 
@@ -797,7 +799,7 @@ public class TestExMethodImpl {
         for (E e : collection) {
             map.computeIfAbsent(function.apply(e), k -> new ArrayList<>()).add(e);
         }
-        return new HashMap<M, V>().let(a -> {
+        return new HashMap<M, V>().with(a -> {
             map.forEach((key, value) -> a.put(key, valueMap.apply(value)));
         });
     }

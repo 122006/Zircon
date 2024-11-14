@@ -285,4 +285,4 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
 
-`implementation 'com.github.122006:ExMethodUtil:1.1.3'`
+`implementation 'com.github.122006:ExMethodUtil:1.1.5'`
