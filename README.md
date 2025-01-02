@@ -205,9 +205,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 1. 优化项目依赖结构
 </details>
 
-### idea插件3.6
+### idea插件3.8
 
-1. 功能性优化
+1. 支持同名方法自动解析
+2. 原有方法冲突时，自动使用原有方法
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -274,6 +275,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件3.5
 
 1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
+2. 
+### idea插件3.6
+
+1. 功能性优化
 
 </details>
 
