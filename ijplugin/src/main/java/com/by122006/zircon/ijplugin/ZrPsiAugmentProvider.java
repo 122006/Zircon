@@ -253,15 +253,15 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     if (context instanceof PsiMethodCallExpression) {
                         final PsiMethodCallExpression psiMethodCallExpression = (PsiMethodCallExpression) context;
                         final PsiExpressionList argumentList = psiMethodCallExpression.getArgumentList();
-                        boolean any=true;
+                        boolean any = true;
                         if (argumentList.getExpressions().length == oParameters.length) {
                             for (int i = 0, oParametersLength = oParameters.length; i < oParametersLength; i++) {
                                 PsiParameter oParameter = oParameters[i];
                                 final PsiExpression expression = argumentList.getExpressions()[i];
-                                if (expression.getType()==null) continue;
+                                if (expression.getType() == null) continue;
                                 final boolean assignableFrom = expression.getType().isConvertibleFrom(oParameter.getType());
-                                if (!assignableFrom){
-                                    any=false;
+                                if (!assignableFrom) {
+                                    any = false;
                                     break;
                                 }
                             }

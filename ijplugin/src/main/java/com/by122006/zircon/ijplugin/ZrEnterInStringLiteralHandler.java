@@ -46,7 +46,7 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
         } else {
             int caretOffset = (Integer) caretOffsetRef.get();
             JavaLikeQuoteHandler quoteHandler = this.getJavaLikeQuoteHandler(editor, file);
-            if (!isInStringLiteral(editor, quoteHandler, caretOffset)) {
+            if (!zrIsInStringLiteral(editor, quoteHandler, caretOffset)) {
                 return Result.Continue;
             } else {
                 PsiDocumentManager.getInstance(file.getProject()).commitDocument(editor.getDocument());
@@ -56,14 +56,14 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
                     if (quoteHandler.canBeConcatenated(psiAtOffset)) {
                         ASTNode token = psiAtOffset.getNode();
                         final Formatter formatter = ZrUtil.checkPsiLiteralExpression(token);
-                        if (formatter==null) return Result.Continue;
+                        if (formatter == null) return Result.Continue;
                         if (quoteHandler.needParenthesesAroundConcatenation(psiAtOffset)) {
                             document.insertString(psiAtOffset.getTextRange().getEndOffset(), ")");
                             document.insertString(psiAtOffset.getTextRange().getStartOffset(), "(");
                             caretOffset++;
                         }
                         String insertedFragment = "\" " + quoteHandler.getStringConcatenationOperatorRepresentation();
-                        document.insertString(caretOffset, insertedFragment + " " + formatter.prefix() + "\"" );
+                        document.insertString(caretOffset, insertedFragment + " " + formatter.prefix() + "\"");
                         caretOffset += insertedFragment.length();
                         int caretAdvance = 1;
                         if (CodeStyle.getLanguageSettings(file).BINARY_OPERATION_SIGN_ON_NEXT_LINE) {
@@ -81,8 +81,8 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
         }
     }
 
-    @Contract( "_,null,_->false" )
-    private static boolean isInStringLiteral(@NotNull Editor editor, @Nullable JavaLikeQuoteHandler quoteHandler, int offset) {
+    @Contract("_,null,_->false")
+    private boolean zrIsInStringLiteral(@NotNull Editor editor, @Nullable JavaLikeQuoteHandler quoteHandler, int offset) {
         if (offset > 0 && quoteHandler != null) {
             EditorHighlighter highlighter = ((EditorEx) editor).getHighlighter();
             HighlighterIterator iterator = highlighter.createIterator(offset - 1);

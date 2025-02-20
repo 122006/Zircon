@@ -14,6 +14,8 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import zircon.ExMethod;
+import zircon.example.ExCollection;
+import zircon.example.ExObject;
 import zircon.example.ExReflection;
 
 public class TestExMethod {
@@ -439,6 +441,12 @@ public class TestExMethod {
             final AssertionError assertionError = new AssertionError("\nv1:\n" + collect + "\n-----------\nv2:\n" + collect2 + "\n");
             errorSave.add(assertionError.getMessage() + "\n" + assertionError.getStackTrace()[1]);
         }
+    }
+
+    @ExMethod
+    public static <E,C extends E> List<? extends C> filter(List<E> collection, Class<C> clazz) {
+        if (collection == null) return null;
+        return ExCollection.findAll(collection, a -> a.isInstanceOf(clazz)).map(a -> (C) a);
     }
 
 

@@ -1,10 +1,10 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.1.0'
+    id 'org.jetbrains.intellij.platform' version '2.2.1'
 }
 
 group 'com.by122006.zircon'
-version '3.8'
+version '3.9'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -33,18 +33,19 @@ repositories {
 
 }
 patchPluginXml {
-    sinceBuild = "203.*"
-    untilBuild = "243.*"
+    sinceBuild = "212.*"
+    untilBuild = "251.*"
 }
 dependencies {
     annotationProcessor project(":javac")
     implementation project(":base")
     intellijPlatform {
         intellijIdeaCommunity '2024.1'
+//        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation('com.github.122006:ExMethodUtil:1.1.5')
+    implementation('com.github.122006:ExMethodUtil:1.1.7')
 }
 ////IU-202.7319.50
 //intellij {

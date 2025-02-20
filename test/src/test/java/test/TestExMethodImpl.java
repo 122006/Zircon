@@ -609,6 +609,11 @@ public class TestExMethodImpl {
         forEachPair(pairs, (a, b) -> {
             a.notNull();
         });
+//        final ArrayList<FatherObj> fatherObjs = (ArrayList<FatherObj>) new ArrayList<FatherObj>().addVarargs(new ChildChildObj());
+//        checkMethodInvokes(
+//                () -> TestExMethod.filter(fatherObjs,ChildObj.class).isEmpty(),
+//                () -> fatherObjs.filter(ChildObj.class).isEmpty()
+//        );
 
         new Thread(() -> {
 

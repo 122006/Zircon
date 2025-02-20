@@ -27,7 +27,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.codeStyle.CodeStyleManagerImpl;
+import com.intellij.psi.codeStyle.CodeStyleManager;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -42,7 +42,10 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
+import zircon.example.ExArray;
 import zircon.example.ExCollection;
+import zircon.example.ExObject;
+import zircon.example.ExReflection;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -182,7 +185,7 @@ public class ZrAnnotator implements Annotator {
                                     if (file != null) {
                                         ImportUtils.addImportIfNeeded(containingClass, file);
                                     }
-                                    CodeStyleManagerImpl.getInstance(project).reformat(element);
+                                    CodeStyleManager.getInstance(project).reformat(element);
                                 }
 //                            });
                             }
@@ -308,7 +311,7 @@ public class ZrAnnotator implements Annotator {
                             try {
                                 method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
                                 ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                                CodeStyleManagerImpl.getInstance(project).reformat(method.getContainingFile());
+                                CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }

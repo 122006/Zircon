@@ -102,8 +102,8 @@ public final class ZrImportHelper {
         List<PsiElement> nonImports = new NotNullList<>();
         // Note: this array may contain "<packageOrClassName>.*" for unresolved imports!
         List<Import> imports = collectNamesToImport(file, nonImports).stream().filter(filter)
-                                                                     .sorted(Comparator.comparing(o -> o.name))
-                                                                     .collect(Collectors.toList());
+                .sorted(Comparator.comparing(o -> o.name))
+                .collect(Collectors.toList());
 
         List<Import> resultList = sortItemsAccordingToSettings(imports, mySettings);
 
@@ -133,7 +133,7 @@ public final class ZrImportHelper {
         try {
 //            boolean stringTemplates = Arrays.stream(HighlightingFeature.values()).filter(a->a.name().equals("STRING_TEMPLATES"))
 //                    .map(a->a.isAvailable(file)).findFirst().orElse(false);
-            boolean stringTemplates=true;
+            boolean stringTemplates = true;
             StringBuilder text = buildImportListText(resultList, classesOrPackagesToImportOnDemand.keySet(), classesToUseSingle, stringTemplates);
             for (PsiElement nonImport : nonImports) {
                 text.append("\n").append(nonImport.getText());
@@ -299,17 +299,17 @@ public final class ZrImportHelper {
             PsiClass aClass;
             if (aPackage != null) { // import foo.package1.*;
                 Set<String> set = Arrays.stream(aPackage.getClasses(resolveScope)).map(PsiClass::getName)
-                                        .collect(toSet());
+                        .collect(toSet());
                 classNames.put(onDemand, set);
             } else if ((aClass = facade.findClass(onDemand, resolveScope)) != null) {  // import static foo.package1.Class1.*;
                 if (isStatic) {
                     Set<String> set = Arrays.stream(aClass.getInnerClasses())
-                                            .filter(member -> member.hasModifierProperty(PsiModifier.STATIC))
-                                            .map(PsiMember::getName).collect(toSet());
+                            .filter(member -> member.hasModifierProperty(PsiModifier.STATIC))
+                            .map(PsiMember::getName).collect(toSet());
                     classNames.put(onDemand, set);
                 } else {
                     classNames.put(onDemand, Arrays.stream(aClass.getInnerClasses()).map(PsiClass::getName)
-                                                   .collect(toSet()));
+                            .collect(toSet()));
                 }
             } else {
                 onDemands.remove(i);
@@ -520,9 +520,9 @@ public final class ZrImportHelper {
                     PsiElement target = statement.resolve();
                     if (target instanceof PsiClass) {
                         Collection<PsiReference> all = ReferencesSearch.search(target, new LocalSearchScope(file))
-                                                                       .findAll();
+                                .findAll();
                         if (all.size() == 1 && PsiTreeUtil.isAncestor(statement, all.iterator().next()
-                                                                                    .getElement(), true)) {
+                                .getElement(), true)) {
                             return statement;
                         }
                     }
@@ -614,7 +614,7 @@ public final class ZrImportHelper {
                     @Override
                     public void visitReferenceElement(@NotNull PsiJavaCodeReferenceElement reference) {
                         if (shortClassName.equals(reference.getReferenceName()) && file.getManager()
-                                                                                       .areElementsEquivalent(reference.resolve(), aClass)) {
+                                .areElementsEquivalent(reference.resolve(), aClass)) {
                             foundRef[0] = true;
                         }
                         super.visitReferenceElement(reference);
@@ -850,9 +850,9 @@ public final class ZrImportHelper {
                 if (formatter == null) continue;
                 final ZrStringModel build = formatter.build(child.getText());
                 final PsiElement[] psiElements = build.getList().stream().filter(a -> a.codeStyle == 1)
-                                                      .map(a -> JavaPsiFacade.getElementFactory(child.getProject())
-                                                                             .createExpressionFromText(a.stringVal.trim(), child))
-                                                      .toArray(PsiElement[]::new);
+                        .map(a -> JavaPsiFacade.getElementFactory(child.getProject())
+                                .createExpressionFromText(a.stringVal.trim(), child))
+                        .toArray(PsiElement[]::new);
                 ContainerUtil.addAll(queue, psiElements);
             }
             ContainerUtil.addAll(queue, child.getChildren());
@@ -946,7 +946,7 @@ public final class ZrImportHelper {
 
         // do not optimize unresolved imports for things like JSP (IDEA-41814)
         if (file.getViewProvider().getLanguages().size() > 1 && file.getViewProvider()
-                                                                    .getBaseLanguage() != JavaLanguage.INSTANCE) {
+                .getBaseLanguage() != JavaLanguage.INSTANCE) {
             namesToImport.addAll(unresolvedOnDemand);
             namesToImport.addAll(unresolvedNames.values());
             return;
