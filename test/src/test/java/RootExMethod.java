@@ -1,6 +1,8 @@
 import test.TestExMethod;
 import zircon.ExMethod;
 
+import java.util.Random;
+
 public class RootExMethod {
     @ExMethod
     public static void testSameMethod1(Object object,Number arg0, String arg1) {

@@ -2,17 +2,9 @@ package test;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import zircon.BiOp;
-
-import java.io.PrintStream;
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import zircon.example.ExObject;
+
+import java.io.Serializable;
 
 
 public class TestClass2 {

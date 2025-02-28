@@ -1,0 +1,117 @@
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+// 自定义任务生成 plugin.xml
+task generatePluginXml {
+    doLast {
+        def pluginXmlContent = """<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+    <groupId>com.github.122006</groupId>
+    <artifactId>zircon-maven-plugin</artifactId>
+    <version>${rootProject.ext.version}</version>
+    <goalPrefix>zircon</goalPrefix>
+    <isolatedRealm>false</isolatedRealm>
+    <inheritedByDefault>true</inheritedByDefault>
+    <mojos>
+        <mojo>
+            <goal>configure-zircon</goal>
+            <implementation>com.by122006.zircon.ZrMojo</implementation>
+            <description>Configures Zircon settings for the project.</description>
+            <requiresDependencyResolution>compile</requiresDependencyResolution>
+            <requiresProject>true</requiresProject>
+            <phase>process-sources</phase>
+            <language>java</language>
+            <executePhase>process-sources</executePhase>
+            <executeGoal>configure-zircon</executeGoal>
+            <requiresDependencyCollection>compile</requiresDependencyCollection>
+            <requiresDirectInvocation>false</requiresDirectInvocation>
+            <requiresReports>false</requiresReports>
+            <requiresOnline>false</requiresOnline>
+            <aggregator>false</aggregator>
+            <inheritedByDefault>true</inheritedByDefault>
+            <threadSafe>false</threadSafe>
+            <instantiationStrategy>per-lookup</instantiationStrategy>
+            <executionStrategy>once-per-session</executionStrategy>
+            <deprecated>This Mojo is not deprecated.</deprecated>
+
+            <parameters>
+                <parameter>
+                    <name>project</name>
+                    <type>org.apache.maven.project.MavenProject</type>
+                    <required>true</required>
+                    <editable>false</editable>
+                    <description>The Maven Project.</description>
+                </parameter>
+                <parameter>
+                    <name>zirconExMethod</name>
+                    <type>boolean</type>
+                    <required>false</required>
+                    <description>Whether to enable ZrExMethod plugin.</description>
+                    <defaultValue>true</defaultValue>
+                </parameter>
+                <parameter>
+                    <name>zirconTempString</name>
+                    <type>boolean</type>
+                    <required>false</required>
+                    <description>Whether to enable ZrString plugin.</description>
+                    <defaultValue>true</defaultValue>
+                </parameter>
+                <parameter>
+                    <name>zirconVersion</name>
+                    <type>java.lang.String</type>
+                    <required>false</required>
+                    <description>Version of Zircon library to use.</description>
+                    <defaultValue>latest.release</defaultValue>
+                </parameter>
+            </parameters>
+        </mojo>
+    </mojos>
+</plugin>
+"""
+
+        // 将生成的 XML 写入文件
+        def outputDir = file("${buildDir}/resources/main/META-INF/maven")
+        outputDir.mkdirs()
+        def pluginXmlFile = file("${outputDir}/plugin.xml")
+        pluginXmlFile.write(pluginXmlContent, 'UTF-8')
+        println(pluginXmlFile.path)
+    }
+}
+// 将生成任务绑定到构建流程
+jar.dependsOn generatePluginXml
+
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+    maven {
+        url uri('../../repo')
+    }
+}
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId "com.github.122006"
+            artifactId "zircon-maven-plugin"
+            version rootProject.ext.version
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url = uri('../../repo')
+        }
+    }
+}
+
+dependencies {
+    compileOnly 'org.apache.maven:maven-plugin-api:3.5.2'
+    compileOnly 'org.apache.maven.plugins:maven-plugin-plugin:3.5'
+    compileOnly 'org.apache.maven:maven-core:3.5.2'
+    compileOnly 'org.apache.maven.plugin-tools:maven-plugin-annotations:3.6.4'
+}

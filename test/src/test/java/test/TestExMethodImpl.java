@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import test.NearExMethod;
 import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
-import test.TestExMethodImpl;
 import test.TestNoEncounteredMethod;
 import zircon.ExMethod;
 import zircon.data.ThrowConsumer;

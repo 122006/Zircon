@@ -28,7 +28,7 @@ task sourceJar(type: Jar) {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId "com.github.122006.Zircon"
+            groupId rootProject.ext.groupId
             artifactId "zircon"
             version rootProject.ext.version
             from components.java

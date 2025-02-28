@@ -7,6 +7,7 @@ include ':javac'
 include ':zircon'
 include ':base'
 include ':gradle_plugin'
+include ':maven_plugin'
 
 if (System.getProperty("user.name", "") == "jitpack") {
     System.out.println("build by JITPACK")
