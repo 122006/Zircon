@@ -74,3 +74,39 @@ if (System.getProperty("user.name", "") != "jitpack") {
 
     cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)
 }
+
+
+subprojects { subproject ->
+    // 定义一个函数来执行逻辑
+    def configurePublishLogic = {
+        // 检查子模块是否存在 publishToMavenLocal 任务
+        if (subproject.tasks.findByName('publishToMavenLocal') != null) {
+            // 获取本地 Maven 仓库的路径
+            def localMavenRepo = subproject.repositories.mavenLocal().url
+
+            // 定义一个任务来复制 Maven 本地仓库文件
+            subproject.task('copyMavenLocalRepo', type: Copy) {
+                from localMavenRepo  // 从本地 Maven 仓库复制
+                into "${subproject.rootDir}/local-maven-repo"  // 复制到项目根目录下的 local-maven-repo 文件夹
+                include '**/*'  // 包含所有文件
+            }
+
+            // 在 publishToMavenLocal 任务完成后执行 copyMavenLocalRepo 任务
+            subproject.tasks.named('publishToMavenLocal') {
+                finalizedBy subproject.tasks.named('copyMavenLocalRepo')
+            }
+        }
+    }
+
+    // 检查项目是否已经完成配置阶段
+    if (subproject.state.executed) {
+        // 如果已经完成配置阶段，直接执行逻辑
+        configurePublishLogic()
+    } else {
+        // 如果尚未完成配置阶段，通过 afterEvaluate 延迟执行
+        subproject.afterEvaluate {
+            configurePublishLogic()
+        }
+    }
+
+}
