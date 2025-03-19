@@ -1,5 +1,6 @@
 ext {
     version = "3.4"
+    groupId = "com.github.122006.Zircon"
 }
 
 buildscript {

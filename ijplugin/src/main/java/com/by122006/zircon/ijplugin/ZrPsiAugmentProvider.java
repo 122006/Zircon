@@ -248,7 +248,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         return false;
                     }
                     if (oParameters.length == 0) {
-                        return false;
+                        return true;
                     }
                     if (context instanceof PsiMethodCallExpression) {
                         final PsiMethodCallExpression psiMethodCallExpression = (PsiMethodCallExpression) context;
