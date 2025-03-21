@@ -59,7 +59,7 @@ if (System.getProperty("user.name", "") != "jitpack") {
             group "zircon"
             dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
         }
-        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:compileJava", ":javac:processResources")
+        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:clean", "${data.project}:compileJava", ":javac:processResources")
     })
 
 

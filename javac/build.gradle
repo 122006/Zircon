@@ -32,6 +32,7 @@ jar {
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+    options.fork = true
     options.compilerArgs << "-Xlint:deprecation" << "-XDignore.symbol.file"
 }
 task sourceJar(type: Jar) {
