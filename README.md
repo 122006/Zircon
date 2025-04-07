@@ -78,7 +78,7 @@ Step 1. 增加依赖
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
             <version>3.2.3</version>
-            <scope>provide</scope>
+            <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
