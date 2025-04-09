@@ -134,8 +134,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     @Override
     protected List<PsiExtensionMethod> getExtensionMethods(@NotNull PsiClass siteClass, @NotNull String nameHint, @NotNull PsiElement context) {
         final List<PsiExtensionMethod> emptyResult = Collections.emptyList();
-        if (!ZrPluginUtil.hasZrPlugin(siteClass.getProject())) return emptyResult;
-        if (DumbService.isDumb(context.getProject())) return emptyResult;
+        if (!ZrPluginUtil.hasZrPlugin(context)) return emptyResult;
         List<CacheMethodInfo> allCacheMethodInfoList = getCachedAllMethod(siteClass.getProject()).stream()
                 .filter(a -> Objects.equals(a.name, nameHint))
                 .collect(Collectors.toList());
@@ -212,6 +211,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         final List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
             return methodInfo.targetType.stream().filter(type -> {
                 try {
+                    if (!type.isValid()) return false;
                     type = TypeConversionUtil.erasure(type);
                 } catch (ProcessCanceledException processCanceledException) {
                     throw processCanceledException;

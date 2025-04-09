@@ -2,33 +2,28 @@ package com.by122006.zircon.util;
 
 import com.by122006.zircon.ijplugin.ZirconSettings;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ProjectRootManager;
-import com.intellij.psi.CommonClassNames;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiArrayType;
-import com.intellij.psi.PsiClassType;
-import com.intellij.psi.PsiMethod;
-import com.intellij.psi.PsiPackage;
-import com.intellij.psi.PsiParameter;
-import com.intellij.psi.PsiSubstitutor;
-import com.intellij.psi.PsiType;
-import com.intellij.psi.PsiTypeParameter;
+import com.intellij.psi.*;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.PsiTypesUtil;
 import com.intellij.psi.util.TypeConversionUtil;
-
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import zircon.ExMethod;
 
 import java.util.Objects;
 import java.util.function.Predicate;
 
-import zircon.ExMethod;
+import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
 
 public class ZrPluginUtil {
-    public static synchronized boolean hasZrPlugin(Project project) {
-        if (project==null)
+    public static synchronized boolean hasZrPlugin(PsiElement psiElement) {
+        final Project project = psiElement.getProject();
+        if (project == null)
             return false;
         if (project.isDefault() || !project.isInitialized()) {
             return false;
@@ -37,9 +32,14 @@ public class ZrPluginUtil {
             return false;
         }
         ApplicationManager.getApplication().assertReadAccessAllowed();
-        return CachedValuesManager.getManager(project).getCachedValue(project, () -> {
-            PsiPackage aPackage = JavaPsiFacade.getInstance(project).findPackage(ExMethod.class.getPackageName());
-            return new CachedValueProvider.Result<>(aPackage, ProjectRootManager.getInstance(project));
+        // 获取当前模块
+        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(psiElement);
+        if (module == null) return false;
+        // 获取模块的搜索范围
+        GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(false);
+        return CachedValuesManager.getManager(project).getCachedValue(module, () -> {
+            PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
+            return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
         }) != null;
     }
 
@@ -93,12 +93,12 @@ public class ZrPluginUtil {
                 PsiType found = psiType2;
                 br:
                 for (PsiType a : nType2.getSuperTypes()) {
-                    if (PsiTypesUtil.getPsiClass(psiType1)==PsiTypesUtil.getPsiClass(a)) {
+                    if (PsiTypesUtil.getPsiClass(psiType1) == PsiTypesUtil.getPsiClass(a)) {
                         found = a;
                         break;
                     }
                     for (PsiType b : a.getSuperTypes()) {
-                        if (PsiTypesUtil.getPsiClass(psiType1)==PsiTypesUtil.getPsiClass(b)) {
+                        if (PsiTypesUtil.getPsiClass(psiType1) == PsiTypesUtil.getPsiClass(b)) {
                             found = b;
                             break br;
                         }
@@ -111,7 +111,7 @@ public class ZrPluginUtil {
                         PsiType param = convertTypeByMethodTypeParameter(parameters1[i], parameters);
                         if (param == parameters1[i]) {
                             //非由方法泛型引入的约束(参数中直接定义)，强制相等
-                            final boolean b = PsiTypesUtil.getPsiClass(param)==PsiTypesUtil.getPsiClass(parameters2[i]);
+                            final boolean b = PsiTypesUtil.getPsiClass(param) == PsiTypesUtil.getPsiClass(parameters2[i]);
                             if (!b) {
                                 return false;
                             } else continue;

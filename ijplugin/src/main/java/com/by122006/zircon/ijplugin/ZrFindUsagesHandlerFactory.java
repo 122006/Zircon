@@ -21,7 +21,6 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
     @Override
     public boolean canFindUsages(@NotNull PsiElement element) {
         if (!(element instanceof PsiMethod)) return false;
-        if (DumbService.isDumb(element.getProject())) return false;
         final PsiAnnotation annotation = ((PsiMethod) element).getAnnotation(ExMethod.class.getName());
         return annotation != null;
     }

@@ -43,7 +43,7 @@ public class ZrCheckLevelHighlightInfoHolder extends HighlightInfoHolder {
     public boolean add(@Nullable HighlightInfo info) {
         if (info == null) return false;
         if (psiElement == null) return false;
-        if (!ZrPluginUtil.hasZrPlugin(psiElement.getProject())) return false;
+        if (!ZrPluginUtil.hasZrPlugin(psiElement)) return false;
 //        LOG.info("visit:"+psiElement.getText());
 
         if (info.type == HighlightInfoType.UNHANDLED_EXCEPTION) {

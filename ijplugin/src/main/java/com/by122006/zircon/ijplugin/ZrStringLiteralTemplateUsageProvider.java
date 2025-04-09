@@ -32,7 +32,7 @@ public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvid
     private boolean checkReferencedFromZrStringLiteral(PsiElement elem) {
         if (DumbService.isDumb(elem.getProject())) return false;
         if (elem.getLanguage() != JavaLanguage.INSTANCE) return false;
-        if (!ZrPluginUtil.hasZrPlugin(elem.getProject())) return false;
+        if (!ZrPluginUtil.hasZrPlugin(elem)) return false;
         PsiNamedElement namedElement = this.findNamedElement(elem);
         if (namedElement != null) {
             PsiFile containingFile = elem.getContainingFile();

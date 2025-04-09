@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'com.by122006.zircon'
-version '3.9'
+version '4.0'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -37,7 +37,7 @@ patchPluginXml {
     untilBuild = "251.*"
 }
 dependencies {
-    annotationProcessor project(":javac")
+    annotationProcessor 'com.github.122006.zircon:javac:3.2.3'
     implementation project(":base")
     intellijPlatform {
         intellijIdeaCommunity '2024.1'

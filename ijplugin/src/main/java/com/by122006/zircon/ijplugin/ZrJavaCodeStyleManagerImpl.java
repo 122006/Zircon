@@ -41,7 +41,7 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
 
     @Override
     public PsiImportList prepareOptimizeImportsResult(@NotNull PsiJavaFile file) {
-        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return super.prepareOptimizeImportsResult(file);
+        if (!ZrPluginUtil.hasZrPlugin(file)) return super.prepareOptimizeImportsResult(file);
         return new ZrImportHelper(JavaCodeStyleSettings.getInstance(file)).prepareOptimizeImportsResult(file);
     }
 

@@ -30,7 +30,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
     @NotNull
     @Override
     public FoldingDescriptor[] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
-        if (!ZrPluginUtil.hasZrPlugin(root.getProject())) return FoldingDescriptor.EMPTY;
+        if (!ZrPluginUtil.hasZrPlugin(root)) return FoldingDescriptor.EMPTY;
         if (root.getLanguage() != JavaLanguage.INSTANCE || quick) {
             return FoldingDescriptor.EMPTY;
         }

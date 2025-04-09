@@ -21,7 +21,7 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
     @Override
     public boolean accept(@NotNull HighlightInfo highlightInfo, @Nullable PsiFile file) {
         if (file == null || file.getLanguage() != JavaLanguage.INSTANCE) return true;
-        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return true;
+        if (!ZrPluginUtil.hasZrPlugin(file)) return true;
         if (Objects.equals(highlightInfo.getDescription(), JavaAnalysisBundle.message("unused.import.statement"))) {
             final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
             if (elementAt == null) return true;

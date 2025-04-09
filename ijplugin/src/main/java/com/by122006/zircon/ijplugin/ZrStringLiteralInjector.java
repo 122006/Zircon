@@ -25,7 +25,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
 
     @Override
     public void getLanguagesToInject(@NotNull PsiLanguageInjectionHost host, @NotNull InjectedLanguagePlaces places) {
-        if (!ZrPluginUtil.hasZrPlugin(host.getProject())) return;
+        if (!ZrPluginUtil.hasZrPlugin(host)) return;
         if (!(host instanceof PsiLiteralExpressionImpl)) return;
         if (!(host.getLanguage().isKindOf(JavaLanguage.INSTANCE))) return;
         if (InjectedLanguageManager.getInstance(host.getProject()).isInjectedFragment(host.getContainingFile())) return;

@@ -39,7 +39,7 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
     }
 
     public Result preprocessEnter(@NotNull PsiFile file, @NotNull Editor editor, @NotNull Ref<Integer> caretOffsetRef, @NotNull Ref<Integer> caretAdvanceRef, @NotNull DataContext dataContext, EditorActionHandler originalHandler) {
-        if (!ZrPluginUtil.hasZrPlugin(file.getProject())) return Result.Continue;
+        if (!ZrPluginUtil.hasZrPlugin(file)) return Result.Continue;
         Language language = EnterHandler.getLanguage(dataContext);
         if (language == null) {
             return Result.Continue;

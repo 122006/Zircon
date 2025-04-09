@@ -65,7 +65,7 @@ public class ZrAnnotator implements Annotator {
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         try {
-            if (!ZrPluginUtil.hasZrPlugin(element.getProject())) return;
+            if (!ZrPluginUtil.hasZrPlugin(element)) return;
             if (element.getLanguage() != JavaLanguage.INSTANCE) return;
             if (element instanceof PsiMethodReferenceExpression) {
                 registerLimitMemberReference(element, holder);
@@ -78,6 +78,7 @@ public class ZrAnnotator implements Annotator {
             }
             if (ZrUtil.isJavaStringLiteral(element)) {
                 registerBackfStringIntentionAction(element, holder);
+                registerRemoveUnnecessaryEscapeIntentionAction(element, holder);
                 return;
             }
             if (element instanceof PsiMethod) {
@@ -378,6 +379,49 @@ public class ZrAnnotator implements Annotator {
                 .highlightType(ProblemHighlightType.INFORMATION).create();
     }
 
+    private void registerRemoveUnnecessaryEscapeIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
+        final String text = element.getText();
+        final int start = text.indexOf("\"");
+        final int end = text.lastIndexOf("\"");
+        final String substring = text.substring(start + 1, end);
+        if (substring.contains("\\\"")) {
+            holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "Unnecessary escape quotation")
+                    .range(element)
+                    .highlightType(ProblemHighlightType.WEAK_WARNING)
+                    .withFix(new IntentionAction() {
+                        @Override
+                        public @IntentionName @NotNull String getText() {
+                            return "[ZrString]: remove unnecessary escape quotation";
+                        }
+
+                        @Override
+                        public @NotNull @IntentionFamilyName String getFamilyName() {
+                            return "ZrString";
+                        }
+
+                        @Override
+                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                            return true;
+                        }
+
+                        @Override
+                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                            if (editor instanceof EditorEx) {
+                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                                final String toText = text.replace("\\\"", "\"");
+                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(toText, element);
+                                element.replace(codeBlockFromText);
+                            }
+                        }
+
+                        @Override
+                        public boolean startInWriteAction() {
+                            return true;
+                        }
+                    }).create();
+        }
+    }
+
     private void registerBackfStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         final String text = element.getText();
         if (!text.startsWith("\"")) {
@@ -627,15 +671,35 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
-    private void checkFStringError(@NotNull PsiElement element, ZrStringModel build, AnnotationHolder holder) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Class<?> aClass;
-        try {
-            aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
-        } catch (ClassNotFoundException e) {
-            aClass = Class.forName("com.siyeh.ig.FormatDecode");
+    Method method_FormatDecode_decode = null;
+
+    public Method getMethod_FormatDecode_decode() throws ClassNotFoundException, NoSuchMethodException {
+        if (method_FormatDecode_decode == null) {
+            Class<?> aClass;
+            try {
+                aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
+            } catch (ClassNotFoundException e) {
+                try {
+                    aClass = Class.forName("com.siyeh.ig.FormatDecode");
+                } catch (ClassNotFoundException ex) {
+                    aClass = Class.forName("com.siyeh.ig.format.FormatDecode");
+                }
+            }
+            final Method decode = aClass.getMethod("decode", String.class, int.class);
+            decode.setAccessible(true);
+            return method_FormatDecode_decode = decode;
         }
-        final Method decode = aClass.getMethod("decode", String.class, int.class);
-        decode.setAccessible(true);
+        return method_FormatDecode_decode;
+    }
+
+    private void checkFStringError(@NotNull PsiElement element, ZrStringModel build, AnnotationHolder holder) throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        Method decode = null;
+        try {
+            decode = getMethod_FormatDecode_decode();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return;
+        }
         build.getList().stream().map(a -> {
             switch (a.codeStyle) {
                 case -1:
