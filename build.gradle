@@ -40,7 +40,7 @@ if (System.getProperty("user.name", "") != "jitpack") {
             [version: 8, project: ":inject_java7"]
             , [version: 11, project: ":inject_java11"]
             , [version: 17, project: ":inject_java16"]]
-    def useJavaVersion = allData.collect { it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
+    def useJavaVersion = allData.collect {it-> it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
 
     task testWithDiffJavaVersion {
         group "zircon"
@@ -59,8 +59,10 @@ if (System.getProperty("user.name", "") != "jitpack") {
             group "zircon"
             dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
         }
-        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:clean", "${data.project}:compileJava", ":javac:processResources")
+        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:clean", "${data.project}:compileJava")
+        tasks.findByPath(":javac:processResources").mustRunAfter(allData.collect { "${it.project}:copyJavacClass" })
     })
+
 
 
     task cleanAllClazz(type: Delete) {

@@ -6,6 +6,7 @@ import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
 import test.TestExMethodImpl;
 import test.TestNoEncounteredMethod;
+import test.filter.FilterAnnotation;
 import zircon.ExMethod;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
@@ -653,6 +654,22 @@ public class TestExMethodImpl {
         });
 
         String b = Optional.ofNullable(nullStr).orElse(null);
+
+        checkMethodInvokes(
+                () -> {
+                    FilterAnnotation.HasFilterAnnotation.staticTestFilterAnnotation();
+                }, () -> {
+                    TestExMethod.staticTestFilterAnnotation();
+                }
+        );
+
+        checkMethodInvokes(
+                () -> {
+                    new FilterAnnotation.HasFilterAnnotation().testFilterAnnotation();
+                }, () -> {
+                    TestExMethod.testFilterAnnotation(new FilterAnnotation.HasFilterAnnotation());
+                }
+        );
 
         testEnd();
 

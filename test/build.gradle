@@ -24,6 +24,7 @@ repositories {
 }
 
 
+
 //sourceCompatibility = JavaVersion.VERSION_1_8
 //targetCompatibility = JavaVersion.VERSION_1_8
 
@@ -38,17 +39,14 @@ dependencies {
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation('com.github.122006:ExMethodUtil:1.1.5') {
+    implementation('com.github.122006:ExMethodUtil:1.1.7') {
         exclude group: 'com.github.122006.zircon', module: 'zircon'
     }
-//    implementation 'com.github.122006.Zircon:zircon:3.+'
-//    implementation 'com.github.122006:LinearHttp:1.2.8'
     implementation 'com.alibaba:fastjson:1.1.72.android'
     implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
     testAnnotationProcessor project(":javac")
-//    testImplementation project(":test")
 }
 tasks.withType(JavaCompile).configureEach {
     javaCompiler = javaToolchains.compilerFor {
@@ -62,6 +60,7 @@ tasks.withType(JavaCompile).configureEach {
     if (version >= 21) {
         options.compilerArgs += "--enable-preview"
     }
+    options.fork = true;
 }
 tasks.withType(Test).configureEach {
     javaLauncher = javaToolchains.launcherFor {

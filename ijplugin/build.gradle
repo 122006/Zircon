@@ -45,7 +45,10 @@ dependencies {
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation('com.github.122006:ExMethodUtil:1.1.7')
+    implementation('com.github.122006:ExMethodUtil:1.1.7') {
+        exclude group: 'com.github.122006.zircon', module: 'zircon'
+    }
+    implementation project(":zircon")
 }
 ////IU-202.7319.50
 //intellij {

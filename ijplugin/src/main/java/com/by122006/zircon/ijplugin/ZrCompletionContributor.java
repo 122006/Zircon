@@ -21,6 +21,7 @@ import com.intellij.util.containers.JBIterable;
 import com.siyeh.ig.psiutils.ImportUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExCollection;
 import zircon.example.ExReflection;
 
 import java.util.ArrayList;
@@ -105,6 +106,15 @@ public class ZrCompletionContributor extends CompletionContributor {
                         collect = List.of(TypeConversionUtil.erasure(type));
                     else {
                         collect = Collections.emptyList();
+                    }
+                }
+                final List<PsiType> filterAnnotation = cacheMethodInfo.filterAnnotation;
+                if (filterAnnotation != null && !filterAnnotation.isEmpty()) {
+                    PsiClass psiClass=PsiTypesUtil.getPsiClass(psiType);
+                    if (psiClass==null) return;;
+                    for (PsiType type : filterAnnotation) {
+                        final PsiAnnotation annotation = psiClass.getAnnotation(type.getCanonicalText(false));
+                        if (annotation == null) return;
                     }
                 }
                 collect.forEach(targetType -> {

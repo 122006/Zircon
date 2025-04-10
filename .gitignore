@@ -1,6 +1,7 @@
 # Project exclude paths
 /.gradle/
 /.idea/
+/.intellijPlatform/
 /impl/build/
 /base/build/
 /javac/build/
@@ -8,3 +9,4 @@
 /gradle_plugin/build/
 /inject_java16/build/
 /inject_java7/build/
+/inject_java11/build/

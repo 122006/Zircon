@@ -31,6 +31,7 @@ import zircon.ExMethod;
 import zircon.example.ExCollection;
 import zircon.example.ExStream;
 
+import java.lang.annotation.Annotation;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -48,6 +49,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         boolean cover = false;
 
         boolean innerInvoker = false;
+        List<PsiType> filterAnnotation = new ArrayList<>();
         String name;
         PsiMethod method;
     }
@@ -97,6 +99,27 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     }
                     if (cacheMethodInfo.targetType.isEmpty()) ex = null;
 
+                }
+                PsiAnnotationMemberValue filterAnnotation = annotation.findDeclaredAttributeValue("filterAnnotation");
+                if (filterAnnotation != null) {
+                    if (filterAnnotation instanceof PsiClassObjectAccessExpression) {
+                        final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(filterAnnotation, PsiTypeElement.class);
+                        if (childOfType == null) return null;
+                        PsiType type = childOfType.getType();
+                        if (type instanceof PsiPrimitiveType) {
+                            type = ((PsiPrimitiveType) type).getBoxedType(filterAnnotation);
+                        }
+                        cacheMethodInfo.filterAnnotation.add(type);
+                    } else if (filterAnnotation instanceof PsiArrayInitializerMemberValue) {
+                        final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) filterAnnotation).getInitializers();
+                        cacheMethodInfo.filterAnnotation = Arrays.stream(initializers).map(a -> {
+                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                            if (childOfType == null) return null;
+                            return childOfType.getType();
+                        }).filter(Objects::nonNull).collect(Collectors.toList());
+                    } else {
+                        System.out.println(filterAnnotation.getText() + "[" + filterAnnotation.getClass().getName());
+                    }
                 }
                 cacheMethodInfo.isStatic = ex != null;
                 PsiAnnotationMemberValue cover = annotation.findDeclaredAttributeValue("cover");
@@ -205,8 +228,8 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
             filterSameMethods(context, collect);
             return collect;
         }
-
-        List<PsiMethod> ownMethods = siteClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) siteClass).getOwnMethods() : List.of();
+        final PsiClass finalOwnClass = ownClass;
+        List<PsiMethod> ownMethods = ownClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) ownClass).getOwnMethods() : List.of();
 
         final List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
             return methodInfo.targetType.stream().filter(type -> {
@@ -220,6 +243,15 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 }
                 if (!type.isValid()) return false;
                 return TypeConversionUtil.isAssignable(type, ownType);
+            }).filter(type -> {
+                final List<PsiType> filterAnnotation = methodInfo.filterAnnotation;
+                if (filterAnnotation != null && !filterAnnotation.isEmpty()) {
+                    for (PsiType annotationType : filterAnnotation) {
+                        final PsiAnnotation annotation = finalOwnClass.getAnnotation(annotationType.getCanonicalText(false));
+                        if (annotation == null) return false;
+                    }
+                }
+                return true;
             }).map(type -> {
                 final PsiParameterList parameterList = methodInfo.method.getParameterList();
                 if (methodInfo.isStatic) {

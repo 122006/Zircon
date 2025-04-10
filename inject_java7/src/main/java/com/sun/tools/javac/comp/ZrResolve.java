@@ -212,10 +212,18 @@ public class ZrResolve extends Resolve {
         boolean cover;
         List<Type> targetType;
         List<Attribute.Class> targetClass;
+        List<Attribute.Class> filterAnnotation;
 
         @Override
         public String toString() {
-            return "ExMethodInfo{" + "methodSymbol=" + methodSymbol + ", isStatic=" + isStatic + ", cover=" + cover + ", targetType=" + targetType + ", targetClass=" + targetClass + '}';
+            return "ExMethodInfo{" +
+                    "filterAnnotation=" + filterAnnotation +
+                    ", methodSymbol=" + methodSymbol +
+                    ", isStatic=" + isStatic +
+                    ", cover=" + cover +
+                    ", targetType=" + targetType +
+                    ", targetClass=" + targetClass +
+                    '}';
         }
 
         public ExMethodInfo(Symbol.MethodSymbol methodSymbol, boolean isStatic, boolean cover, List<Type> targetType, List<Attribute.Class> targetClass) {
@@ -291,6 +299,10 @@ public class ZrResolve extends Resolve {
                         exMethodInfo.cover = (boolean) cover.getValue();
                     }
                     exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
+                    final Attribute filterAnnotation = compound.member(names.fromString("filterAnnotation"));
+                    if (filterAnnotation != null && ((List<Attribute.Class>) filterAnnotation.getValue()).size() > 0) {
+                        exMethodInfo.filterAnnotation = (List<Attribute.Class>) filterAnnotation.getValue();
+                    }
                     if (exMethodInfo.cover) {
                         final List<ExMethodInfo> list = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
                         coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));

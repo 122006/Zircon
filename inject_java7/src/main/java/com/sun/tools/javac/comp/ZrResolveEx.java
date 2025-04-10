@@ -10,6 +10,10 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 public class ZrResolveEx {
+
+    public static boolean equalsIgnoreMetadata(Type t1, Type t2) {
+        return t1.baseType().equals(t2.baseType());
+    }
     static Symbol selectBestFromList(ZrResolve zrResolve, List<ZrResolve.ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
         if (bestSoFar instanceof Resolve.ResolveError && !(bestSoFar instanceof Resolve.AmbiguityError)) bestSoFar = zrResolve.methodNotFound;
 
@@ -25,6 +29,23 @@ public class ZrResolveEx {
                     .getQualifiedName()
                     .toString()), info1, info2);
         });
+        sortList=sortList.stream().filter(a -> {
+            final List<Attribute.Class> filterAnnotation = a.filterAnnotation;
+            if (filterAnnotation == null || filterAnnotation.isEmpty()) return true;
+            for (Attribute.Class aClass : filterAnnotation) {
+                boolean any = false;
+                for (Attribute.Compound attribute : site.tsym.getAnnotationMirrors()) {
+                    if (equalsIgnoreMetadata(attribute.type,aClass.classType)) {
+                        any = true;
+                        break;
+                    }
+                }
+                if (!any) {
+                    return false;
+                }
+            }
+            return true;
+        }).collect(Collectors.toList());
         exInfo:
         for (ZrResolve.ExMethodInfo methodInfo : sortList) {
             List<Type> newArgTypes = argtypes;
