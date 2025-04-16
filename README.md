@@ -5,8 +5,9 @@
 <a target="_blank" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html"><img src="https://img.shields.io/badge/JDK-8-green.svg" alt="jdk-8" /></a>
 <a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-11-green.svg" alt="jdk-11" /></a>
 <a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-17-green.svg" alt="jdk-17" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-21-green.svg" alt="jdk-17" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-22-green.svg" alt="jdk-17" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-21-green.svg" alt="jdk-21" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-22-green.svg" alt="jdk-22" /></a>
+<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-23-green.svg" alt="jdk-23" /></a>
 -----------------
 
 ## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
@@ -17,10 +18,10 @@
 
 ### 1. 全局拓展方法
 
-> 自由拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能
+> 自由拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能<p>
+> 特别的，支持限制仅对含有指定注解的类进行拓展（例@Service、@Repository、@Data）
 
 ![](others/exmethod_show4.gif)
-
 
 ### 2. 内插模板字符串
 
@@ -33,17 +34,18 @@
 
 1. 支持android、springboot、javaFX等所有使用java语言的项目（javac）
 
-2. 支持java8~java22
+2. 支持java8~java23
 
 ---------------
-
 
 ### 使用说明
 
 #### [内插模板字符串（点击跳转）](mds/README_ZrString.md)
 
 #### [全局拓展方法（点击跳转）](mds/README_ZrExMethod.md)
-> 如何定义一个拓展方法？[*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
+
+> 如何定义一个拓展方法？[
+*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
 
 ### 插件引入
 
@@ -142,10 +144,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.3
+### v3.2.4
 
-1. 支持java21、java22
-2. 优化项目编译结构
+1. 拓展方法支持限制注解`@ExMethod(filterAnnotation=@xxx.class)`
 
 <details>
   <summary>历史依赖更新</summary>
@@ -203,12 +204,18 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### v3.2.2
 
 1. 优化项目依赖结构
+
 </details>
 
-### idea插件3.8
+### v3.2.3
 
-1. 支持同名方法自动解析
-2. 原有方法冲突时，自动使用原有方法
+1. 支持java21、java22
+2. 优化项目编译结构
+
+### idea插件4.0
+
+1. 拓展方法支持限制注解
+2. 现在插件的检测范围只限制于当前已申明插件的module
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -275,10 +282,16 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件3.5
 
 1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
-2. 
+2.
+
 ### idea插件3.6
 
 1. 功能性优化
+
+### idea插件3.8
+
+1. 支持同名方法自动解析
+2. 原有方法冲突时，自动使用原有方法
 
 </details>
 

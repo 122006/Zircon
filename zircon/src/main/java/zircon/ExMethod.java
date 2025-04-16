@@ -3,7 +3,10 @@ package zircon;
 import java.lang.annotation.*;
 
 /**
- * 拓展方法标识，在你需要声明为拓展方法的原始方法上增加该注解
+ * 拓展方法标识，在你需要声明为拓展方法的原始方法上增加该注解。<br/>
+ * 如果你需要申明实例拓展方法，指定原始方法的首个参数为拓展对象的类型，支持复杂泛型，在实际运行中会传入拓展对象实例。<br/>
+ * 如果你需要申明静态拓展方法，你需要使用ex参数指定拓展对象类型。<br/>
+ * 特别的，如果申明实例拓展方法，拓展对象类型为Class<T>，调用时<b>.class</b>可省略，其作用效果与静态方法相似，但是会额外获得该Class实例。
  */
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

@@ -472,7 +472,7 @@ public class TestExMethod {
     }
 
     @ExMethod
-    public static <T> void checkMethodInvokes(Object object, Supplier<T> supplier, Supplier<T> supplier2) {
+    public static <T> String checkMethodInvokes(Object object, Supplier<T> supplier, Supplier<T> supplier2) {
         methodNames.clear();
         final T t = supplier.get();
         final String collect = String.join("\n=>\n", methodNames);
@@ -488,6 +488,7 @@ public class TestExMethod {
             final AssertionError assertionError = new AssertionError("\nt1:\n" + t + "\n-----------\nt2:\n" + t2 + "\n");
             errorSave.add(assertionError.getMessage() + "\n" + assertionError.getStackTrace()[1]);
         }
+        return "";
     }
 
     @ExMethod
@@ -518,6 +519,37 @@ public class TestExMethod {
     @ExMethod(filterAnnotation = {TestFilterAnnotation1.class, TestFilterAnnotation2.class})
     public static <T> void testFilterAnnotation(T t) {
         methodNames.add("testFilterAnnotation(");
+    }
+
+    @ExMethod
+    public static Class<? extends FatherClass> testClassExMethod(Class<? extends FatherClass> clazz) {
+        methodNames.add("testClassExMethod" + clazz.toString());
+        return clazz;
+    }
+
+    @ExMethod
+    public static Class<String> testClassExMethodString(Class<String> clazz) {
+        methodNames.add("testClassExMethod" + clazz.toString());
+        return clazz;
+    }
+
+
+    @ExMethod
+    public static Class<? extends TestExMethodImpl> testClassExMethod_TestExMethodImpl(Class<? extends TestExMethodImpl> clazz) {
+        methodNames.add("testClassExMethod_TestExMethodImpl" + clazz.toString());
+        return clazz;
+    }
+
+    @ExMethod
+    public static Class<? extends FatherClass> testClassExMethod_FatherClass(Class<? extends FatherClass> clazz) {
+        methodNames.add("testClassExMethod_FatherClass" + clazz.toString());
+        return clazz;
+    }
+
+    @ExMethod
+    public static Class<? extends FatherClass> testClassExMethodArg2(Class<? extends FatherClass> clazz, int a1, String a2) {
+        methodNames.add("testClassExMethod(1,2" + clazz.toString());
+        return clazz;
     }
 
 

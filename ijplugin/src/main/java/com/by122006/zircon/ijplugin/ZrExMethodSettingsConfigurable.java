@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
+//todo 是否对静态方法显示在实例方法中？
 public class ZrExMethodSettingsConfigurable implements Configurable {
 
     private AppSettingsComponent mySettingsComponent;

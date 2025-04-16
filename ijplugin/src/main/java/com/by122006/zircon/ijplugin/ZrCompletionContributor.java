@@ -137,7 +137,7 @@ public class ZrCompletionContributor extends CompletionContributor {
                     if (psiClass == null) {
                         return;
                     }
-                    final ZrPsiExtensionMethod method = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method, psiType);
+                    final ZrPsiExtensionMethod method = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, psiType);
                     if (method != null) {
                         @NotNull PsiSubstitutor substitutor = PsiSubstitutor.EMPTY;
                         LookupElementBuilder builder = LookupElementBuilder.create(method, method.getName())

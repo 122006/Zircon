@@ -383,6 +383,7 @@ public class ZrAnnotator implements Annotator {
         final String text = element.getText();
         final int start = text.indexOf("\"");
         final int end = text.lastIndexOf("\"");
+        if (start == -1 || start == end) return;
         final String substring = text.substring(start + 1, end);
         if (substring.contains("\\\"")) {
             holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "Unnecessary escape quotation")

@@ -110,7 +110,7 @@ public class ZrDeReplaceAllAction extends AnAction {
             }
             if (psiClass == null) return null;
             LOG.warn(" psiClass:" + psiClass.getQualifiedName());
-            return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method, PsiTypesUtil.getClassType(psiClass));
+            return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));
         }).filter(Objects::nonNull).collect(Collectors.toList());
         return list.toArray(PsiMethod.class);
     }

@@ -27,13 +27,12 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod$MethodInfo", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod$CompareEnv", pcl, classLoader);
 
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedRedirectMethod", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$NeedReplaceLambda", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ExMethodInfo", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrMethodReferenceLookupHelper", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrLookupHelper", pcl, classLoader);
-        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve$ZrLookupHelper2", pcl, classLoader);
-
+        reloadClassJavacVersion("com.sun.tools.javac.comp.NeedRedirectMethod", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.NeedReplaceLambda", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.ExMethodInfo", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrMethodReferenceLookupHelper", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrLookupHelper", pcl, classLoader);
+        reloadClassJavacVersion("com.sun.tools.javac.comp.ZrLookupHelper2", pcl, classLoader);
 
 
         final Class<?> OOZrAttrClass = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr", pcl, classLoader);

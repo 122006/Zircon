@@ -110,8 +110,15 @@ public class ZrPluginUtil {
                     for (int i = 0; i < parameters1.length; i++) {
                         PsiType param = convertTypeByMethodTypeParameter(parameters1[i], parameters);
                         if (param == parameters1[i]) {
+                            if (param instanceof PsiWildcardType) {
+                                if (!((PsiWildcardType) param).isBounded()) {
+                                    continue;
+                                } else {
+                                    param = ((PsiWildcardType) param).getBound();
+                                }
+                            }
                             //非由方法泛型引入的约束(参数中直接定义)，强制相等
-                            final boolean b = PsiTypesUtil.getPsiClass(param) == PsiTypesUtil.getPsiClass(parameters2[i]);
+                            final boolean b = Objects.equals(PsiTypesUtil.getPsiClass(param), PsiTypesUtil.getPsiClass(parameters2[i]));
                             if (!b) {
                                 return false;
                             } else continue;

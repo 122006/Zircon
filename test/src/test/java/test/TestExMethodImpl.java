@@ -1,11 +1,7 @@
 package test;
 
 import org.junit.jupiter.api.Test;
-import test.NearExMethod;
-import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
-import test.TestExMethodImpl;
-import test.TestNoEncounteredMethod;
 import test.filter.FilterAnnotation;
 import zircon.ExMethod;
 import zircon.data.ThrowConsumer;
@@ -15,7 +11,6 @@ import zircon.example.ExObject;
 import zircon.example.ExReflection;
 import zircon.example.ExString;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -290,6 +285,11 @@ public class TestExMethodImpl {
                 () -> {
                     Function<TestExMethod.ChildClass, TestExMethod.ChildClass> a = TestExMethod.FatherClass::fatherSingleTRT;
                     return a.apply(childClass);
+                }, () -> TestExMethod.fatherSingleTRT(childClass));
+        checkMethodInvokes(
+                () -> {
+                    Consumer<TestExMethod.ChildClass> a = TestExMethod.FatherClass::fatherSingleTRT;
+                    a.accept(childClass);
                 }, () -> TestExMethod.fatherSingleTRT(childClass));
         checkMethodInvokes(
                 () -> {
@@ -649,6 +649,7 @@ public class TestExMethodImpl {
 
         nullStr.equals("123");
 
+
         assertThrows(RuntimeException.class, () -> {
             String a = Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
         });
@@ -670,16 +671,85 @@ public class TestExMethodImpl {
                     TestExMethod.testFilterAnnotation(new FilterAnnotation.HasFilterAnnotation());
                 }
         );
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.ChildClass.testClassExMethod();
+                }, () -> {
+                    return TestExMethod.ChildClass.class.testClassExMethod();
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    return "".testClassExMethodString();
+                }, () -> {
+                    return String.class.testClassExMethodString();
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a= () -> {
+                        return TestExMethod.ChildClass.testClassExMethod();
+                    };
+                    return a.get();
+                }, () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass::testClassExMethod;
+                    return a.get();
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a= () -> {
+                        return TestExMethod.ChildClass.testClassExMethod();
+                    };
+                    return a.get();
+                }, () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass.class::testClassExMethod;
+                    return a.get();
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    Supplier<Class<String>> a= String::testClassExMethodString;
+                    return a.get();
+                }, () -> {
+                    Supplier<Class<String>> a= String.class::testClassExMethodString;
+                    return a.get();
+                }
+        );
+
+        new TestExMethod.ChildClass() {
+            void invoke() {
+                checkMethodInvokes(
+                        () -> {
+                            return testClassExMethod_FatherClass();
+                        }, () -> {
+                            return getClass().testClassExMethod_FatherClass();
+                        }
+                );
+            }
+        }.invoke();
+
+        testClassExMethod_TestExMethodImpl();
+
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.ChildClass.testClassExMethodArg2(1, "test");
+                }, () -> {
+                    return TestExMethod.ChildClass.class.testClassExMethodArg2(1, "test");
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    BiFunction<Integer,String,Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass.class::testClassExMethodArg2;
+                    return a.apply(1,"test");
+                }, () -> {
+                    BiFunction<Integer,String,Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass::testClassExMethodArg2;
+                    return a.apply(1,"test");
+                }
+        );
 
         testEnd();
 
-    }
-
-
-    @Override
-    public boolean equals(Object obj) {
-        TestExMethod.methodNames.add("equals" + obj);
-        return super.equals(obj);
     }
 
     @ExMethod
@@ -689,34 +759,11 @@ public class TestExMethodImpl {
         return Long.parseLong(str);
     }
 
-    public void expectedCompileFail() {
-//        ArrayList<ArrayList<String>> list = new ArrayList<>();
-//        List<String> flat2 = list.flatTest();
-//        List<String> flat3 = new ArrayList<>().flat();
-//        checkMethodInvokes(
-//                () -> {
-//                    return super.supplier(() -> "456");//不支持super.xx()调用
-//                },
-//                () -> TestExMethod.supplier(() -> "456"))
-        final TestM<TData> getA = (TData::getA);
-    }
 
     public <M> M self(M t) {
         return t;
     }
 
-
-    interface TestM<T> extends Serializable {
-        Object get(T source) throws Exception;
-    }
-
-    static class TData {
-        String a = "123";
-
-        public String getA() {
-            return a;
-        }
-    }
 
     @ExMethod(ex = {Object.class})
     public static <T> Consumer<T> $throw2(ThrowConsumer<T> action) {

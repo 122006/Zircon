@@ -49,7 +49,7 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
 
                     }
                     if (psiClass == null) return null;
-                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo.isStatic, psiClass, cacheMethodInfo.method,PsiTypesUtil.getClassType(psiClass));
+                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));
                 }).filter(Objects::nonNull).collect(Collectors.toList());
                 return list.toArray(PsiElement.EMPTY_ARRAY);
             }
