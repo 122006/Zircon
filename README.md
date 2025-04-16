@@ -144,9 +144,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.4
+### v3.2.3
 
-1. 拓展方法支持限制注解`@ExMethod(filterAnnotation=@xxx.class)`
+1. 支持java21、java22
+2. 优化项目编译结构
 
 <details>
   <summary>历史依赖更新</summary>
@@ -205,12 +206,14 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 优化项目依赖结构
 
-</details>
-
 ### v3.2.3
 
 1. 支持java21、java22
 2. 优化项目编译结构
+
+
+</details>
+
 
 ### idea插件4.0
 
