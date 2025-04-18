@@ -118,7 +118,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-3.8.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.0.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -144,7 +144,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.3.0
+### v3.2.5 (preview)
 
 1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
 2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
@@ -306,4 +306,4 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
 
-`implementation 'com.github.122006:ExMethodUtil:1.1.5'`
+`implementation 'com.github.122006:ExMethodUtil:1.1.7'`

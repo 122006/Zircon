@@ -307,13 +307,15 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 final PsiParameterList parameterList = methodInfo.method.getParameterList();
                 if (methodInfo.siteCopyByClassHeadArgMethod) {
                     final PsiClass psiClass2;
-                    if (type instanceof PsiWildcardType) {
-                        psiClass2 = PsiTypesUtil.getPsiClass(((PsiWildcardType) type).getBound().orElse(javaLangObject));
-                    } else psiClass2 = PsiTypesUtil.getPsiClass(type);
+                    if (ownType instanceof PsiWildcardType) {
+                        psiClass2 = PsiTypesUtil.getPsiClass(((PsiWildcardType) ownType).getBound().orElse(javaLangObject));
+                    } else psiClass2 = PsiTypesUtil.getPsiClass(ownType);
                     if (psiClass2 == null || !parameterList.isValid()) {
                         return null;
                     }
-                    return buildMethodBy(methodInfo, psiClass2, ownType);
+                    final PsiClass classPsiClass = PsiClassType.getTypeByName("java.lang.Class", context.getProject(), GlobalSearchScope.allScope(context.getProject())).resolve();
+                    final PsiClassType psiClassType = elementFactory.createType(classPsiClass, ownType);
+                    return buildMethodBy(methodInfo, psiClass2, psiClassType);
                 } else if (methodInfo.isStatic) {
                     final PsiClass psiClass2 = PsiTypesUtil.getPsiClass(type);
                     if (psiClass2 == null || !parameterList.isValid()) {
@@ -453,7 +455,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     final PsiTypeParameterList oTypeParameterList = targetMethod.getTypeParameterList();
                     if (oTypeParameterList == null) return null;
                     final LightTypeParameterListBuilder builder = new LightTypeParameterListBuilder(targetMethod.getManager(), targetMethod.getLanguage());
-                    if (isStatic) return oTypeParameterList;
+                    if (isStatic && !info.siteCopyByClassHeadArgMethod) return oTypeParameterList;
                     if (targetMethod.getParameterList().isEmpty()) return oTypeParameterList;
                     final PsiParameter[] parameters = targetMethod.getParameterList().getParameters();
                     PsiType firstParamType = parameters[0].getType();
@@ -522,7 +524,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 newPsiParameterList = supplier.get();
             }
             ZrPsiExtensionMethod builder;
-            builder = new ZrPsiExtensionMethod(isStatic, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), targetMethod.getName()
+            builder = new ZrPsiExtensionMethod(isStatic && !info.siteCopyByClassHeadArgMethod, targetClass, targetMethod, targetClass.getManager(), targetMethod.getLanguage(), targetMethod.getName()
                     , newPsiParameterList
                     , newModifierList, targetMethod.getThrowsList(), newPsiTypeParameterList);
             builder.setContainingClass(targetClass);

@@ -8,7 +8,7 @@ import com.sun.tools.javac.util.Pair;
 
 /**
  * @ClassName: ZrLookupHelper
- * @Author: zwh
+ * @Author: 122006
  * @Date: 2025/4/16 9:58
  * @Description:
  */
@@ -27,7 +27,7 @@ class ZrLookupHelper extends Resolve.BasicLookupHelper {
         final Pair<Symbol, ExMethodInfo> method2 = zrResolve.findMethod2(env, site, name, argtypes, typeargtypes, bestSoFar, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
         final Symbol newSymbol = method2.fst;
         if (method2.snd != null && (newSymbol instanceof Symbol.MethodSymbol && !(bestSoFar instanceof Symbol.MethodSymbol)) || ((newSymbol instanceof Symbol.MethodSymbol) && (bestSoFar instanceof Symbol.MethodSymbol) && newSymbol != bestSoFar)) {
-            throw new NeedRedirectMethod(method2.fst, method2.snd);
+            throw new NeedRedirectMethod(method2.fst, method2.snd,site);
         } else {
             return newSymbol;
         }

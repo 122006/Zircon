@@ -105,18 +105,19 @@ public class ZrAttr extends Attr {
             final JCTree.JCMethodInvocation oldTree = make.Apply(that.typeargs, that.meth, that.args);
             final Symbol bestSoFar = redirectMethod.bestSoFar;
             final JCTree.JCFieldAccess add = make.Select(make.Ident(bestSoFar.owner), bestSoFar.name);
-            final Symbol.VarSymbol head = ((Symbol.MethodSymbol) bestSoFar).getParameters().head;
             if (methodInfo.siteCopyByClassHeadArgMethod) {
                 if (that.meth instanceof JCTree.JCFieldAccess) {
-                    JCTree.JCExpression prepend = ((JCTree.JCFieldAccess) that.meth).selected;
-                    final Type prependType = prepend.type;
-                    final JCTree.JCExpression jcExpression = make.ClassLiteral(prependType);
+                    final Type currentClassType = redirectMethod.site;
+                    final Type type = new Type.ClassType(Type.noType, List.of(currentClassType), syms.classType.tsym);
+                    final JCTree.JCExpression jcExpression = make.ClassLiteral(currentClassType).setType(type);
                     that.args = that.args.prepend(jcExpression);
-                    argtypes = argtypes.prepend(head.type);
-
+                    argtypes = argtypes.prepend(type);
                 } else if (that.meth instanceof JCTree.JCIdent) {
-                    that.args = that.args.prepend(make.ClassLiteral(localEnv.enclClass.type));
-                    argtypes = argtypes.prepend(head.type);
+                    final Type oType = env.enclClass.type;
+                    final Type type = new Type.ClassType(Type.noType, List.of(oType), syms.classType.tsym);
+                    final JCTree.JCExpression x = make.ClassLiteral(oType);
+                    that.args = that.args.prepend(x);
+                    argtypes = argtypes.prepend(type);
                 } else {
                     throw new ZrUnSupportCodeError("拓展方法解析异常：使用Class定义的实例拓展方法，匹配至其静态副本，但是其site不是JCFieldAccess或者JCIdent。于：" + that);
                 }
@@ -124,14 +125,15 @@ public class ZrAttr extends Attr {
                 JCTree.JCExpression prepend = null;
                 if (that.meth instanceof JCTree.JCFieldAccess) {
                     prepend = ((JCTree.JCFieldAccess) that.meth).selected;
-
                 } else if (that.meth instanceof JCTree.JCIdent) {
-                    final Type enclClassType = localEnv.enclClass.type;
-                    prepend = make.This(enclClassType);
+                    final Type oType = env.enclClass.type;
+                    prepend = make.This(oType);
                 }
                 if (prepend != null) {
                     that.args = that.args.prepend(prepend);
                     argtypes = argtypes.prepend(prepend.type);
+                } else {
+                    throw new ZrUnSupportCodeError("拓展方法解析异常：实例拓展方法，但是其site不是JCFieldAccess或者JCIdent(" + that.meth.getClass() + ")。于：" + that);
                 }
             }
             methodTemplate = this.newMethodTemplate(pt, argtypes, typeargtypes);
@@ -159,8 +161,8 @@ public class ZrAttr extends Attr {
                     }
                 }
             }
+//            System.err.println("==============\n" + oldTree + "=>\n" + that);
             encl = this.attribTree(that.meth, localEnv, new ResultInfo(kind, methodTemplate, this.resultInfo.checkContext));
-//            System.out.println("==============\n" + oldTree + "=>\n" + that);
         }
 
         Type restype = encl.getReturnType();

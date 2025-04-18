@@ -208,7 +208,7 @@ public class ZrResolve extends Resolve {
         if (methodInfo.siteCopyByClassHeadArgMethod) {
             ListBuffer<JCTree.JCVariableDecl> jcVariableDecls = new ListBuffer<>();
             ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
-            jcIdents.add(maker.ClassLiteral(memberReference.expr.type));
+            jcIdents.add(maker.ClassLiteral(memberReference.expr.type).setType(syms.classType));
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
                 final Name nameA = names.fromString("$zr$a" + i);
@@ -297,7 +297,7 @@ public class ZrResolve extends Resolve {
                     .getQualifiedName().toString(), a1);
             final CompareSameMethod.MethodInfo<ExMethodInfo> info2 = CompareSameMethod.MethodInfo.create(a2.methodSymbol.owner
                     .getQualifiedName().toString(), a2);
-            return CompareSameMethod.compare(CompareSameMethod.CompareEnv.create(env.enclClass.sym
+            return CompareSameMethod.compare(CompareSameMethod.CompareEnv.create(env.toplevel.packge
                     .getQualifiedName()
                     .toString()), info1, info2);
         });

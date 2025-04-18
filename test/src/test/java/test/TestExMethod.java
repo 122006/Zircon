@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.IntUnaryOperator;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -408,6 +409,9 @@ public class TestExMethod {
     public static class ChildClass extends FatherClass {
         public static void oSameNameExtendClass() {
         }
+
+        public void childrenMethod() {
+        }
     }
 
     public static class ChildClass2 extends FatherClass {
@@ -570,4 +574,9 @@ public class TestExMethod {
         return clazz;
     }
 
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodConsumer(Class<T> clazz, Consumer<T> consumer) {
+        methodNames.add("testClassExMethodConsumer(1" + clazz.toString());
+        return clazz;
+    }
 }

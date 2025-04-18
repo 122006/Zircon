@@ -1,8 +1,11 @@
 package test;
 
 import org.junit.jupiter.api.Test;
+import test.NearExMethod;
+import test.TestExMethod;
 import test.TestExMethod.ChildEnv;
-import test.child.ChildExMethod;
+import test.TestExMethodImpl;
+import test.TestNoEncounteredMethod;
 import test.filter.FilterAnnotation;
 import zircon.ExMethod;
 import zircon.ExMethodIDE;
@@ -178,6 +181,20 @@ public class TestExMethodImpl {
                     return new TestExMethod.ChildClass() {
                         <T> T test() {
                             return (T) fatherMExtendRT(123);
+                        }
+                    }.test();
+                }, () -> TestExMethod.fatherMExtendRT(childClass, 123)
+        );
+        checkMethodInvokes(
+                () -> {
+                    return new TestExMethod.ChildClass() {
+                        <T> T test() {
+                            return (T) new Supplier<Integer>(){
+                                @Override
+                                public Integer get() {
+                                    return childClass.fatherMExtendRT(123);
+                                }
+                            }.get();
                         }
                     }.test();
                 }, () -> TestExMethod.fatherMExtendRT(childClass, 123)
@@ -774,6 +791,13 @@ public class TestExMethodImpl {
                 }, () -> {
                     BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass::testClassExMethodWArg2ForAll;
                     return a.apply(1, "test");
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.ChildClass.class.testClassExMethodConsumer(c->c.childrenMethod());
+                }, () -> {
+                    return TestExMethod.ChildClass.testClassExMethodConsumer(c->c.childrenMethod());
                 }
         );
         Object.testClassExMethodWArg2(1, "123");

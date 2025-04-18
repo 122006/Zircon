@@ -4,7 +4,7 @@ import com.sun.tools.javac.tree.JCTree;
 
 /**
  * @ClassName: NeedReplaceLambda
- * @Author: zwh
+ * @Author: 122006
  * @Date: 2025/4/16 9:52
  * @Description:
  */
