@@ -1,10 +1,7 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Scope;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.CompareSameMethod;
@@ -329,7 +326,7 @@ public class ZrResolve extends Resolve {
                     final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
                     final List<Type> typeArguments = head.type.getTypeArguments();
                     final Type firstTypeArgument = typeArguments.isEmpty() ? syms.objectType : types.erasure(typeArguments.head);
-                    final Type.MethodType oldType = (Type.MethodType) methodInfo.methodSymbol.type;
+                    final Type.MethodType oldType = methodInfo.methodSymbol.type.asMethodType();
                     if (sameType || types.isAssignable(site, firstTypeArgument)) {
                         Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
                         Symbol.MethodSymbol clone = new Symbol.MethodSymbol(methodInfo.methodSymbol.flags_field, methodInfo.methodSymbol.name, newType, type.tsym);

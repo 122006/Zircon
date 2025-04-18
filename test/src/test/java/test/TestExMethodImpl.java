@@ -767,6 +767,15 @@ public class TestExMethodImpl {
                     return a.apply(1, "test");
                 }
         );
+        checkMethodInvokes(
+                () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass.class::testClassExMethodWArg2ForAll;
+                    return a.apply(1, "test");
+                }, () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass::testClassExMethodWArg2ForAll;
+                    return a.apply(1, "test");
+                }
+        );
         Object.testClassExMethodWArg2(1, "123");
         testEnd();
 

@@ -63,7 +63,7 @@ public class ZrResolveEx {
                     final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
                     final List<Type> typeArguments = head.type.getTypeArguments();
                     final Type firstTypeArgument = typeArguments.isEmpty() ? zrResolve.syms.objectType : zrResolve.types.erasure(typeArguments.head);
-                    final Type.MethodType oldType = (Type.MethodType) methodInfo.methodSymbol.type;
+                    final Type.MethodType oldType = methodInfo.methodSymbol.type.asMethodType();;
                     if (sameType || zrResolve.types.isAssignable(site, firstTypeArgument)) {
                         Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
                         Symbol.MethodSymbol clone = new Symbol.MethodSymbol(methodInfo.methodSymbol.flags_field, methodInfo.methodSymbol.name, newType, type.tsym);

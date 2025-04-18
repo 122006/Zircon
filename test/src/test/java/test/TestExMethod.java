@@ -564,4 +564,10 @@ public class TestExMethod {
         return clazz;
     }
 
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodWArg2ForAll(Class<T> clazz, int a1, String a2) {
+        methodNames.add("testClassExMethodWArg2ForAll(1,2" + clazz.toString());
+        return clazz;
+    }
+
 }
