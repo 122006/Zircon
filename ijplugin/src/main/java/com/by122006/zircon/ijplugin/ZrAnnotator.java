@@ -28,10 +28,10 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleManager;
+import com.intellij.psi.impl.source.PsiClassReferenceType;
 import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
-import com.intellij.psi.util.ClassUtil;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.TypeConversionUtil;
+import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.util.*;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
@@ -44,8 +44,6 @@ import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
-import zircon.example.ExObject;
-import zircon.example.ExReflection;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -97,6 +95,8 @@ public class ZrAnnotator implements Annotator {
             }
         } catch (ProcessCanceledException e) {
             throw e;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -287,43 +287,42 @@ public class ZrAnnotator implements Annotator {
                     }).create();
         }
         final PsiManager manager = method.getManager();
-        final boolean b = ZrPsiAugmentProvider.getCachedAllMethod(method.getProject()).stream()
+        final List<ZrPsiAugmentProvider.CacheMethodInfo> cachedAllMethod = ZrPsiAugmentProvider.getCachedAllMethod(method);
+        final boolean b = cachedAllMethod.stream()
                 .noneMatch(a -> a.method.isValid() && manager.areElementsEquivalent(a.method, method));
-        if (b) {
-            holder.newSilentAnnotation(HighlightSeverity.WARNING).range(collect.get(0)).tooltip("need refresh cache")
-                    .highlightType(ProblemHighlightType.WARNING).withFix(new IntentionAction() {
-                        @Override
-                        public @IntentionName @NotNull String getText() {
-                            return "[ZrExMethod]: refresh cache";
-                        }
+        holder.newSilentAnnotation(b ? HighlightSeverity.WARNING : HighlightSeverity.INFORMATION).range(collect.get(0)).tooltip(b ? "need refresh cache" : "[ZrExMethod]: refresh cache")
+                .highlightType(b ? ProblemHighlightType.WARNING : ProblemHighlightType.INFORMATION).withFix(new IntentionAction() {
+                    @Override
+                    public @IntentionName @NotNull String getText() {
+                        return "[ZrExMethod]: refresh cache";
+                    }
 
-                        @Override
-                        public @NotNull @IntentionFamilyName String getFamilyName() {
-                            return "ZrExMethod";
-                        }
+                    @Override
+                    public @NotNull @IntentionFamilyName String getFamilyName() {
+                        return "ZrExMethod";
+                    }
 
-                        @Override
-                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-                            return true;
-                        }
+                    @Override
+                    public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                        return true;
+                    }
 
-                        @Override
-                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            try {
-                                method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
-                                ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                                CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+                    @Override
+                    public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                        try {
+                            method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+                            ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                            CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
+                    }
 
-                        @Override
-                        public boolean startInWriteAction() {
-                            return true;
-                        }
-                    }).create();
-        }
+                    @Override
+                    public boolean startInWriteAction() {
+                        return true;
+                    }
+                }).create();
         final PsiAnnotation annotation = collect.get(0);
         PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
         if (ex != null) {
@@ -372,10 +371,20 @@ public class ZrAnnotator implements Annotator {
     }
 
     private void registerSiteAnnotation(@NotNull AnnotationHolder holder, @NotNull PsiTypeElement element, @Nullable String className, @Nullable TextRange textRange) {
+        String s = "This extension method will proxy the site: " + (className != null ? className : TypeConversionUtil
+                .erasure(element.getType()).getCanonicalText());
+        final PsiClass psiClass = PsiTypesUtil.getPsiClass(element.getType());
+        if (className == null && psiClass != null && !Objects.equals(psiClass.getQualifiedName(), "java.lang.Class")) {
+            final PsiType[] parameters = ((PsiClassType) element.getType()).getParameters();
+            PsiType o = parameters.get(0);
+            if (o == null) {
+                o = PsiClassType.getTypeByName("java.lang.Object", psiClass.getProject(), GlobalSearchScope.allScope(psiClass.getProject()));
+            }
+            s += " and " + o + "(static)";
+        }
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
                 .range(textRange == null ? element.getTextRange() : textRange)
-                .tooltip("This extension method will proxy the site: " + (className != null ? className : TypeConversionUtil
-                        .erasure(element.getType()).getCanonicalText())).textAttributes(ZrExMethodSite)
+                .tooltip(s).textAttributes(ZrExMethodSite)
                 .highlightType(ProblemHighlightType.INFORMATION).create();
     }
 

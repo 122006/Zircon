@@ -18,7 +18,7 @@ public class ZirconSettings implements PersistentStateComponent<ZirconSettings> 
     public boolean ZrStringFoldEnable = true;
 
     public int ZrStringFoldCharCount = 10;
-
+    public boolean allowUseStaticOnNoStaticMethod = true;
 
     public boolean enableAll = true;
 

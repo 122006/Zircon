@@ -37,8 +37,9 @@ patchPluginXml {
     untilBuild = "251.*"
 }
 dependencies {
-    annotationProcessor 'com.github.122006.zircon:javac:3.2.3'
+//    annotationProcessor 'com.github.122006.zircon:javac:3.2.3'
     implementation project(":base")
+    implementation project(":javac")
     intellijPlatform {
         intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '251.21418.62'
@@ -50,6 +51,7 @@ dependencies {
     }
     implementation project(":zircon")
 }
+tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 ////IU-202.7319.50
 //intellij {
 //    plugins = ['java']

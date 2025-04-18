@@ -14,6 +14,7 @@ import com.intellij.psi.util.TypeConversionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
+import zircon.example.ExObject;
 
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -36,7 +37,7 @@ public class ZrPluginUtil {
         @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(psiElement);
         if (module == null) return false;
         // 获取模块的搜索范围
-        GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(false);
+        GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
         return CachedValuesManager.getManager(project).getCachedValue(module, () -> {
             PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
             return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
@@ -48,7 +49,7 @@ public class ZrPluginUtil {
         final PsiParameter @NotNull [] parameterTypes = method.getParameterList().getParameters();
         if (parameterTypes.length == 0) return false;
         PsiType type = parameterTypes[0].getType();
-        return isAssignableSite(type, psiType2, method.getTypeParameters(), true);
+        return isAssignableSite(method.getProject(), type, psiType2, method.getTypeParameters(), true);
     }
 
     public static PsiType convertTypeByMethodTypeParameter(PsiType psiType1, PsiTypeParameter[] parameters) {
@@ -64,7 +65,7 @@ public class ZrPluginUtil {
         return psiType1;
     }
 
-    public static boolean isAssignableSite(PsiType psiType1, PsiType psiType2, PsiTypeParameter[] parameters, boolean allowExtend) {
+    public static boolean isAssignableSite(Project project, PsiType psiType1, PsiType psiType2, PsiTypeParameter[] parameters, boolean allowExtend) {
         if (!psiType1.isValid()) return false;
         if (!psiType2.isValid()) return false;
         if (TypeConversionUtil.isPrimitiveAndNotNull(psiType1) != TypeConversionUtil.isPrimitiveAndNotNull(psiType2))
@@ -78,7 +79,7 @@ public class ZrPluginUtil {
             if (TypeConversionUtil.isPrimitiveAndNotNull(deepComponentType) && TypeConversionUtil.isPrimitiveAndNotNull(deepComponentType2)) {
                 return deepComponentType.equals(deepComponentType2);
             }
-            return isAssignableSite(deepComponentType, deepComponentType2, parameters, allowExtend);
+            return isAssignableSite(project, deepComponentType, deepComponentType2, parameters, allowExtend);
         }
         if (psiType1.equals(psiType2) || (allowExtend && TypeConversionUtil.isAssignable(psiType1, psiType2)))
             return true;
@@ -112,22 +113,22 @@ public class ZrPluginUtil {
                         if (param == parameters1[i]) {
                             if (param instanceof PsiWildcardType) {
                                 if (!((PsiWildcardType) param).isBounded()) {
-                                    continue;
+                                    param = PsiClassType.getTypeByName("java.lang.Object", project, GlobalSearchScope.allScope(project));
                                 } else {
                                     param = ((PsiWildcardType) param).getBound();
                                 }
                             }
                             //非由方法泛型引入的约束(参数中直接定义)，强制相等
                             final boolean b = Objects.equals(PsiTypesUtil.getPsiClass(param), PsiTypesUtil.getPsiClass(parameters2[i]));
-                            if (!b) {
-                                return false;
-                            } else continue;
+                            if (b) {
+                                continue;
+                            }
                         }
                         //防止循环定义
                         if (PsiTypesUtil.compareTypes(param, psiType1, true)) {
                             continue;
                         }
-                        if (!isAssignableSite(param, parameters2[i], parameters, false)) {
+                        if (!isAssignableSite(project, param, parameters2[i], parameters, false)) {
                             return false;
                         }
                     }

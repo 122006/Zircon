@@ -2,8 +2,10 @@ package test;
 
 import org.junit.jupiter.api.Test;
 import test.TestExMethod.ChildEnv;
+import test.child.ChildExMethod;
 import test.filter.FilterAnnotation;
 import zircon.ExMethod;
+import zircon.ExMethodIDE;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
 import zircon.example.ExCollection;
@@ -647,7 +649,7 @@ public class TestExMethodImpl {
         }
 
 
-        nullStr.equals("123");
+//        nullStr.equals("123");
 
 
         assertThrows(RuntimeException.class, () -> {
@@ -687,32 +689,32 @@ public class TestExMethodImpl {
         );
         checkMethodInvokes(
                 () -> {
-                    Supplier<Class<? extends TestExMethod.FatherClass>> a= () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a = () -> {
                         return TestExMethod.ChildClass.testClassExMethod();
                     };
                     return a.get();
                 }, () -> {
-                    Supplier<Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass::testClassExMethod;
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a = TestExMethod.ChildClass::testClassExMethod;
                     return a.get();
                 }
         );
         checkMethodInvokes(
                 () -> {
-                    Supplier<Class<? extends TestExMethod.FatherClass>> a= () -> {
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a = () -> {
                         return TestExMethod.ChildClass.testClassExMethod();
                     };
                     return a.get();
                 }, () -> {
-                    Supplier<Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass.class::testClassExMethod;
+                    Supplier<Class<? extends TestExMethod.FatherClass>> a = TestExMethod.ChildClass.class::testClassExMethod;
                     return a.get();
                 }
         );
         checkMethodInvokes(
                 () -> {
-                    Supplier<Class<String>> a= String::testClassExMethodString;
+                    Supplier<Class<String>> a = String::testClassExMethodString;
                     return a.get();
                 }, () -> {
-                    Supplier<Class<String>> a= String.class::testClassExMethodString;
+                    Supplier<Class<String>> a = String.class::testClassExMethodString;
                     return a.get();
                 }
         );
@@ -730,7 +732,6 @@ public class TestExMethodImpl {
         }.invoke();
 
         testClassExMethod_TestExMethodImpl();
-
         checkMethodInvokes(
                 () -> {
                     return TestExMethod.ChildClass.testClassExMethodArg2(1, "test");
@@ -740,14 +741,33 @@ public class TestExMethodImpl {
         );
         checkMethodInvokes(
                 () -> {
-                    BiFunction<Integer,String,Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass.class::testClassExMethodArg2;
-                    return a.apply(1,"test");
+                    BiFunction<Integer, String, Class<? extends TestExMethod.FatherClass>> a = TestExMethod.ChildClass.class::testClassExMethodArg2;
+                    return a.apply(1, "test");
                 }, () -> {
-                    BiFunction<Integer,String,Class<? extends TestExMethod.FatherClass>> a= TestExMethod.ChildClass::testClassExMethodArg2;
-                    return a.apply(1,"test");
+                    BiFunction<Integer, String, Class<? extends TestExMethod.FatherClass>> a = TestExMethod.ChildClass::testClassExMethodArg2;
+                    return a.apply(1, "test");
                 }
         );
-
+        checkMethodInvokes(
+                () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass.class::testClassExMethodObjectArg2;
+                    return a.apply(1, "test");
+                }, () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass::testClassExMethodObjectArg2;
+                    return a.apply(1, "test");
+                }
+        );
+//        Object.class.testClassExMethodArg2(1,"123" );
+        checkMethodInvokes(
+                () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass.class::testClassExMethodWArg2;
+                    return a.apply(1, "test");
+                }, () -> {
+                    BiFunction<Integer, String, Class<?>> a = TestExMethod.ChildClass::testClassExMethodWArg2;
+                    return a.apply(1, "test");
+                }
+        );
+        Object.testClassExMethodWArg2(1, "123");
         testEnd();
 
     }
@@ -767,7 +787,7 @@ public class TestExMethodImpl {
 
     @ExMethod(ex = {Object.class})
     public static <T> Consumer<T> $throw2(ThrowConsumer<T> action) {
-        return (t) -> {
+        return t -> {
             try {
                 action.accept(t);
             } catch (Exception e) {
@@ -842,6 +862,7 @@ public class TestExMethodImpl {
     }
 
     @ExMethod
+    @ExMethodIDE(shouldInvokeDirectly = true)
     public static <T> Consumer<T> $throw3(Object object, Consumer<T> action) {
         return (t) -> {
             try {

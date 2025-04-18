@@ -38,7 +38,7 @@ class ZrMethodReferenceLookupHelper extends Resolve.ReferenceLookupHelper {
         final Symbol method = zrResolve.findMethod(env, site, name, argtypes, typeargtypes, phase.isBoxingRequired(), phase.isVarargsRequired(), false);
         if (!TreeInfo.isStaticSelector(referenceTree.expr, zrResolve.names)) {
             Symbol method2 = method;
-            for (ExMethodInfo methodInfo : zrResolve.findRedirectMethod(name, zrResolve.methodSymbolEnable(method))) {
+            for (ExMethodInfo methodInfo : zrResolve.findRedirectMethod(env, name, zrResolve.methodSymbolEnable(method))) {
                 final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                 if (nParams.size() == 0) continue;
                 if (!zrResolve.types.isCastable(site, nParams.get(0).type)) {
@@ -49,7 +49,7 @@ class ZrMethodReferenceLookupHelper extends Resolve.ReferenceLookupHelper {
             }
             return method2;
         } else {
-            for (ExMethodInfo methodInfo : zrResolve.findRedirectMethod(name, zrResolve.methodSymbolEnable(method))) {
+            for (ExMethodInfo methodInfo : zrResolve.findRedirectMethod(env, name, zrResolve.methodSymbolEnable(method))) {
                 if (!methodInfo.siteCopyByClassHeadArgMethod) continue;
                 final List<Symbol.VarSymbol> nParams = methodInfo.methodSymbol.params();
                 if (nParams.size() == 0) continue;

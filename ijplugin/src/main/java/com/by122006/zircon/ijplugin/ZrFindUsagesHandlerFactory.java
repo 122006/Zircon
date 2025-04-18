@@ -12,6 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,28 +31,33 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
         return new FindUsagesHandler(element) {
             @NotNull
             public PsiElement[] getSecondaryElements() {
-                final Project project = element.getProject();
-                final List<ZrPsiAugmentProvider.CacheMethodInfo> psiMethods
-                        = ZrPsiAugmentProvider.getCachedAllMethod(project);
-                final Optional<ZrPsiAugmentProvider.CacheMethodInfo> first = psiMethods.stream().filter(a -> a.method == element)
-                        .findFirst();
-                if (first.isEmpty()) return PsiElement.EMPTY_ARRAY;
-                final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = first.get();
-                final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
-                    PsiClass psiClass;
-                    if (type instanceof PsiClassReferenceType) {
-                        final String qualifiedName = ((PsiClassReferenceType) type).getReference().getQualifiedName();
-                        final PsiClass[] classes = JavaPsiFacade.getInstance(project)
-                                .findClasses(qualifiedName, GlobalSearchScope.allScope(project));
-                        psiClass = classes.length > 0 ? classes[0] : null;
-                    } else {
-                        psiClass = PsiTypesUtil.getPsiClass(type);
+                try {
+                    final Project project = element.getProject();
+                    final List<ZrPsiAugmentProvider.CacheMethodInfo> psiMethods
+                            = ZrPsiAugmentProvider.getCachedAllMethod(element);
+                    final Optional<ZrPsiAugmentProvider.CacheMethodInfo> first = psiMethods.stream().filter(a -> a.method == element)
+                            .findFirst();
+                    if (first.isEmpty()) return PsiElement.EMPTY_ARRAY;
+                    final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = first.get();
+                    final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
+                        PsiClass psiClass;
+                        if (type instanceof PsiClassReferenceType) {
+                            final String qualifiedName = ((PsiClassReferenceType) type).getReference().getQualifiedName();
+                            final PsiClass[] classes = JavaPsiFacade.getInstance(project)
+                                    .findClasses(qualifiedName, GlobalSearchScope.allScope(project));
+                            psiClass = classes.length > 0 ? classes[0] : null;
+                        } else {
+                            psiClass = PsiTypesUtil.getPsiClass(type);
 
-                    }
-                    if (psiClass == null) return null;
-                    return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));
-                }).filter(Objects::nonNull).collect(Collectors.toList());
-                return list.toArray(PsiElement.EMPTY_ARRAY);
+                        }
+                        if (psiClass == null) return null;
+                        return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));
+                    }).filter(Objects::nonNull).collect(Collectors.toList());
+                    return list.toArray(PsiElement.EMPTY_ARRAY);
+                } catch (PsiInvalidElementAccessException e) {
+                    e.printStackTrace();
+                    return new PsiElement[0];
+                }
             }
         };
     }

@@ -144,10 +144,12 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.3
+### v3.3.0
 
-1. 支持java21、java22
-2. 优化项目编译结构
+1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
+2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
+3. 优化编译速度
+4. 增加`@ExMethodIDE`注解，以增强ide的提示特性
 
 <details>
   <summary>历史依赖更新</summary>
@@ -211,14 +213,12 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 1. 支持java21、java22
 2. 优化项目编译结构
 
-
 </details>
-
 
 ### idea插件4.0
 
-1. 拓展方法支持限制注解
-2. 现在插件的检测范围只限制于当前已申明插件的module
+1. 拓展方法注解能力拓展，支持3.3.0新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
+2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
 
 <details>
   <summary>历史idea插件更新</summary>

@@ -1,7 +1,10 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.parser.CompareSameMethod;
@@ -13,8 +16,7 @@ import com.sun.tools.javac.util.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
@@ -53,134 +55,143 @@ public class ZrResolve extends Resolve {
         return zrResolve;
     }
 
-    Map<Name, List<ExMethodInfo>> redirectMethodSymbolMap = null;
-    Map<Name, List<ExMethodInfo>> coverStaticRedirectMethodSymbolMap = null;
-    ArrayList<Name> hasScan = new ArrayList<>();
-    int lastScanMapCount = 0;
-    boolean scanEl = false;
+    HashMap<JCTree.JCCompilationUnit, java.util.List<ExMethodInfo>> CompilationUnitCache = new HashMap<>();
 
     @SuppressWarnings("unchecked")
-    public synchronized List<ExMethodInfo> findRedirectMethod(Name methodName, boolean onlyCover) {
-        if (redirectMethodSymbolMap == null) {
-            redirectMethodSymbolMap = new HashMap<>();
-        }
-        if (coverStaticRedirectMethodSymbolMap == null) {
-            coverStaticRedirectMethodSymbolMap = new HashMap<>();
-        }
-        final Map<Name, Map<Symbol.ModuleSymbol, Symbol.PackageSymbol>> allPackages = ReflectionUtil.getDeclaredField(syms, Symtab.class, "packages");
-        if (lastScanMapCount != allPackages.size()) {
-            do {
-                scanEl = false;
-                final ArrayList<Name> names = new ArrayList<>(allPackages.keySet());
-                names.stream().filter(name -> ZrConstants.exMethodIgnorePackages.stream().noneMatch(a -> name.toString()
-                                .startsWith(a)))
-                        .filter(name -> hasScan.stream().noneMatch(a -> Objects.equals(name, a)))
-                        .forEach(name -> {
-                            final Map<Symbol.ModuleSymbol, Symbol.PackageSymbol> moduleSymbolPackageSymbolMap = allPackages.get(name);
-                            moduleSymbolPackageSymbolMap.values().forEach(a -> {
-                                final java.util.List<Symbol> enclosedElements;
-                                try {
-                                    enclosedElements = a.getEnclosedElements();
-                                } catch (Exception e) {
-                                    return;
-                                }
-                                enclosedElements.stream().filter(e -> e instanceof Symbol.ClassSymbol).forEach(c -> {
-                                    final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol) c;
-                                    scanMethod(classSymbol);
-                                });
-                            });
-                            scanEl = true;
-                            hasScan.add(name);
-                        });
+    public synchronized List<ExMethodInfo> findRedirectMethod(Env<AttrContext> env, Name methodName, boolean onlyCover) {
+        java.util.List<ExMethodInfo> result = CompilationUnitCache.get(env.toplevel);
+        if (result == null) {
+            CompilationUnitCache.put(env.toplevel, result = new ArrayList<>());
+            java.util.List<Symbol> symbols = new ArrayList<>();
+            try {
+                symbols.addAll(env.toplevel.packge.getEnclosedElements());
+            } catch (Exception e) {
+            }
+            try {
+                for (Symbol currentSym : env.toplevel.toplevelScope.getSymbols(a -> a instanceof Symbol.ClassSymbol, Scope.LookupKind.NON_RECURSIVE)) {
+                    symbols.add(currentSym);
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                for (Symbol currentSym : env.toplevel.namedImportScope.getSymbols(a -> a instanceof Symbol.ClassSymbol, Scope.LookupKind.NON_RECURSIVE)) {
+                    symbols.add(currentSym);
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                for (Symbol currentSym : env.toplevel.starImportScope.getSymbols(a -> a instanceof Symbol.ClassSymbol, Scope.LookupKind.NON_RECURSIVE)) {
+                    symbols.add(currentSym);
+                }
+            } catch (Exception ignored) {
+            }
+            for (Symbol symbol : symbols) {
+                if (!(symbol instanceof Symbol.ClassSymbol)) {
+                    continue;
+                }
+                final String qualifiedName = symbol.getQualifiedName().toString();
+                if (ZrConstants.exMethodIgnorePackages.stream().anyMatch(qualifiedName::startsWith)) {
+                    continue;
+                }
+                try {
+                    scanMethod((Symbol.ClassSymbol) symbol, result);
+                } catch (Exception ignored) {
+                }
+            }
 
-            } while (scanEl);
-            lastScanMapCount = allPackages.size();
         }
-        final List<ExMethodInfo> list = (onlyCover ? coverStaticRedirectMethodSymbolMap : redirectMethodSymbolMap).get(methodName);
-        return list == null ? List.nil() : list;
+
+        List<ExMethodInfo> ret = List.nil();
+        for (ExMethodInfo exMethodInfo : result) {
+            if (onlyCover && !exMethodInfo.cover) continue;
+            if (!exMethodInfo.methodSymbol.name.contentEquals(methodName.toString())) {
+                continue;
+            }
+            if (ret.contains(exMethodInfo)) continue;
+            ret = ret.append(exMethodInfo);
+        }
+        return ret;
     }
 
-    private void scanMethod(Symbol.ClassSymbol classSymbol) {
+    HashMap<String, java.util.List<ExMethodInfo>> exMethodCache = new HashMap<>();
+
+    private void scanMethod(Symbol.ClassSymbol classSymbol, java.util.List<ExMethodInfo> result) {
         final String clazzName = "zircon.ExMethod";
         final Scope.WriteableScope members = classSymbol.members();
         members.getSymbols(symbol -> symbol instanceof Symbol.ClassSymbol).forEach(c -> {
             final Symbol.ClassSymbol c1 = (Symbol.ClassSymbol) c;
-            scanMethod(c1);
+            scanMethod(c1, result);
         });
-        members.getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream()
-                        .anyMatch(annotation -> annotation.type
-                                .toString()
-                                .equals(clazzName)))
-                .forEach(symbol -> {
-                    Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol;
-                    symbol.getAnnotationMirrors().stream()
-                            .filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst()
-                            .ifPresent(compound -> {
-                                try {
-                                    final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
-                                    final Attribute ex = compound.member(names.fromString("ex"));
-                                    if (ex != null) {
-                                        final List<Attribute.Class> exValue = (List<Attribute.Class>) ex.getValue();
-                                        for (Attribute.Class aClass : exValue) {
-                                            if (aClass.getValue() instanceof Type.ClassType) {
-                                                exMethodInfo.targetClass = exMethodInfo.targetClass.append((Type.ClassType) aClass.getValue());
-                                            } else {
-                                                throw new UnsupportedOperationException(method.getSimpleName() + "方法ex注解不能定义非Class值");
-                                            }
-                                        }
-                                    }
-                                    final Attribute cover = compound.member(names.fromString("cover"));
-                                    if (cover != null) {
-                                        exMethodInfo.cover = (boolean) cover.getValue();
-                                    }
-                                    exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
-                                    final Attribute filterAnnotation = compound.member(names.fromString("filterAnnotation"));
-                                    if (filterAnnotation != null) {
-                                        final List<Attribute.Class> exValue = (List<Attribute.Class>) filterAnnotation.getValue();
-                                        for (Attribute.Class aClass : exValue) {
-                                            if (aClass.getValue() instanceof Type.ClassType) {
-                                                exMethodInfo.filterAnnotation = exMethodInfo.filterAnnotation.append((Type.ClassType) aClass.getValue());
-                                            } else {
-                                                throw new UnsupportedOperationException(method.getSimpleName() + "方法filterAnnotation注解不能定义非Class值");
-                                            }
-                                        }
-                                    }
-                                    if (exMethodInfo.cover) {
-                                        final List<ExMethodInfo> list = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                                        coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
-                                    }
-                                    final List<ExMethodInfo> list = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                                    redirectMethodSymbolMap.put(method.getSimpleName(), list.append(exMethodInfo));
-                                    if (!exMethodInfo.isStatic) {
-                                        final Symbol.VarSymbol head = exMethodInfo.methodSymbol.getParameters().head;
-                                        if (head.type.tsym == syms.classType.tsym) {
-                                            Type.ClassType clazz = null;
-                                            if (head.type.getTypeArguments().isEmpty()) {
-                                                clazz = (Type.ClassType) syms.objectType;
-                                            } else {
-                                                final Type firstTypeArgument = types.erasure(head.type.getTypeArguments().head);
-                                                if (!(firstTypeArgument instanceof Type.ClassType)) {
-                                                    throw new UnsupportedOperationException(method.getSimpleName() + "方法代理Class值时，类型无法解析为Class:" + firstTypeArgument.toString());
-                                                }
-                                                clazz = (Type.ClassType) firstTypeArgument;
+        final String classQualifiedName = classSymbol.getQualifiedName().toString();
+        java.util.List<ExMethodInfo> classAllMethod = exMethodCache.get(classQualifiedName);
+        if (classAllMethod == null) {
+            classAllMethod = new ArrayList<>();
+            exMethodCache.put(classQualifiedName, classAllMethod);
+            for (Symbol symbol1 : members.getSymbols(symbol -> symbol instanceof Symbol.MethodSymbol && symbol.getAnnotationMirrors().stream()
+                    .anyMatch(annotation -> annotation.type
+                            .toString()
+                            .equals(clazzName)))) {
+                Symbol.MethodSymbol method = (Symbol.MethodSymbol) symbol1;
 
-                                            }
-                                            final ExMethodInfo newExMethodInfo = new ExMethodInfo(exMethodInfo.methodSymbol, true, exMethodInfo.cover, List.of(clazz), exMethodInfo.filterAnnotation);
-                                            newExMethodInfo.siteCopyByClassHeadArgMethod = true;
-                                            if (newExMethodInfo.cover) {
-                                                final List<ExMethodInfo> pList = coverStaticRedirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                                                coverStaticRedirectMethodSymbolMap.put(method.getSimpleName(), pList.append(newExMethodInfo));
-                                            }
-                                            final List<ExMethodInfo> plist = redirectMethodSymbolMap.getOrDefault(method.getSimpleName(), List.nil());
-                                            redirectMethodSymbolMap.put(method.getSimpleName(), plist.append(newExMethodInfo));
-                                        }
-                                    }
-                                } catch (Exception exc) {
-                                    exc.printStackTrace();
+                final Optional<Attribute.Compound> first = symbol1.getAnnotationMirrors().stream()
+                        .filter(annotation -> annotation.type.toString().equals(clazzName)).findFirst();
+                if (!first.isPresent()) continue;
+                final Attribute.Compound compound = first.get();
+                try {
+                    final ExMethodInfo exMethodInfo = new ExMethodInfo(method, false, false, List.nil(), List.nil());
+                    final Attribute ex = compound.member(names.fromString("ex"));
+                    if (ex != null) {
+                        final List<Attribute.Class> exValue = (List<Attribute.Class>) ex.getValue();
+                        for (Attribute.Class aClass : exValue) {
+                            if (aClass.getValue() instanceof Type.ClassType) {
+                                exMethodInfo.targetClass = exMethodInfo.targetClass.append((Type.ClassType) aClass.getValue());
+                            } else {
+                                throw new UnsupportedOperationException(method.getSimpleName() + "方法ex注解不能定义非Class值");
+                            }
+                        }
+                    }
+                    final Attribute cover = compound.member(names.fromString("cover"));
+                    if (cover != null) {
+                        exMethodInfo.cover = (boolean) cover.getValue();
+                    }
+                    exMethodInfo.isStatic = exMethodInfo.targetClass != null && exMethodInfo.targetClass.length() > 0;
+                    final Attribute filterAnnotation = compound.member(names.fromString("filterAnnotation"));
+                    if (filterAnnotation != null) {
+                        final List<Attribute.Class> exValue = (List<Attribute.Class>) filterAnnotation.getValue();
+                        for (Attribute.Class aClass : exValue) {
+                            if (aClass.getValue() instanceof Type.ClassType) {
+                                exMethodInfo.filterAnnotation = exMethodInfo.filterAnnotation.append((Type.ClassType) aClass.getValue());
+                            } else {
+                                throw new UnsupportedOperationException(method.getSimpleName() + "方法filterAnnotation注解不能定义非Class值");
+                            }
+                        }
+                    }
+                    classAllMethod.add(exMethodInfo);
+                    if (!exMethodInfo.isStatic) {
+                        final Symbol.VarSymbol head = exMethodInfo.methodSymbol.getParameters().head;
+                        if (head.type.tsym == syms.classType.tsym) {
+                            Type.ClassType clazz = null;
+                            if (head.type.getTypeArguments().isEmpty()) {
+                                clazz = (Type.ClassType) syms.objectType;
+                            } else {
+                                final Type firstTypeArgument = types.erasure(head.type.getTypeArguments().head);
+                                if (!(firstTypeArgument instanceof Type.ClassType)) {
+                                    throw new UnsupportedOperationException(method.getSimpleName() + "方法代理Class值时，类型无法解析为Class:" + firstTypeArgument.toString());
                                 }
-                            });
-                });
+                                clazz = (Type.ClassType) firstTypeArgument;
 
+                            }
+                            final ExMethodInfo newExMethodInfo = new ExMethodInfo(exMethodInfo.methodSymbol, true, exMethodInfo.cover, List.of(clazz), exMethodInfo.filterAnnotation);
+                            newExMethodInfo.siteCopyByClassHeadArgMethod = true;
+                            classAllMethod.add(newExMethodInfo);
+                        }
+                    }
+                } catch (Exception exc) {
+                    exc.printStackTrace();
+                }
+            }
+        }
+        result.addAll(classAllMethod);
     }
 
 
@@ -316,7 +327,8 @@ public class ZrResolve extends Resolve {
                 for (Type.ClassType type : methodInfo.targetClass) {
                     final boolean sameType = type.equalsIgnoreMetadata(site);
                     final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
-                    final Type firstTypeArgument = types.erasure(head.type.getTypeArguments().head);
+                    final List<Type> typeArguments = head.type.getTypeArguments();
+                    final Type firstTypeArgument = typeArguments.isEmpty() ? syms.objectType : types.erasure(typeArguments.head);
                     final Type.MethodType oldType = (Type.MethodType) methodInfo.methodSymbol.type;
                     if (sameType || types.isAssignable(site, firstTypeArgument)) {
                         Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
@@ -415,7 +427,7 @@ public class ZrResolve extends Resolve {
 
 
     protected Pair<Symbol, ExMethodInfo> findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean memberReference) {
-        final List<ExMethodInfo> redirectMethod = findRedirectMethod(name, methodSymbolEnable(bestSoFar));
+        final List<ExMethodInfo> redirectMethod = findRedirectMethod(env, name, methodSymbolEnable(bestSoFar));
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
             return selectBestFromList(redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference);
         } else {

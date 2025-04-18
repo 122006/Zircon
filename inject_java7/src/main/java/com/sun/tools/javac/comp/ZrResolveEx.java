@@ -21,8 +21,10 @@ public class ZrResolveEx {
     public static boolean equalsIgnoreMetadata(Type t1, Type t2) {
         return t1.baseType().equals(t2.baseType());
     }
+
     static Pair<Symbol, ExMethodInfo> selectBestFromList(ZrResolve zrResolve, List<ExMethodInfo> methodSymbolList, Env<AttrContext> env, Type site, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
-        if (bestSoFar instanceof Resolve.ResolveError && !(bestSoFar instanceof Resolve.AmbiguityError)) bestSoFar = zrResolve.methodNotFound;
+        if (bestSoFar instanceof Resolve.ResolveError && !(bestSoFar instanceof Resolve.AmbiguityError))
+            bestSoFar = zrResolve.methodNotFound;
 
         java.util.List<List> newResult = new ArrayList<>();
         Pair<Symbol, ExMethodInfo> lastMethodSymbol = Pair.of(zrResolve.methodNotFound, null);
@@ -42,7 +44,7 @@ public class ZrResolveEx {
             for (Type.ClassType aClass : filterAnnotation) {
                 boolean any = false;
                 for (Attribute.Compound attribute : site.tsym.getAnnotationMirrors()) {
-                    if (equalsIgnoreMetadata(attribute.type,aClass)) {
+                    if (equalsIgnoreMetadata(attribute.type, aClass)) {
                         any = true;
                         break;
                     }
@@ -57,9 +59,10 @@ public class ZrResolveEx {
         for (ExMethodInfo methodInfo : sortList) {
             if (methodInfo.siteCopyByClassHeadArgMethod) {
                 for (Type.ClassType type : methodInfo.targetClass) {
-                    final boolean sameType = equalsIgnoreMetadata(type,site);
+                    final boolean sameType = equalsIgnoreMetadata(type, site);
                     final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
-                    final Type firstTypeArgument = zrResolve.types.erasure(head.type.getTypeArguments().head);
+                    final List<Type> typeArguments = head.type.getTypeArguments();
+                    final Type firstTypeArgument = typeArguments.isEmpty() ? zrResolve.syms.objectType : zrResolve.types.erasure(typeArguments.head);
                     final Type.MethodType oldType = (Type.MethodType) methodInfo.methodSymbol.type;
                     if (sameType || zrResolve.types.isAssignable(site, firstTypeArgument)) {
                         Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
@@ -94,7 +97,7 @@ public class ZrResolveEx {
                 }
             } else {
                 for (Type.ClassType type : methodInfo.targetClass) {
-                    final boolean sameType = equalsIgnoreMetadata(type,site);
+                    final boolean sameType = equalsIgnoreMetadata(type, site);
                     if (sameType || zrResolve.types.isAssignable(site, type)) {
                         final Symbol best = zrResolve.selectBest(env, type, argtypes, typeargtypes, methodInfo.methodSymbol, zrResolve.methodNotFound, allowBoxing, useVarargs, operator);
                         if (best == methodInfo.methodSymbol && best instanceof Symbol.MethodSymbol) {
@@ -153,6 +156,7 @@ public class ZrResolveEx {
             return Pair.of(finalMethodSymbol.last().methodSymbol, finalMethodSymbol.last());
         }
     }
+
     static JCTree.JCLambda createLambdaTree(ZrResolve zrResolve, JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
         final JCTree.JCLambda lambda;
         final TreeMaker maker = TreeMaker.instance(zrResolve.context);

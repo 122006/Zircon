@@ -39,10 +39,10 @@ public class TestExMethod {
         return str;
     }
 
-    @ExMethod(cover = true)
-    public static boolean equals(Object obj1, Object obj2) {
-        return Objects.equals(obj1, obj2);
-    }
+//    @ExMethod(cover = true)//能定义，但是会影响ide解析
+//    public static boolean equals(Object obj1, Object obj2) {
+//        return Objects.equals(obj1, obj2);
+//    }
 
     @ExMethod
     public static void emptyStringArrayRVoid(String[] str) {
@@ -552,5 +552,16 @@ public class TestExMethod {
         return clazz;
     }
 
+    @ExMethod
+    public static Class<?> testClassExMethodObjectArg2(Class clazz, int a1, String a2) {
+        methodNames.add("testClassExMethodObjectArg2(1,2" + clazz.toString());
+        return clazz;
+    }
+
+    @ExMethod
+    public static Class<?> testClassExMethodWArg2(Class<?> clazz, int a1, String a2) {
+        methodNames.add("testClassExMethodWArg2(1,2" + clazz.toString());
+        return clazz;
+    }
 
 }
