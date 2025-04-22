@@ -41,8 +41,8 @@
     <depends>com.intellij.java</depends>
     <name>Zircon</name>
     <change-notes><![CDATA[
-        support 'extension method'<p>v3.4: Strengthening the support of automatic completion function for proxy class
-            generics</p>
+        <p>Extend the annotation capability of extension methods, supporting the new @ExMethod annotation attribute and @ExMethodIDE annotation added in 3.2.5.</p>
+        <p>The plugin's detection scope is now limited to the modules where the plugin is declared, and it will only provide the extension methods introduced by them.</p>
         ]]></change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->

@@ -217,7 +217,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ### idea插件4.1
 
-1. 拓展方法注解能力拓展，支持3.3.0新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
+1. 拓展方法注解能力拓展，支持3.2.5新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
 2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
 
 <details>

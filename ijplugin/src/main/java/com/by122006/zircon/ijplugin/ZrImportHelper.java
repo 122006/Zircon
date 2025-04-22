@@ -732,7 +732,9 @@ public final class ZrImportHelper {
         }
         return maxSpace;
     }
-
+    public static @Nullable JavaResolveResult resolveJavaReference(@NotNull PsiReference reference) {
+        return reference instanceof PsiJavaReference ? ((PsiJavaReference)reference).advancedResolve(false) : null;
+    }
     private static boolean isToUseImportOnDemand(@NotNull String packageName, int classCount, boolean isStaticImportNeeded, @NotNull JavaCodeStyleSettings settings) {
         if (!settings.USE_SINGLE_CLASS_IMPORTS) return true;
         int limitCount = isStaticImportNeeded ? settings.NAMES_COUNT_TO_USE_IMPORT_ON_DEMAND : settings.CLASS_COUNT_TO_USE_IMPORT_ON_DEMAND;
@@ -881,7 +883,7 @@ public final class ZrImportHelper {
                     }
                 }
 
-                JavaResolveResult resolveResult = HighlightVisitorImpl.resolveJavaReference(reference);
+                JavaResolveResult resolveResult = resolveJavaReference(reference);
                 if (resolveResult == null) continue;
                 PsiElement refElement = resolveResult.getElement();
 
