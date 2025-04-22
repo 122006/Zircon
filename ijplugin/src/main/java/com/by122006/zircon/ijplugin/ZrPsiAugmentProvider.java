@@ -1,6 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
+import com.intellij.lang.Language;
 import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.module.Module;
@@ -10,9 +11,9 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.util.Key;
+import com.intellij.openapi.util.ModificationTracker;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
@@ -43,8 +44,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static com.intellij.psi.CommonClassNames.JAVA_LANG_OBJECT;
-
 @SuppressWarnings("UnstableApiUsage")
 public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     private static final Logger LOG = Logger.getInstance(ZrPsiAugmentProvider.class.getName());
@@ -63,141 +62,137 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     }
 
 
-    public static synchronized List<CacheMethodInfo> recoverCache(Module module) {
+    public static synchronized List<CacheMethodInfo> scanModuleUsedMethod(Module module) {
 
         return ProgressManager.getInstance().runProcess(() -> {
-            final String qualifiedName = ExMethod.class.getName();
-            GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
-            PsiClass @NotNull [] psiClasses = JavaPsiFacade.getInstance(module.getProject())
-                    .findClasses(qualifiedName, moduleScope);
-            final PsiClassType javaLangObject = PsiClassType.getTypeByName("java.lang.Object", module.getProject(), GlobalSearchScope.allScope(module.getProject()));
-            final List<PsiMethod> distinctMethods = Arrays.stream(psiClasses)
-                    .map(psiClass -> {
-                        final String annotationShortName = ReadAction.compute(psiClass::getName);
-                        if (annotationShortName == null) return null;
-                        return JavaAnnotationIndex.getInstance()
-                                .get(annotationShortName, module.getProject(), moduleScope);
-                    })
-                    .filter(Objects::nonNull)
-                    .flatMap(Collection::stream).map(element -> {
-                        return PsiTreeUtil.getParentOfType(element, PsiMethod.class);
-                    }).filter(Objects::nonNull).distinct().collect(Collectors.toList());
-            final List<CacheMethodInfo> collect = distinctMethods.filter(PsiElement::isValid).map(method -> {
-                final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
-                if (annotation == null) return null;
-                CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
-                cacheMethodInfo.name = method.getName();
-                cacheMethodInfo.method = method;
-                PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
-                if (ex != null) {
-                    if (ex instanceof PsiClassObjectAccessExpression) {
-                        final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(ex, PsiTypeElement.class);
-                        if (childOfType == null) return null;
-                        PsiType type = childOfType.getType();
-                        if (type instanceof PsiPrimitiveType) {
-                            type = ((PsiPrimitiveType) type).getBoxedType(ex);
-                        }
-                        cacheMethodInfo.targetType.add(type);
-                    } else if (ex instanceof PsiArrayInitializerMemberValue) {
-                        final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
-                        cacheMethodInfo.targetType = Arrays.stream(initializers).map(a -> {
-                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+            try {
+                final String qualifiedName = ExMethod.class.getName();
+                GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
+                final PsiClassType javaLangObject = PsiClassType.getTypeByName("java.lang.Object", module.getProject(), GlobalSearchScope.allScope(module.getProject()));
+                final List<PsiMethod> distinctMethods = JavaAnnotationIndex.getInstance()
+                        .get(ExMethod.class.getSimpleName(), module.getProject(), moduleScope)
+                        .copy2List()
+                        .map(element -> PsiTreeUtil.getParentOfType(element, PsiMethod.class)).filter(Objects::nonNull).distinct();
+                final List<CacheMethodInfo> collect = distinctMethods.filter(PsiElement::isValid).map(method -> {
+                    final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
+                    if (annotation == null) return null;
+                    CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
+                    cacheMethodInfo.name = method.getName();
+                    cacheMethodInfo.method = method;
+                    PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
+                    if (ex != null) {
+                        if (ex instanceof PsiClassObjectAccessExpression) {
+                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(ex, PsiTypeElement.class);
                             if (childOfType == null) return null;
-                            return childOfType.getType();
-                        }).filter(Objects::nonNull).collect(Collectors.toList());
-                    } else {
-                        System.out.println(ex.getText() + "[" + ex.getClass().getName());
-                    }
-                    if (cacheMethodInfo.targetType.isEmpty()) ex = null;
-
-                }
-                PsiAnnotationMemberValue filterAnnotation = annotation.findDeclaredAttributeValue("filterAnnotation");
-                if (filterAnnotation != null) {
-                    if (filterAnnotation instanceof PsiClassObjectAccessExpression) {
-                        final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(filterAnnotation, PsiTypeElement.class);
-                        if (childOfType == null) return null;
-                        PsiType type = childOfType.getType();
-                        if (type instanceof PsiPrimitiveType) {
-                            type = ((PsiPrimitiveType) type).getBoxedType(filterAnnotation);
+                            PsiType type = childOfType.getType();
+                            if (type instanceof PsiPrimitiveType) {
+                                type = ((PsiPrimitiveType) type).getBoxedType(ex);
+                            }
+                            cacheMethodInfo.targetType.add(type);
+                        } else if (ex instanceof PsiArrayInitializerMemberValue) {
+                            final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) ex).getInitializers();
+                            cacheMethodInfo.targetType = Arrays.stream(initializers).map(a -> {
+                                final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                                if (childOfType == null) return null;
+                                return childOfType.getType();
+                            }).filter(Objects::nonNull).collect(Collectors.toList());
+                        } else {
+                            System.out.println(ex.getText() + "[" + ex.getClass().getName());
                         }
-                        cacheMethodInfo.filterAnnotation.add(type);
-                    } else if (filterAnnotation instanceof PsiArrayInitializerMemberValue) {
-                        final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) filterAnnotation).getInitializers();
-                        cacheMethodInfo.filterAnnotation = Arrays.stream(initializers).map(a -> {
-                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                        if (cacheMethodInfo.targetType.isEmpty()) ex = null;
+
+                    }
+                    PsiAnnotationMemberValue filterAnnotation = annotation.findDeclaredAttributeValue("filterAnnotation");
+                    if (filterAnnotation != null) {
+                        if (filterAnnotation instanceof PsiClassObjectAccessExpression) {
+                            final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(filterAnnotation, PsiTypeElement.class);
                             if (childOfType == null) return null;
-                            return childOfType.getType();
-                        }).filter(Objects::nonNull).collect(Collectors.toList());
-                    } else {
-                        System.out.println(filterAnnotation.getText() + "[" + filterAnnotation.getClass().getName());
-                    }
-                }
-                cacheMethodInfo.isStatic = ex != null;
-                PsiAnnotationMemberValue cover = annotation.findDeclaredAttributeValue("cover");
-                if (cover != null) {
-                    if (cover instanceof PsiLiteralExpression) {
-                        final Boolean value = (Boolean) ((PsiLiteralExpression) cover).getValue();
-                        cacheMethodInfo.cover = value != null && value;
-                    }
-                }
-                if (ex == null) {
-                    final PsiParameterList parameterList = method.getParameterList();
-                    if (parameterList.isEmpty()) return null;
-                    final PsiParameter parameter = parameterList.getParameter(0);
-                    if (parameter == null) return null;
-                    final List<PsiTypeParameter> typeParameters = Arrays.stream(method.getTypeParameters())
-                            .filter(a -> Objects.equals(a.getName(), parameter
-                                    .getType().getCanonicalText()))
-                            .collect(Collectors.toList());
-                    if (typeParameters.isEmpty()) {
-                        cacheMethodInfo.targetType = Collections.singletonList(TypeConversionUtil.erasure(parameter.getType()));
-                    } else {
-                        final PsiClassType[] referencedTypes = typeParameters.get(0).getExtendsList()
-                                .getReferencedTypes();
-                        cacheMethodInfo.targetType = referencedTypes.length == 0 ? List.of(javaLangObject) : Arrays.asList(referencedTypes);
-                    }
-                }
-                final PsiAnnotation ideAnnotation = method.getAnnotation(ExMethodIDE.class.getName());
-                if (ideAnnotation != null) {
-                    PsiAnnotationMemberValue shouldInvokeDirectly = ideAnnotation.findDeclaredAttributeValue("shouldInvokeDirectly");
-                    if (shouldInvokeDirectly != null) {
-                        if (shouldInvokeDirectly instanceof PsiLiteralExpression) {
-                            final Boolean value = (Boolean) ((PsiLiteralExpression) shouldInvokeDirectly).getValue();
-                            cacheMethodInfo.shouldInvokeDirectly = value != null && value;
+                            PsiType type = childOfType.getType();
+                            if (type instanceof PsiPrimitiveType) {
+                                type = ((PsiPrimitiveType) type).getBoxedType(filterAnnotation);
+                            }
+                            cacheMethodInfo.filterAnnotation.add(type);
+                        } else if (filterAnnotation instanceof PsiArrayInitializerMemberValue) {
+                            final PsiAnnotationMemberValue[] initializers = ((PsiArrayInitializerMemberValue) filterAnnotation).getInitializers();
+                            cacheMethodInfo.filterAnnotation = Arrays.stream(initializers).map(a -> {
+                                final PsiTypeElement childOfType = PsiTreeUtil.getChildOfType(a, PsiTypeElement.class);
+                                if (childOfType == null) return null;
+                                return childOfType.getType();
+                            }).filter(Objects::nonNull).collect(Collectors.toList());
+                        } else {
+                            System.out.println(filterAnnotation.getText() + "[" + filterAnnotation.getClass().getName());
                         }
                     }
-                }
-                return cacheMethodInfo;
-            }).filterNoNull();
-            final List<CacheMethodInfo> add = collect.filter(a -> !a.isStatic)
-                    .map(info -> {
-                        CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
-                        cacheMethodInfo.name = info.name;
-                        cacheMethodInfo.isStatic = true;
-                        cacheMethodInfo.siteCopyByClassHeadArgMethod = true;
-                        cacheMethodInfo.method = info.method;
+                    cacheMethodInfo.isStatic = ex != null;
+                    PsiAnnotationMemberValue cover = annotation.findDeclaredAttributeValue("cover");
+                    if (cover != null) {
+                        if (cover instanceof PsiLiteralExpression) {
+                            final Boolean value = (Boolean) ((PsiLiteralExpression) cover).getValue();
+                            cacheMethodInfo.cover = value != null && value;
+                        }
+                    }
+                    if (ex == null) {
+                        final PsiParameterList parameterList = method.getParameterList();
+                        if (parameterList.isEmpty()) return null;
+                        final PsiParameter parameter = parameterList.getParameter(0);
+                        if (parameter == null) return null;
+                        final List<PsiTypeParameter> typeParameters = Arrays.stream(method.getTypeParameters())
+                                .filter(a -> Objects.equals(a.getName(), parameter
+                                        .getType().getCanonicalText()))
+                                .collect(Collectors.toList());
+                        if (typeParameters.isEmpty()) {
+                            cacheMethodInfo.targetType = Collections.singletonList(TypeConversionUtil.erasure(parameter.getType()));
+                        } else {
+                            final PsiClassType[] referencedTypes = typeParameters.get(0).getExtendsList()
+                                    .getReferencedTypes();
+                            cacheMethodInfo.targetType = referencedTypes.length == 0 ? List.of(javaLangObject) : Arrays.asList(referencedTypes);
+                        }
+                    }
+                    final PsiAnnotation ideAnnotation = method.getAnnotation(ExMethodIDE.class.getName());
+                    if (ideAnnotation != null) {
+                        PsiAnnotationMemberValue shouldInvokeDirectly = ideAnnotation.findDeclaredAttributeValue("shouldInvokeDirectly");
+                        if (shouldInvokeDirectly != null) {
+                            if (shouldInvokeDirectly instanceof PsiLiteralExpression) {
+                                final Boolean value = (Boolean) ((PsiLiteralExpression) shouldInvokeDirectly).getValue();
+                                cacheMethodInfo.shouldInvokeDirectly = value != null && value;
+                            }
+                        }
+                    }
+                    return cacheMethodInfo;
+                }).filterNoNull();
+                final List<CacheMethodInfo> add = collect.filter(a -> !a.isStatic)
+                        .map(info -> {
+                            CacheMethodInfo cacheMethodInfo = new CacheMethodInfo();
+                            cacheMethodInfo.name = info.name;
+                            cacheMethodInfo.isStatic = true;
+                            cacheMethodInfo.siteCopyByClassHeadArgMethod = true;
+                            cacheMethodInfo.method = info.method;
 
-                        final @NotNull PsiType psiType = info.method.getParameterList().getParameters()[0].getType();
-                        if (!(psiType instanceof PsiClassReferenceType)) {
-                            return null;
-                        }
-                        if (!Objects.equals(((PsiClassReferenceType) psiType).getReference().getQualifiedName(), "java.lang.Class")) {
-                            return null;
-                        }
-                        PsiType o = ((PsiClassType) psiType).getParameters().get(0);
-                        if (o == null) {
-                            o = javaLangObject;
-                        }
-                        o = TypeConversionUtil.erasure(o, info.method.getSignature(PsiSubstitutor.EMPTY).getSubstitutor());
-                        cacheMethodInfo.targetType = Collections.singletonList(o);
-                        cacheMethodInfo.filterAnnotation = info.filterAnnotation;
-                        cacheMethodInfo.cover = info.cover;
-                        cacheMethodInfo.shouldInvokeDirectly = info.shouldInvokeDirectly;
-                        return cacheMethodInfo;
-                    }).filterNoNull();
-            collect.addAll(add);
-            System.out.println("find ExtensionMethods size(" + module.getName() + "):" + collect.size());
-            return collect;
+                            final @NotNull PsiType psiType = info.method.getParameterList().getParameters()[0].getType();
+                            if (!(psiType instanceof PsiClassReferenceType)) {
+                                return null;
+                            }
+                            if (!Objects.equals(((PsiClassReferenceType) psiType).getReference().getQualifiedName(), "java.lang.Class")) {
+                                return null;
+                            }
+                            PsiType o = ((PsiClassType) psiType).getParameters().get(0);
+                            if (o == null) {
+                                o = javaLangObject;
+                            }
+                            o = TypeConversionUtil.erasure(o, info.method.getSignature(PsiSubstitutor.EMPTY).getSubstitutor());
+                            cacheMethodInfo.targetType = Collections.singletonList(o);
+                            cacheMethodInfo.filterAnnotation = info.filterAnnotation;
+                            cacheMethodInfo.cover = info.cover;
+                            cacheMethodInfo.shouldInvokeDirectly = info.shouldInvokeDirectly;
+                            return cacheMethodInfo;
+                        }).filterNoNull();
+                collect.addAll(add);
+                System.out.println("find ExtensionMethods size(" + module.getName() + "):" + collect.size());
+                return collect;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return new ArrayList<>();
+            }
         }, new ProgressIndicatorBase());
     }
 
@@ -407,16 +402,16 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     static final Key<CachedValue<List<CacheMethodInfo>>> cachedAllExMethod = Key.create("CachedAllExMethod");
 
     public static synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull PsiElement psiElement) {
-        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(psiElement);
+        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(psiElement.getContainingFile());
         if (module == null) return new ArrayList<>();
-        final List<CacheMethodInfo> cachedValue = CachedValuesManager.getManager(module.getProject())
-                .getCachedValue(module, cachedAllExMethod, () -> CachedValueProvider.Result.create(recoverCache(module), ProjectRootManager.getInstance(module.getProject())), false);
-        return cachedValue;
+        return getCachedAllMethod(module);
     }
 
     public static synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull Module module) {
+        ZirconSettings settings = ZirconSettings.getInstance();
+        final Object dependency = settings.ZrMethodAllowAutoFind ? PsiModificationTracker.MODIFICATION_COUNT : ProjectRootManager.getInstance(module.getProject());
         return CachedValuesManager.getManager(module.getProject())
-                .getCachedValue(module, cachedAllExMethod, () -> CachedValueProvider.Result.create(recoverCache(module), ProjectRootManager.getInstance(module.getProject())), false);
+                .getCachedValue(module, cachedAllExMethod, () -> CachedValueProvider.Result.create(scanModuleUsedMethod(module), dependency), false);
     }
 
     public static synchronized List<CacheMethodInfo> freshCachedAllMethod(@NotNull Project project) {
@@ -430,6 +425,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     }
 
     public static @Nullable ZrPsiExtensionMethod buildMethodBy(CacheMethodInfo info, PsiClass targetClass, @NotNull PsiType siteType) {
+        if (targetClass == null || info == null) return null;
         boolean isStatic = info.isStatic;
         PsiMethod targetMethod = info.method;
         try {

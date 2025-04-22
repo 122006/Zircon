@@ -62,7 +62,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.3'
+        classpath 'com.github.122006.Zircon:gradle:3.2.5'
     }
 }
 ````
@@ -79,13 +79,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.3</version>
+            <version>3.2.5</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.3</version>
+            <version>3.2.5</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -118,7 +118,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.0.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.1.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
 2. 下载文件后拖动至idea中自动安装
 
@@ -144,7 +144,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.5 (preview)
+### v3.2.5
 
 1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
 2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
@@ -215,7 +215,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.0
+### idea插件4.1
 
 1. 拓展方法注解能力拓展，支持3.3.0新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
 2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法

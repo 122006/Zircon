@@ -189,7 +189,7 @@ public class TestExMethodImpl {
                 () -> {
                     return new TestExMethod.ChildClass() {
                         <T> T test() {
-                            return (T) new Supplier<Integer>(){
+                            return (T) new Supplier<Integer>() {
                                 @Override
                                 public Integer get() {
                                     return childClass.fatherMExtendRT(123);
@@ -795,9 +795,9 @@ public class TestExMethodImpl {
         );
         checkMethodInvokes(
                 () -> {
-                    return TestExMethod.ChildClass.class.testClassExMethodConsumer(c->c.childrenMethod());
+                    return TestExMethod.ChildClass.class.testClassExMethodConsumer(c -> c.childrenMethod());
                 }, () -> {
-                    return TestExMethod.ChildClass.testClassExMethodConsumer(c->c.childrenMethod());
+                    return TestExMethod.ChildClass.testClassExMethodConsumer(c -> c.childrenMethod());
                 }
         );
         Object.testClassExMethodWArg2(1, "123");

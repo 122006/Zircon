@@ -24,8 +24,6 @@ import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
 public class ZrPluginUtil {
     public static synchronized boolean hasZrPlugin(PsiElement psiElement) {
         final Project project = psiElement.getProject();
-        if (project == null)
-            return false;
         if (project.isDefault() || !project.isInitialized()) {
             return false;
         }
@@ -34,11 +32,13 @@ public class ZrPluginUtil {
         }
         ApplicationManager.getApplication().assertReadAccessAllowed();
         // 获取当前模块
-        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(psiElement);
+        final PsiFile containingFile = psiElement.getContainingFile();
+        if (containingFile instanceof PsiCodeFragment) return false;
+        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(containingFile);
         if (module == null) return false;
         // 获取模块的搜索范围
-        GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
         return CachedValuesManager.getManager(project).getCachedValue(module, () -> {
+            GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
             PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
             return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
         }) != null;

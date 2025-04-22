@@ -36,20 +36,25 @@ public class ZrExMethodSettingsConfigurable implements Configurable {
     @Override
     public boolean isModified() {
         ZirconSettings settings = ZirconSettings.getInstance();
-        boolean modified = !Objects.equals(mySettingsComponent.allowUseStaticOnNoStaticMethod.isSelected(), settings.allowUseStaticOnNoStaticMethod);
+        boolean modified = !Objects.equals(mySettingsComponent.allowUseStaticOnNoStaticMethod.isSelected(), settings.ZrMethodAllowUseStaticOnNoStaticMethod);
+        modified |= !Objects.equals(mySettingsComponent.allowZrMethodAllowAutoFind.isSelected(), settings.ZrMethodAllowAutoFind);
         return modified;
     }
 
     @Override
     public void apply() {
         ZirconSettings settings = ZirconSettings.getInstance();
-        settings.allowUseStaticOnNoStaticMethod = mySettingsComponent.allowUseStaticOnNoStaticMethod.isSelected();
+        settings.ZrMethodAllowUseStaticOnNoStaticMethod = mySettingsComponent.allowUseStaticOnNoStaticMethod.isSelected();
+        settings.ZrMethodAllowAutoFind = mySettingsComponent.allowZrMethodAllowAutoFind.isSelected();
+
     }
 
     @Override
     public void reset() {
         ZirconSettings settings = ZirconSettings.getInstance();
-        mySettingsComponent.allowUseStaticOnNoStaticMethod.setSelected(settings.allowUseStaticOnNoStaticMethod);
+        mySettingsComponent.allowUseStaticOnNoStaticMethod.setSelected(settings.ZrMethodAllowUseStaticOnNoStaticMethod);
+        mySettingsComponent.allowZrMethodAllowAutoFind.setSelected(settings.ZrMethodAllowAutoFind);
+
     }
 
     @Override
@@ -61,12 +66,14 @@ public class ZrExMethodSettingsConfigurable implements Configurable {
 
         private final JPanel myMainPanel;
         private final JBCheckBox allowUseStaticOnNoStaticMethod = new JBCheckBox("是否允许在实例上调用静态方法");
+        private final JBCheckBox allowZrMethodAllowAutoFind = new JBCheckBox("快速自动注册拓展方法");
 
 
         public AppSettingsComponent() {
             myMainPanel = FormBuilder
                     .createFormBuilder()
                     .addComponent(allowUseStaticOnNoStaticMethod, 1)
+                    .addComponent(allowZrMethodAllowAutoFind, 1)
                     .addComponentFillVertically(new JPanel(), 0)
                     .getPanel();
         }

@@ -19,6 +19,7 @@ import com.sun.tools.javac.parser.StringRange;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExCollection;
 
 import java.util.ArrayList;
 import java.util.List;

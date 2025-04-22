@@ -14,6 +14,7 @@ import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.lang.java.JavaLanguage;
+import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.FoldRegion;
@@ -276,7 +277,10 @@ public class ZrAnnotator implements Annotator {
 
                         @Override
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+
+                            WriteCommandAction.runWriteCommandAction(project, () -> {
+                                method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+                            });
 
                         }
 
@@ -290,8 +294,11 @@ public class ZrAnnotator implements Annotator {
         final List<ZrPsiAugmentProvider.CacheMethodInfo> cachedAllMethod = ZrPsiAugmentProvider.getCachedAllMethod(method);
         final boolean b = cachedAllMethod.stream()
                 .noneMatch(a -> a.method.isValid() && manager.areElementsEquivalent(a.method, method));
-        holder.newSilentAnnotation(b ? HighlightSeverity.WARNING : HighlightSeverity.INFORMATION).range(collect.get(0)).tooltip(b ? "need refresh cache" : "[ZrExMethod]: refresh cache")
-                .highlightType(b ? ProblemHighlightType.WARNING : ProblemHighlightType.INFORMATION).withFix(new IntentionAction() {
+        holder.newSilentAnnotation(b ? HighlightSeverity.WARNING : HighlightSeverity.INFORMATION)
+                .range(b ? collect.get(0) : method)
+                .tooltip(b ? "need refresh cache" : "[ZrExMethod]: refresh cache")
+                .highlightType(b ? ProblemHighlightType.WARNING : ProblemHighlightType.INFORMATION)
+                .withFix(new IntentionAction() {
                     @Override
                     public @IntentionName @NotNull String getText() {
                         return "[ZrExMethod]: refresh cache";
@@ -309,13 +316,16 @@ public class ZrAnnotator implements Annotator {
 
                     @Override
                     public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                        try {
-                            method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
-                            ZrPsiAugmentProvider.freshCachedAllMethod(project);
-                            CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        WriteCommandAction.runWriteCommandAction(project, () -> {
+                            try {
+                                method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
+                                ZrPsiAugmentProvider.freshCachedAllMethod(project);
+                                CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        });
+
                     }
 
                     @Override

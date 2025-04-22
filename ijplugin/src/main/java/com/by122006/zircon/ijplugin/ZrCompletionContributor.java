@@ -14,14 +14,11 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Iconable;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.util.*;
 import com.intellij.util.containers.JBIterable;
-import com.intellij.util.ui.tree.TreeUtil;
 import com.siyeh.ig.psiutils.ImportUtils;
 import org.jetbrains.annotations.NotNull;
-import zircon.example.ExObject;
 import zircon.example.ExReflection;
 
 import java.util.ArrayList;
@@ -134,7 +131,7 @@ public class ZrCompletionContributor extends CompletionContributor {
                 if (!invokeDirectly && cacheMethodInfo.shouldInvokeDirectly) continue;
                 final List<PsiType> collect;
                 if (cacheMethodInfo.isStatic) {
-                    if (isStatic == Boolean.FALSE && !settings.allowUseStaticOnNoStaticMethod) {
+                    if (isStatic == Boolean.FALSE && !settings.ZrMethodAllowUseStaticOnNoStaticMethod) {
                         continue;
                     }
                     collect = cacheMethodInfo.targetType
