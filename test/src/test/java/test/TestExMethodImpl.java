@@ -11,6 +11,7 @@ import zircon.ExMethod;
 import zircon.ExMethodIDE;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
+import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;

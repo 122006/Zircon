@@ -196,8 +196,18 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }, new ProgressIndicatorBase());
     }
 
+    static Key<List<PsiExtensionMethod>> key_ExtensionMethods = Key.create("PsiExtensionMethod");
+    ;
+
     @Override
     protected List<PsiExtensionMethod> getExtensionMethods(@NotNull PsiClass siteClass, @NotNull String nameHint, @NotNull PsiElement context) {
+        final List<PsiExtensionMethod> psiExtensionMethods = _getExtensionMethods(siteClass, nameHint, context);
+        context.putUserData(key_ExtensionMethods, psiExtensionMethods);
+        return psiExtensionMethods;
+    }
+
+    @NotNull
+    private List<PsiExtensionMethod> _getExtensionMethods(@NotNull PsiClass siteClass, @NotNull String nameHint, @NotNull PsiElement context) {
         final List<PsiExtensionMethod> emptyResult = Collections.emptyList();
         if (!ZrPluginUtil.hasZrPlugin(context)) return emptyResult;
         List<CacheMethodInfo> allCacheMethodInfoList = getCachedAllMethod(context)
@@ -370,7 +380,6 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         }).flatMap(Collection::stream).collect(Collectors.toList());
         filterSameMethods(context, collect);
         return collect;
-
     }
 
     @Nullable

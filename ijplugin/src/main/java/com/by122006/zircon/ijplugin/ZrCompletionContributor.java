@@ -14,6 +14,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Iconable;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.util.*;
 import com.intellij.util.containers.JBIterable;
@@ -167,7 +168,12 @@ public class ZrCompletionContributor extends CompletionContributor {
                 } else {
                     final PsiParameter parameter = cacheMethodInfo.method.getParameterList()
                             .getParameter(0);
-                    resolveClass = PsiTypesUtil.getPsiClass(parameter.getType());
+                    if (parameter.getType() instanceof PsiArrayType) {
+                        final PsiElementFactory factory = JavaPsiFacade.getInstance(position.getProject()).getElementFactory();
+                        final LanguageLevel languageLevel = PsiUtil.getLanguageLevel(position);
+                        resolveClass = factory.getArrayClass(languageLevel);
+                    } else
+                        resolveClass = PsiTypesUtil.getPsiClass(parameter.getType());
                 }
                 final ZrPsiExtensionMethod method = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, resolveClass, psiType);
                 if (method != null) {
