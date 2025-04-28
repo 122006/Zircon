@@ -2,9 +2,11 @@ package com.by122006.zircon.util;
 
 import com.by122006.zircon.ijplugin.ZirconSettings;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.CachedValueProvider;
@@ -139,6 +141,29 @@ public class ZrPluginUtil {
             return predicate.test((PsiClassType) psiType2);
         }
         return false;
+    }
+    public static int getLineNumberOfPsiMethod(PsiMethod psiMethod) {
+        // 获取PsiMethod所在的PsiFile
+        PsiFile psiFile = psiMethod.getContainingFile();
+        if (psiFile == null) {
+            return -1; // 如果PsiFile为空，返回-1表示未找到
+        }
+
+        // 获取PsiFile对应的Document
+        Document document = PsiDocumentManager.getInstance(psiMethod.getProject()).getDocument(psiFile);
+        if (document == null) {
+            return -1; // 如果Document为空，返回-1表示未找到
+        }
+
+        // 获取PsiMethod的文本范围
+        TextRange textRange = psiMethod.getTextRange();
+        if (textRange == null) {
+            return -1; // 如果文本范围为空，返回-1表示未找到
+        }
+
+        // 将文本范围的起始偏移量转换为行号
+        int lineNumber = document.getLineNumber(textRange.getStartOffset());
+        return lineNumber + 1; // 行号从0开始，所以需要加1
     }
 
 

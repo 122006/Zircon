@@ -445,7 +445,7 @@ public class TestExMethodImpl {
                 () -> "31231".nullOr("2432"),
                 () -> zircon.example.ExObject.nullOr("31231", "123"));
         checkMethodInvokes(
-                () -> nullStr.isBlank(),
+                () -> nullStr.let(a->a).isBlank(),
                 () -> TestExMethod.isBlank(nullStr));
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
@@ -622,6 +622,12 @@ public class TestExMethodImpl {
                     return equals("123");
                 },
                 () -> TestExMethodImpl.this.equals("123")
+        );
+        checkMethodInvokes(
+                () -> {
+                    return (nullStr.let(a -> a) + "3").equals("123");
+                },
+                () -> (123 + "32").equals("123")
         );
         ArrayList<Pair<Integer, String>> pairs = new ArrayList<>();
         final ArrayList<Integer> singleList = new ArrayList<>();

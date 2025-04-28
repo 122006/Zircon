@@ -118,10 +118,11 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.1.zip)
-   进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）
-2. 下载文件后拖动至idea中自动安装
-
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.2.zip)
+   进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）'
+2. 下载文件后 拖动至idea中自动安装 或 idea中指定路径加载 
+   > For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>Install Plugin from Disk...</kbd>\
+   > For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>Install Plugin from Disk...</kbd>
 #### ide内插件仓库加载
 
 For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search
@@ -215,10 +216,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.1
+### idea插件4.2
 
-1. 拓展方法注解能力拓展，支持3.2.5新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
-2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
+1. 修复4.1版本对基本类型数组拓展方法无法补全的问题
+2. 对cover类型拓展方法使用处增加提示信息及自动import
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -295,6 +296,11 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 支持同名方法自动解析
 2. 原有方法冲突时，自动使用原有方法
+
+### idea插件4.1
+
+1. 拓展方法注解能力拓展，支持3.2.5新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
+2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
 
 </details>
 

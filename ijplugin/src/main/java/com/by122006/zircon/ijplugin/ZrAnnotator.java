@@ -23,16 +23,18 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.editor.markup.EffectType;
 import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleManager;
-import com.intellij.psi.impl.source.PsiClassReferenceType;
-import com.intellij.psi.impl.source.tree.java.PsiMethodReferenceExpressionImpl;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.util.*;
+import com.intellij.psi.util.ClassUtil;
+import com.intellij.psi.util.PsiTreeUtil;
+import com.intellij.psi.util.PsiTypesUtil;
+import com.intellij.psi.util.TypeConversionUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.util.IncorrectOperationException;
 import com.siyeh.ig.psiutils.FormatUtils;
@@ -45,6 +47,8 @@ import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
+import zircon.example.ExObject;
+import zircon.example.ExString;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -67,7 +71,7 @@ public class ZrAnnotator implements Annotator {
             if (!ZrPluginUtil.hasZrPlugin(element)) return;
             if (element.getLanguage() != JavaLanguage.INSTANCE) return;
             if (element instanceof PsiMethodReferenceExpression) {
-                registerLimitMemberReference(element, holder);
+                registerLimitMemberReference((PsiMethodReferenceExpression) element, holder);
                 return;
             }
             if (element instanceof PsiPolyadicExpression && Arrays.stream(element.getChildren())
@@ -89,8 +93,13 @@ public class ZrAnnotator implements Annotator {
                     registerChangeFromFormatIntentionAction((PsiMethodCallExpression) element, holder);
                 }
                 final PsiMethod method = ((PsiMethodCallExpression) element).resolveMethod();
+
                 if (method instanceof ZrPsiExtensionMethod) {
                     registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiExtensionMethod) method, holder);
+                } else if (method != null) {
+                    final ZrPsiExtensionMethod zrPsiExtensionMethod = resolveCoverZrMethod(element, method);
+                    if (zrPsiExtensionMethod == null) return;
+                    registerZrMethodUsage((PsiMethodCallExpression) element, zrPsiExtensionMethod, holder);
                 }
                 return;
             }
@@ -101,11 +110,104 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
+    @Nullable
+    public static ZrPsiExtensionMethod resolveCoverZrMethod(@NotNull PsiElement element, PsiMethod method) {
+        PsiType psiType;
+        PsiClass psiClass;
+        if (element.getFirstChild() instanceof PsiReferenceExpression) {
+            if (element.getFirstChild().getFirstChild() instanceof PsiExpression) {
+                psiType = ((PsiExpression) element.getFirstChild().getFirstChild()).getType();
+                psiClass = PsiTypesUtil.getPsiClass(psiType);
+            } else {
+                psiClass = PsiTreeUtil.getContextOfType(element, PsiClass.class);
+                psiType = psiClass == null ? null : PsiTypesUtil.getClassType(psiClass);
+            }
+        } else {
+            return null;
+        }
+        if (psiType == null) return null;
+        if (!psiType.isValid()) return null;
+        final List<ZrPsiAugmentProvider.CacheMethodInfo> cacheMethodInfos = ZrPsiAugmentProvider.getCachedAllMethod(element)
+                .filter(a -> a.cover)
+                .filter(a -> Objects.equals(a.name, method.getName()))
+                .filter(a -> {
+                    if (a.isStatic) {
+                        final PsiParameter[] parameters = method.getParameterList().getParameters();
+                        final PsiParameter[] parameters2 = a.method.getParameterList().getParameters();
+                        if (parameters.length != parameters2.length) {
+                            return false;
+                        }
+                        final boolean noneMatch = a.targetType.noneMatch(type -> TypeConversionUtil.isAssignable(psiType, type));
+                        if (noneMatch) return false;
+                        for (int i = 0; i < parameters.length; i++) {
+                            if (!TypeConversionUtil.isAssignable(parameters2[i].getType(), parameters[i].getType())) {
+                                return false;
+                            }
+                        }
+                    } else {
+                        final PsiParameter[] parameters = method.getParameterList().getParameters();
+                        final PsiParameter[] parameters2 = a.method.getParameterList().getParameters().list().skip(1).toArray(PsiParameter.class);
+                        if (parameters.length != parameters2.length) {
+                            return false;
+                        }
+                        final PsiType type = a.method.getParameterList().getParameters().get(0).getType();
+                        if (!type.isValid()) return false;
+                        if (!TypeConversionUtil.isAssignable(type, psiType)) {
+                            return false;
+                        }
+                        for (int i = 0; i < parameters.length; i++) {
+                            if (!TypeConversionUtil.isAssignable(parameters2[i].getType(), parameters[i].getType())) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return true;
+                });
+        if (cacheMethodInfos.isEmpty()) return null;
+
+        final ZrPsiExtensionMethod zrPsiExtensionMethod = ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfos.head(), psiClass, psiType);
+        if (zrPsiExtensionMethod == null) {
+            return null;
+        }
+        return zrPsiExtensionMethod;
+    }
+
     private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
                 .collect(Collectors.joining(" , "));
         final PsiClass containingClass = method.targetMethod.getContainingClass();
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element.getMethodExpression().getLastChild())
+                .withFix(new IntentionAction() {
+                    @Override
+                    public @IntentionName @NotNull String getText() {
+                        return "[ZrExMethod]: navigate method";
+                    }
+
+                    @Override
+                    public @NotNull @IntentionFamilyName String getFamilyName() {
+                        return "ZrExMethod";
+                    }
+
+                    @Override
+                    public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                        return true;
+                    }
+
+                    @Override
+                    public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                        final PsiMethod targetMethod = method.getTargetMethod();
+                        final VirtualFile virtualFile = targetMethod.getContainingFile().getVirtualFile();
+                        OpenFileDescriptor descriptor = new OpenFileDescriptor(project, virtualFile, ZrPluginUtil.getLineNumberOfPsiMethod(targetMethod), 0);
+                        descriptor.navigate(false);
+                    }
+
+                    @Override
+                    public boolean startInWriteAction() {
+                        return false;
+                    }
+                }).create();
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element.getMethodExpression().getLastChild())
                 .textAttributes(ZrExMethodTargetSiteUsage)
                 .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
@@ -155,9 +257,99 @@ public class ZrAnnotator implements Annotator {
         if (containingClass != null) {
             final String qualifiedName = containingClass.getQualifiedName();
             final PsiFile originalFile = element.getContainingFile().getOriginalFile();
+            if (qualifiedName == null) return;
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
                 holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getMethodExpression().getLastChild())
+                        .textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName)
+                        .withFix(new IntentionAction() {
+                            @Override
+                            public @IntentionName @NotNull String getText() {
+                                return "[ZrExMethod]: import " + qualifiedName;
+                            }
+
+                            @Override
+                            public @NotNull @IntentionFamilyName String getFamilyName() {
+                                return "ZrExMethod";
+                            }
+
+                            @Override
+                            public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                                return true;
+                            }
+
+                            @Override
+                            public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                                if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
+//                            ApplicationManager.getApplication().runWriteAction(() -> {
+                                if (!(editor instanceof EditorEx)) {
+                                    ImportUtils.addImportIfNeeded(containingClass, originalFile);
+                                } else {
+                                    final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
+                                    final PsiFile file = PsiManager.getInstance(project).findFile(virtualFile);
+                                    if (file != null) {
+                                        ImportUtils.addImportIfNeeded(containingClass, file);
+                                    }
+                                    CodeStyleManager.getInstance(project).reformat(element);
+                                }
+//                            });
+                            }
+
+                            @Override
+                            public boolean startInWriteAction() {
+                                return true;
+                            }
+                        }).create();
+            }
+        }
+    }
+
+    private void registerZrMethodUsage(@NotNull PsiMethodReferenceExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
+        final PsiParameter[] parameters = method.getParameterList().getParameters();
+        final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
+                .collect(Collectors.joining(" , "));
+        final PsiClass containingClass = method.targetMethod.getContainingClass();
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element)
+                .withFix(new IntentionAction() {
+                    @Override
+                    public @IntentionName @NotNull String getText() {
+                        return "[ZrExMethod]: navigate method";
+                    }
+
+                    @Override
+                    public @NotNull @IntentionFamilyName String getFamilyName() {
+                        return "ZrExMethod";
+                    }
+
+                    @Override
+                    public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                        return true;
+                    }
+
+                    @Override
+                    public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                        final PsiMethod targetMethod = method.getTargetMethod();
+                        final VirtualFile virtualFile = targetMethod.getContainingFile().getVirtualFile();
+                        OpenFileDescriptor descriptor = new OpenFileDescriptor(project, virtualFile, ZrPluginUtil.getLineNumberOfPsiMethod(targetMethod), 0);
+                        descriptor.navigate(false);
+                    }
+
+                    @Override
+                    public boolean startInWriteAction() {
+                        return false;
+                    }
+                }).create();
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element)
+                .textAttributes(ZrExMethodTargetSiteUsage)
+                .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
+                .create();
+        if (containingClass != null) {
+            final String qualifiedName = containingClass.getQualifiedName();
+            final PsiFile originalFile = element.getContainingFile().getOriginalFile();
+            if (qualifiedName == null) return;
+            final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
+            if (canBeImported) {
+                holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getLastChild())
                         .textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName)
                         .withFix(new IntentionAction() {
                             @Override
@@ -494,65 +686,17 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
-    private boolean registerLimitMemberReference(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        final PsiMethodReferenceExpressionImpl expression = (PsiMethodReferenceExpressionImpl) element.getReference();
-        if (expression == null) return true;
-        if ((((PsiMethodReferenceExpression) expression).getQualifier() instanceof PsiReferenceExpression)) {
-            return true;
-        }
+    private void registerLimitMemberReference(@NotNull PsiMethodReferenceExpression element, @NotNull AnnotationHolder holder) {
+        final PsiMethodReferenceExpression expression = (PsiMethodReferenceExpression) element.getReference();
+        if (expression == null) return;
+        final PsiElement qualifier = expression.getQualifier();
         final PsiReference reference = expression.getReference();
-        if (reference == null) return true;
+        if (reference == null) return;
         final PsiElement resolve;
-        try {
-            resolve = reference.resolve();
-        } catch (ProcessCanceledException e) {
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return true;
+        resolve = reference.resolve();
+        if (resolve instanceof ZrPsiExtensionMethod) {
+            registerZrMethodUsage(element, (ZrPsiExtensionMethod) resolve, holder);
         }
-//        if (resolve instanceof ZrPsiAugmentProvider.ZrPsiExtensionMethod
-//                && !((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).isStatic) {
-//            holder.newAnnotation(HighlightSeverity.ERROR, "[ZrString]:暂不支持拓展方法应用于非静态成员方法引用")
-//                    .range(element)
-//                    .highlightType(ProblemHighlightType.ERROR)
-//                    .withFix(new IntentionAction() {
-//                        @Override
-//                        public @IntentionName
-//                        @NotNull
-//                        String getText() {
-//                            return "[ZrExMethod]: replace with lambda tree";
-//                        }
-//
-//                        @Override
-//                        public @NotNull
-//                        @IntentionFamilyName String getFamilyName() {
-//                            return "ZrExMethod";
-//                        }
-//
-//                        @Override
-//                        public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
-//                            return true;
-//                        }
-//
-//                        @Override
-//                        public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-//                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-//                            final PsiParameterList parameterList = ((ZrPsiAugmentProvider.ZrPsiExtensionMethod) resolve).getParameterList();
-//                            final String collect = Arrays.stream(parameterList.getParameters()).map(PsiParameter::getName).collect(Collectors.joining(","));
-//                            final String s = "(" + collect + ")->" + element.getText().replace("::", ".") + "(" + collect + ")";
-//                            @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
-//                            element.replace(codeBlockFromText);
-//                        }
-//
-//                        @Override
-//                        public boolean startInWriteAction() {
-//                            return true;
-//                        }
-//                    })
-//                    .create();
-//        }
-        return false;
     }
 
     static @NotNull TextAttributesKey ZrExMethodSite = createTextAttributesKey("ZrExMethodSite", new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN), null);
@@ -602,8 +746,8 @@ public class ZrAnnotator implements Annotator {
     }
 
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
-        final Constructor<?> constructor = Arrays.stream(TextAttributesKey.class.getDeclaredConstructors())
-                .filter(a -> a.getParameterCount() == 3).findFirst()
+        final Constructor<?> constructor = TextAttributesKey.class.getDeclaredConstructors().list()
+                .filter(a -> a.getParameterCount() == 3).head()
                 .orElseThrow(() -> new RuntimeException("不支持的idea版本"));
         constructor.setAccessible(true);
         try {

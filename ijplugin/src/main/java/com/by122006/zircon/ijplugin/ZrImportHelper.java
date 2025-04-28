@@ -4,7 +4,6 @@ import com.by122006.zircon.util.ZrUtil;
 import com.google.common.base.Predicates;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.ImportFilter;
-import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.jsp.JspSpiUtil;
 import com.intellij.lang.ASTNode;
@@ -49,6 +48,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExObject;
+import zircon.example.ExString;
 
 import java.util.*;
 import java.util.function.Predicate;
@@ -732,9 +733,11 @@ public final class ZrImportHelper {
         }
         return maxSpace;
     }
+
     public static @Nullable JavaResolveResult resolveJavaReference(@NotNull PsiReference reference) {
-        return reference instanceof PsiJavaReference ? ((PsiJavaReference)reference).advancedResolve(false) : null;
+        return reference instanceof PsiJavaReference ? ((PsiJavaReference) reference).advancedResolve(false) : null;
     }
+
     private static boolean isToUseImportOnDemand(@NotNull String packageName, int classCount, boolean isStaticImportNeeded, @NotNull JavaCodeStyleSettings settings) {
         if (!settings.USE_SINGLE_CLASS_IMPORTS) return true;
         int limitCount = isStaticImportNeeded ? settings.NAMES_COUNT_TO_USE_IMPORT_ON_DEMAND : settings.CLASS_COUNT_TO_USE_IMPORT_ON_DEMAND;
@@ -838,7 +841,10 @@ public final class ZrImportHelper {
                 continue;
             }
             if (child instanceof PsiMethodCallExpression || child instanceof PsiMethodReferenceExpression) {
-                final PsiElement method = (child instanceof PsiMethodCallExpression) ? ((PsiMethodCallExpression) child).resolveMethod() : ((PsiMethodReferenceExpression) child).resolve();
+                PsiElement method = (child instanceof PsiMethodCallExpression) ? ((PsiMethodCallExpression) child).resolveMethod() : ((PsiMethodReferenceExpression) child).resolve();
+                if (!(method instanceof ZrPsiExtensionMethod) && method instanceof PsiMethod) {
+                    method = ZrAnnotator.resolveCoverZrMethod(child, (PsiMethod) method);
+                }
                 if (method instanceof ZrPsiExtensionMethod) {
                     final String qualifiedName = ((ZrPsiExtensionMethod) method).targetMethod
                             .getContainingClass().getQualifiedName();
