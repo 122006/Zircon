@@ -15,7 +15,7 @@ class ZrPlugin implements Plugin<Project> {
                 it.options.fork = true
             }
         }
-        var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.2.5";
+        var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.2.6";
         project.dependencies.add("annotationProcessor"
                 , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
         project.dependencies.add("implementation"
