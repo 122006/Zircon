@@ -62,7 +62,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.5'
+        classpath 'com.github.122006.Zircon:gradle:3.2.6'
     }
 }
 ````
@@ -79,13 +79,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.5</version>
+            <version>3.2.6</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.5</version>
+            <version>3.2.6</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -145,7 +145,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.2.5
+### v3.2.6
 
 1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
 2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
