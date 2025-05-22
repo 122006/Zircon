@@ -23,7 +23,14 @@
 
 ![](others/exmethod_show4.gif)
 
-### 2. 内插模板字符串
+### 2. 可选链
+
+`String text=$"My name is $ID.name ";//简单使用`
+
+> 对于链路表达式中，你可以使用`?.`以替代'.'，如果左侧表达式为返回`null`，不会调用后续的表达式。
+> 特别的，对于<kbd>单赋值语句</kbd>，链式不满足时可直接跳过该语句执行
+
+### 3. 内插模板字符串
 
 `String text=$"My name is $ID.name ";//简单使用`
 
@@ -120,9 +127,12 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.2.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）'
-2. 下载文件后 拖动至idea中自动安装 或 idea中指定路径加载 
-   > For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>Install Plugin from Disk...</kbd>\
-   > For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>Install Plugin from Disk...</kbd>
+2. 下载文件后 拖动至idea中自动安装 或 idea中指定路径加载
+   > For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>
+   Install Plugin from Disk...</kbd>\
+   > For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>
+   Install Plugin from Disk...</kbd>
+
 #### ide内插件仓库加载
 
 For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search

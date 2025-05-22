@@ -1,25 +1,17 @@
 package test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.IntUnaryOperator;
-import java.util.function.Supplier;
-import java.util.stream.IntStream;
-
 import test.filter.TestFilterAnnotation1;
 import test.filter.TestFilterAnnotation2;
 import zircon.ExMethod;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;
+
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.IntUnaryOperator;
+import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class TestExMethod {
     public static List<String> methodNames = new ArrayList<>();
@@ -452,7 +444,7 @@ public class TestExMethod {
     @ExMethod
     public static <E, C extends E> List<? extends C> filter(List<E> collection, Class<C> clazz) {
         if (collection == null) return null;
-        return ExCollection.findAll(collection, a -> a.isInstanceOf(clazz)).map(a -> (C) a);
+        return ExCollection.findAll(collection, a -> a.isInstanceOf(clazz)) .map(a -> (C) a);
     }
 
 

@@ -20,6 +20,7 @@ import com.intellij.psi.util.*;
 import com.intellij.util.containers.JBIterable;
 import com.siyeh.ig.psiutils.ImportUtils;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExObject;
 import zircon.example.ExReflection;
 
 import java.util.ArrayList;

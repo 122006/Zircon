@@ -112,12 +112,6 @@ public class ZrCheckLevelHighlightInfoHolder extends HighlightInfoHolder {
                         return action.startInWriteAction();
                     }
                 }.setElement(psiElement);
-//                Iterable options;
-//                try {
-//                    options = first.getOptions(psiElement, null);
-//                } catch (Throwable e) {
-//                    options=new ArrayList<>();
-//                }
                 newInfo.registerFix(actionShow, null, first.getAction().getFamilyName(), markerPair.getSecond().shiftRight(startIndex), null);
             });
         holder.add(newInfo);

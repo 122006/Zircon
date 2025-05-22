@@ -29,6 +29,13 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
 
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedRedirectMethod", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedReplaceLambda", pcl, classLoader);
+        if (javaVersionUpper(11)) try {
+            reloadClassJavacVersion("com.sun.tools.javac.comp.NeedReplaceToOptionalChaining", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrGen", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr$1", pcl, classLoader);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         reloadClassJavacVersion("com.sun.tools.javac.comp.ExMethodInfo", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrMethodReferenceLookupHelper", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrLookupHelper", pcl, classLoader);
@@ -38,8 +45,19 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         final Class<?> OOZrAttrClass = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr", pcl, classLoader);
         final Object myAttr = getInstance(OOZrAttrClass, context);
         set(compiler, "attr", myAttr);
+
+
         final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
         getInstance(ZrResolve, context);
+
+
+        if (javaVersionUpper(11)) try {
+            final Class<?> ZrGen = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrGen", pcl, classLoader);
+            getInstance(ZrGen, context);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
     }
 
     public boolean autoStart() {

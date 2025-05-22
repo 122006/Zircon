@@ -4,29 +4,14 @@ import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.util.NlsSafe;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementFactory;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.PsiImportStatement;
-import com.intellij.psi.PsiImportStatementBase;
-import com.intellij.psi.PsiManager;
-import com.intellij.psi.PsiMethod;
-import com.intellij.psi.PsiModifierList;
-import com.intellij.psi.PsiParameter;
-import com.intellij.psi.PsiParameterList;
-import com.intellij.psi.PsiReference;
-import com.intellij.psi.PsiReferenceList;
-import com.intellij.psi.PsiSubstitutor;
-import com.intellij.psi.PsiTypeParameterList;
+import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiExtensionMethod;
 import com.intellij.psi.impl.light.LightMethodBuilder;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.MethodSignature;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExObject;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -78,8 +63,9 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
         return this;
     }
 
+    @NotNull
     @Override
-    public PsiReference @NotNull [] getReferences() {
+    public PsiReference[] getReferences() {
         final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager().getProject());
         return new PsiReference[]{getReference(), elementFactory.createClassReferenceElement(targetClass)};
     }

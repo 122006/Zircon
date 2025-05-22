@@ -445,7 +445,7 @@ public class TestExMethodImpl {
                 () -> "31231".nullOr("2432"),
                 () -> zircon.example.ExObject.nullOr("31231", "123"));
         checkMethodInvokes(
-                () -> nullStr.let(a->a).isBlank(),
+                () -> nullStr.let(a -> a).isBlank(),
                 () -> TestExMethod.isBlank(nullStr));
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
@@ -920,6 +920,14 @@ public class TestExMethodImpl {
         public Pair(T first, M second) {
             this.first = first;
             this.second = second;
+        }
+
+        public M getSecond() {
+            return second;
+        }
+
+        public T getFirst() {
+            return first;
         }
     }
 

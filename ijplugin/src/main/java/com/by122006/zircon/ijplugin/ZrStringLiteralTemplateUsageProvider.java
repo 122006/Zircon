@@ -12,6 +12,7 @@ import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExObject;
 
 public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvider {
     @Override

@@ -16,6 +16,7 @@ import com.intellij.psi.util.TypeConversionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
+import zircon.example.ExArray;
 import zircon.example.ExObject;
 
 import java.util.Objects;
@@ -48,7 +49,7 @@ public class ZrPluginUtil {
 
     public static boolean isAssignableSite(PsiMethod method, PsiType psiType2) {
         if (!method.isValid()) return false;
-        final PsiParameter @NotNull [] parameterTypes = method.getParameterList().getParameters();
+        final PsiParameter[] parameterTypes = method.getParameterList().getParameters();
         if (parameterTypes.length == 0) return false;
         PsiType type = parameterTypes[0].getType();
         return isAssignableSite(method.getProject(), type, psiType2, method.getTypeParameters(), true);
@@ -142,6 +143,7 @@ public class ZrPluginUtil {
         }
         return false;
     }
+
     public static int getLineNumberOfPsiMethod(PsiMethod psiMethod) {
         // 获取PsiMethod所在的PsiFile
         PsiFile psiFile = psiMethod.getContainingFile();
@@ -167,4 +169,24 @@ public class ZrPluginUtil {
     }
 
 
+    public static boolean hasOptionalChaining(PsiElement element) {
+        if (element instanceof PsiMethodCallExpression || element instanceof PsiReferenceExpression) {
+            final PsiReferenceExpression methodExpression = element instanceof PsiReferenceExpression
+                    ? (PsiReferenceExpression) element
+                    : ((PsiMethodCallExpression) element).getMethodExpression();
+            final @NotNull PsiElement[] children = methodExpression.getChildren();
+            final PsiJavaToken javaToken = (PsiJavaToken) children.get(1);
+            if (javaToken == null) return false;
+            if (javaToken.getTokenType() == JavaTokenType.DOT) {
+                if (javaToken.getText().equals("?.")) {
+                    return true;
+                } else {
+                    return hasOptionalChaining(children[0]);
+                }
+            }
+            return false;
+        }
+        return false;
+
+    }
 }

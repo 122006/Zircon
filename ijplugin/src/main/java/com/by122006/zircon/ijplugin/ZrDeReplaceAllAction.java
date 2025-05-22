@@ -15,6 +15,7 @@ import com.intellij.psi.search.UsageSearchContext;
 import com.intellij.psi.util.PsiTypesUtil;
 import org.jetbrains.annotations.NotNull;
 import zircon.example.ExCollection;
+import zircon.example.ExString;
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -8,6 +8,7 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExObject;
 
 
 public class ZrJavaFileHighlighter extends JavaFileHighlighter {

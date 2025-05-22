@@ -1,30 +1,42 @@
 package com.by122006.zircon.ijplugin;
 
-import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.LexerBase;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.util.Pair;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.TokenType;
+import com.intellij.psi.formatter.java.JavaSpacePropertyProcessor;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.text.CharArrayUtil;
 import com.sun.tools.javac.parser.Formatter;
-import com.sun.tools.javac.parser.StringRange;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExReflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.List;
+import java.util.Map;
 
 
-@SuppressWarnings({"unchecked" , "rawtypes"})
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class ZrJavaLexer extends LexerBase {
     private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
+
+    static {
+        try {
+            //强制设置)和.之间不含空格
+            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
+            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private Object myFlexLexer;
     private CharSequence myBuffer;
@@ -75,7 +87,7 @@ public final class ZrJavaLexer extends LexerBase {
         myTokenType = null;
         myTokenEndOffset = startOffset;
         try {
-            Method reset = getFlexClazz().getMethod("reset" , CharSequence.class, int.class, int.class, int.class);
+            Method reset = getFlexClazz().getMethod("reset", CharSequence.class, int.class, int.class, int.class);
             reset.setAccessible(true);
             reset.invoke(myFlexLexer, myBuffer, startOffset, endOffset, 0);
         } catch (Exception e) {
@@ -166,6 +178,15 @@ public final class ZrJavaLexer extends LexerBase {
                     flexLocateToken();
                 }
                 break;
+            case '?':
+                if (charAt(myBufferIndex + 1) == '.' && ((charAt(myBufferIndex + 2) < '0') || (charAt(myBufferIndex + 2) > '9'))) {
+                    myTokenType = JavaTokenType.DOT;
+                    myTokenEndOffset = myBufferIndex + 2;
+//                    flexLocateToken();
+                } else {
+                    flexLocateToken();
+                }
+                break;
             case '\'':
                 myTokenType = JavaTokenType.CHARACTER_LITERAL;
                 myTokenEndOffset = getClosingQuote0(myBufferIndex + 1, c);
@@ -231,7 +252,7 @@ public final class ZrJavaLexer extends LexerBase {
     private void flexLocateToken() {
         try {
             if (goTo == null) {
-                goTo = getFlexClazz().getMethod("goTo" , int.class);
+                goTo = getFlexClazz().getMethod("goTo", int.class);
                 goTo.setAccessible(true);
             }
             goTo.invoke(myFlexLexer, myBufferIndex);
@@ -299,7 +320,7 @@ public final class ZrJavaLexer extends LexerBase {
         final String s = myBuffer.subSequence(startIndex, offset).toString();
         final ZrStringModel build = formatter.build(s);
 //        LOG.info("Read ZrString："+build.getOriginalString());
-        return build.getEndQuoteIndex() + startIndex+1;
+        return build.getEndQuoteIndex() + startIndex + 1;
     }
 
     private int getClosingComment(int offset) {

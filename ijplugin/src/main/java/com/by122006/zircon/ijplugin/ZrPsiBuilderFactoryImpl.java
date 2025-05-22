@@ -12,27 +12,25 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
 import com.intellij.pom.java.LanguageLevel;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
 import zircon.example.ExReflection;
 
 public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
     @NotNull
     public PsiBuilder createBuilder(@NotNull Project project, @NotNull ASTNode chameleon, @Nullable Lexer lexer, @NotNull Language lang, @NotNull CharSequence seq) {
-        ParserDefinition parserDefinition = reflectionInvokeMethod("getParserDefinition",lang, chameleon.getElementType());
+        ParserDefinition parserDefinition = reflectionInvokeMethod("getParserDefinition", lang, chameleon.getElementType());
         if (lexer instanceof JavaLexer) {
             LanguageLevel level = LanguageLevelProjectExtension.getInstance(project).getLanguageLevel();
             lexer = new ZrJavaLexer(level);
         } else if (lexer == null) {
             try {
-                lexer=parserDefinition.createLexer(project);
+                lexer = parserDefinition.createLexer(project);
             } catch (ProcessCanceledException e) {
                 throw e;
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new RuntimeException("createLexer error:"+e.getMessage());
+                throw new RuntimeException("createLexer error:" + e.getMessage());
             }
         }
 
