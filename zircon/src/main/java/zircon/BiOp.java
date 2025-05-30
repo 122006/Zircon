@@ -1,9 +1,5 @@
 package zircon;
 
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-
 @SuppressWarnings("unchecked")
 public class BiOp {
     public static void sInvoke(Object obj, Void cName) {
@@ -15,26 +11,6 @@ public class BiOp {
 
     public static <T> T self(T obj) {
         return obj;
-    }
-
-    public static boolean isNotNull(Object obj) {
-        return obj != null;
-    }
-
-    public static <V, R> R ifNotNull(Supplier<V> supplier, Function<V, R> function) {
-        final V v = supplier.get();
-        if (v == null) {
-            return null;
-        }
-        return function.apply(v);
-    }
-
-    public static <V> void ifNotNull(Supplier<V> supplier, Consumer<V> function) {
-        final V v = supplier.get();
-        if (v == null) {
-            return;
-        }
-        function.accept(v);
     }
 
     //危险(该方法会后置补充dup指令。请一定不要直接调用该方法)
@@ -68,7 +44,8 @@ public class BiOp {
         return (T) t2;
     }
 
-    public static <T> T wrap(T value) {
+    //该方法仅在编译中使用，在gen阶段会自动替换为入参（防止部分编译期优化）
+    public static <T> T $$wrap(T value) {
         return value;
     }
 }

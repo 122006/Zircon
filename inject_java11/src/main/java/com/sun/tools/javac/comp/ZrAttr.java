@@ -3,11 +3,13 @@ package com.sun.tools.javac.comp;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
-import com.sun.tools.javac.jvm.ByteCodes;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrUnSupportCodeError;
-import com.sun.tools.javac.tree.*;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeCopier;
+import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.*;
 
 import java.lang.reflect.Field;
@@ -15,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static com.sun.tools.javac.code.TypeTag.VOID;
 
@@ -25,13 +26,6 @@ public class ZrAttr extends Attr {
     protected ZrAttr(Context context) {
         super(context);
         this.context = context;
-    }
-
-    @Override
-    public void visitModuleDef(JCTree.JCModuleDecl tree) {
-        super.visitModuleDef(tree);
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println(tree);
     }
 
     public static ZrAttr instance(Context context) {
@@ -52,24 +46,15 @@ public class ZrAttr extends Attr {
     }
 
     @Override
-    public Type attribStat(JCTree tree, Env<AttrContext> env) {
-
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println("attribStat start  " + tree);
-
-        return super.attribStat(tree, env);
-    }
-
-    @Override
     <T extends JCTree> void attribStats(List<T> trees, Env<AttrContext> env) {
-        System.err.println("attribStats start");
+
         final Pair<Boolean, List<JCTree>> booleanListPair = treeTranslator(trees, env);
         if (booleanListPair.fst) {
             if (env.tree instanceof JCTree.JCBlock) {
 //                argumentAttr.argumentTypeCache.clear();
                 ((JCTree.JCBlock) env.tree).stats = booleanListPair.snd.map(a -> (JCTree.JCStatement) a);
                 super.attribStats(((JCTree.JCBlock) env.tree).stats, env);
-                System.err.println("attribStats end " + ((JCTree.JCBlock) env.tree).stats);
+
                 return;
             }
         }
@@ -93,8 +78,6 @@ public class ZrAttr extends Attr {
 
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println("visitApply start  " + that);
 
         Name methName = TreeInfo.name(that.meth);
         boolean isConstructorCall = methName == this.names._this || methName == this.names._super;
@@ -103,9 +86,6 @@ public class ZrAttr extends Attr {
         } else {
             visitNoConstructorApply(that);
         }
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println("visitApply end  " + that);
-
     }
 
     @Override
@@ -114,28 +94,34 @@ public class ZrAttr extends Attr {
 
     }
 
-//    JCTree.JCExpression treeTranslator(JCTree.JCExpression tree) {
-//        return treeTranslator(tree,null);
-//    }
 
     JCTree.JCExpression treeTranslator(JCTree.JCExpression tree) {
+        final JCTree.JCExpression jcExpression = treeTranslatorExpressionWithReturnType(tree);
+        if (jcExpression != tree) return jcExpression;
+        if (checkMethodInvocationIsOptionalChaining(tree)) {
+            return changeOptionalChainingExpression2Expression(tree, (e) -> e, make.Literal(TypeTag.BOT, null));
+        }
+        return tree;
+    }
+
+    JCTree.JCExpression treeTranslatorExpressionWithReturnType(JCTree.JCExpression tree) {
         if (tree instanceof JCTree.JCBinary) {
             if (tree.getTag() == JCTree.Tag.OR) {
                 final JCTree.JCExpression lhs = ((JCTree.JCBinary) tree).lhs;
                 final JCTree.JCExpression rhs = ((JCTree.JCBinary) tree).rhs;
                 if (checkMethodInvocationIsOptionalChaining(lhs)) {
-                    return changeOptionalChainingExpression2Expression(lhs, (e) -> e, rhs);
+                    final JCTree.JCExpression elseExpr = checkMethodInvocationIsOptionalChaining(rhs) ? changeOptionalChainingExpression2Expression(rhs) : rhs;
+                    return changeOptionalChainingExpression2Expression(lhs, (e) -> e, elseExpr);
                 }
             }
         } else if (tree instanceof JCTree.JCAssign) {
             final JCTree.JCExpression variable = ((JCTree.JCAssign) tree).getVariable();
             if (checkMethodInvocationIsOptionalChaining(variable)) {
                 //特别的，非语句的赋值表达式会判断左值是否存在，如果不存在该左值不会被赋值
-                final JCTree.JCExpression finalElseExpr = ((JCTree.JCAssign) tree).getExpression();
-                return changeOptionalChainingExpression2Expression(variable, e -> make.Assign(e, finalElseExpr), finalElseExpr);
+                final JCTree.JCExpression expression = ((JCTree.JCAssign) tree).getExpression();
+                final JCTree.JCExpression elseExpr = checkMethodInvocationIsOptionalChaining(expression) ? changeOptionalChainingExpression2Expression(expression) : expression;
+                return changeOptionalChainingExpression2Expression(variable, e -> make.Assign(e, elseExpr), elseExpr);
             }
-        } else if (checkMethodInvocationIsOptionalChaining(tree)) {
-            return changeOptionalChainingExpression2Expression(tree, (e) -> e, make.Literal(TypeTag.BOT, null));
         }
         return tree;
     }
@@ -145,16 +131,19 @@ public class ZrAttr extends Attr {
         List<JCTree> nList = List.nil();
         boolean replace = false;
         for (JCTree tree : trees) {
-            if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining")) {
-                System.err.println("treeTranslator:" + tree);
-            }
             if (tree instanceof JCTree.JCExpressionStatement) {
                 final JCTree.JCExpression expression = ((JCTree.JCExpressionStatement) tree).getExpression();
                 if (expression instanceof JCTree.JCAssign) {
                     final JCTree.JCExpression variable = ((JCTree.JCAssign) expression).getVariable();
                     if (checkMethodInvocationIsOptionalChaining(variable)) {
+                        final JCTree.JCExpression assignExpr;
+                        if (checkMethodInvocationIsOptionalChaining(((JCTree.JCAssign) expression).getExpression())) {
+                            assignExpr = changeOptionalChainingExpression2Expression(((JCTree.JCAssign) expression).getExpression());
+                        } else {
+                            assignExpr = ((JCTree.JCAssign) expression).getExpression();
+                        }
                         final JCTree jcTree = changeOptionalChainingExpression2Call(variable, (trueExpr) -> {
-                            return make.Exec(make.Assign(trueExpr, ((JCTree.JCAssign) expression).getExpression()));
+                            return make.Exec(make.Assign(trueExpr, assignExpr));
                         }, env);
                         nList = nList.append(jcTree);
                         replace = true;
@@ -162,52 +151,29 @@ public class ZrAttr extends Attr {
                     }
                 } else if (findChainHasNullSafeFlag(expression, false)) {
                     final JCTree.JCExpressionStatement statement = (JCTree.JCExpressionStatement) tree;
-
                     final JCTree jcTree = changeOptionalChainingExpression2Call(statement.getExpression(), env);
-
                     nList = nList.append(jcTree);
-                    if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining")) {
-                        System.err.println("tree:" + tree);
-                        System.err.println("=>" + jcTree);
-                        new RuntimeException().printStackTrace();
-                    }
                     replace = true;
                     continue;
                 }
 
             } else if (tree instanceof JCTree.JCReturn) {
-                final JCTree.JCExpression expression = ((JCTree.JCReturn) tree).getExpression();
-                if (expression instanceof JCTree.JCAssign) {
-                    final JCTree.JCExpression variable = ((JCTree.JCAssign) expression).getVariable();
-                    if (checkMethodInvocationIsOptionalChaining(variable)) {
-                        final JCTree jcTree = changeOptionalChainingExpression2Call(variable, (trueExpr) -> {
-                            return make.Exec(make.Assign(trueExpr, ((JCTree.JCAssign) expression).getExpression()));
-                        }, env);
-                        nList = nList.append(jcTree);
-                        replace = true;
-                        continue;
-                    }
+                JCTree.JCExpression expression = ((JCTree.JCReturn) tree).getExpression();
+                final JCTree.JCExpression jcExpression = treeTranslatorExpressionWithReturnType(expression);
+                replace = jcExpression != expression;
+                if (replace) {
+                    ((JCTree.JCReturn) tree).expr = jcExpression;
+                    nList = nList.append(tree);
                 } else if (findChainHasNullSafeFlag(expression, false)) {
                     final JCTree.JCReturn statement = (JCTree.JCReturn) tree;
-
                     final JCTree jcTree = changeOptionalChainingExpression2Call(statement.getExpression(), make::Return, make.Return(make.Literal(TypeTag.BOT, null)), env);
                     if (jcTree instanceof JCTree.JCBlock) {
                         nList = nList.appendList(((JCTree.JCBlock) jcTree).stats.map(a -> a));
-
-                    }
-                    if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining")) {
-                        System.err.println("tree:" + tree);
-                        System.err.println("=>" + jcTree);
-                        new RuntimeException().printStackTrace();
                     }
                     replace = true;
-                    continue;
                 }
+                if (replace) continue;
 
-            } else {
-                if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining")) {
-                    System.err.println("unknown statement:" + tree + "  " + tree.getClass().getName());
-                }
             }
             nList = nList.append(tree);
         }
@@ -216,81 +182,76 @@ public class ZrAttr extends Attr {
 
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining")) {
-            System.err.println("=======" + tree + " " + tree.getClass().getName());
-            if (tree instanceof JCTree.JCVariableDecl) {
-                ((JCTree.JCVariableDecl) tree).init = treeTranslator(((JCTree.JCVariableDecl) tree).init);
-            } else if (tree instanceof JCTree.JCBinary) {
-                ((JCTree.JCBinary) tree).lhs = treeTranslator(((JCTree.JCBinary) tree).lhs);
-                ((JCTree.JCBinary) tree).rhs = treeTranslator(((JCTree.JCBinary) tree).rhs);
-            } else if (tree instanceof JCTree.JCParens) {
-                ((JCTree.JCParens) tree).expr = treeTranslator(((JCTree.JCParens) tree).expr);
-            } else if (tree instanceof JCTree.JCIf) {
-                ((JCTree.JCIf) tree).cond = treeTranslator(((JCTree.JCIf) tree).cond);
-            } else if (tree instanceof JCTree.JCSwitch) {
-                ((JCTree.JCSwitch) tree).selector = treeTranslator(((JCTree.JCSwitch) tree).selector);
-            } else if (tree instanceof JCTree.JCDoWhileLoop) {
-                ((JCTree.JCDoWhileLoop) tree).cond = treeTranslator(((JCTree.JCDoWhileLoop) tree).cond);
-            } else if (tree instanceof JCTree.JCConditional) {
-                ((JCTree.JCConditional) tree).cond = treeTranslator(((JCTree.JCConditional) tree).cond);
-                ((JCTree.JCConditional) tree).truepart = treeTranslator(((JCTree.JCConditional) tree).truepart);
-                ((JCTree.JCConditional) tree).falsepart = treeTranslator(((JCTree.JCConditional) tree).falsepart);
-            } else if (tree instanceof JCTree.JCAssert) {
-                ((JCTree.JCAssert) tree).cond = treeTranslator(((JCTree.JCAssert) tree).cond);
-            } else if (tree instanceof JCTree.JCReturn) {
-                System.err.println("JCTree.JCReturn:" + tree);
-                final JCTree.JCExpression expr = treeTranslator(((JCTree.JCReturn) tree).expr);
-                System.err.println("JCTree.JCReturn:=>" + expr);
-                ((JCTree.JCReturn) tree).expr = expr;
-            } else if (tree instanceof JCTree.JCLambda) {
-                JCTree body = ((JCTree.JCLambda) tree).body;
-                final LambdaExpressionTree.BodyKind bodyKind = ((JCTree.JCLambda) tree).getBodyKind();
-                System.err.println("JCTree.JCLambda:" + tree + "  " + tree.type + "  " + bodyKind + "   " + pt() + "  " + pt().getReturnType());
 
-                if (bodyKind == LambdaExpressionTree.BodyKind.STATEMENT) {
-                    final Pair<Boolean, List<JCTree>> pair = treeTranslator(((JCTree.JCBlock) body).stats, env);
-                    if (pair.fst) {
-                        ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, pair.snd.map(a -> (JCTree.JCStatement) a));
-                    }
-                } else if (bodyKind == LambdaExpressionTree.BodyKind.EXPRESSION) {
-                    final JCTree.JCExpression expression = (JCTree.JCExpression) body;
-                    if (findChainHasNullSafeFlag(expression, false)) {
-                        boolean returnVoid = false;
-                        if (expression instanceof JCTree.JCFieldAccess) {
-                            returnVoid = false;
-                        } else if (expression instanceof JCTree.JCMethodInvocation) {
-                            final JCTree.JCExpression jcExpression = cleanExprNullSafeFlag(expression);
+        if (tree instanceof JCTree.JCVariableDecl) {
+            ((JCTree.JCVariableDecl) tree).init = treeTranslator(((JCTree.JCVariableDecl) tree).init);
+        } else if (tree instanceof JCTree.JCBinary) {
+            ((JCTree.JCBinary) tree).lhs = treeTranslator(((JCTree.JCBinary) tree).lhs);
+            ((JCTree.JCBinary) tree).rhs = treeTranslator(((JCTree.JCBinary) tree).rhs);
+        } else if (tree instanceof JCTree.JCParens) {
+            ((JCTree.JCParens) tree).expr = treeTranslator(((JCTree.JCParens) tree).expr);
+        } else if (tree instanceof JCTree.JCIf) {
+            ((JCTree.JCIf) tree).cond = treeTranslator(((JCTree.JCIf) tree).cond);
+        } else if (tree instanceof JCTree.JCSwitch) {
+            ((JCTree.JCSwitch) tree).selector = treeTranslator(((JCTree.JCSwitch) tree).selector);
+        } else if (tree instanceof JCTree.JCDoWhileLoop) {
+            ((JCTree.JCDoWhileLoop) tree).cond = treeTranslator(((JCTree.JCDoWhileLoop) tree).cond);
+        } else if (tree instanceof JCTree.JCConditional) {
+            ((JCTree.JCConditional) tree).cond = treeTranslator(((JCTree.JCConditional) tree).cond);
+            ((JCTree.JCConditional) tree).truepart = treeTranslator(((JCTree.JCConditional) tree).truepart);
+            ((JCTree.JCConditional) tree).falsepart = treeTranslator(((JCTree.JCConditional) tree).falsepart);
+        } else if (tree instanceof JCTree.JCAssert) {
+            ((JCTree.JCAssert) tree).cond = treeTranslator(((JCTree.JCAssert) tree).cond);
+        } else if (tree instanceof JCTree.JCReturn) {
+
+            final JCTree.JCExpression expr = treeTranslator(((JCTree.JCReturn) tree).expr);
+
+            ((JCTree.JCReturn) tree).expr = expr;
+        } else if (tree instanceof JCTree.JCLambda) {
+            JCTree body = ((JCTree.JCLambda) tree).body;
+            final LambdaExpressionTree.BodyKind bodyKind = ((JCTree.JCLambda) tree).getBodyKind();
+
+
+            if (bodyKind == LambdaExpressionTree.BodyKind.STATEMENT) {
+                final Pair<Boolean, List<JCTree>> pair = treeTranslator(((JCTree.JCBlock) body).stats, env);
+                if (pair.fst) {
+                    ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, pair.snd.map(a -> (JCTree.JCStatement) a));
+
+                }
+            } else if (bodyKind == LambdaExpressionTree.BodyKind.EXPRESSION) {
+                final JCTree.JCExpression expression = (JCTree.JCExpression) body;
+                if (findChainHasNullSafeFlag(expression, false)) {
+                    boolean returnVoid = false;
+                    if (expression instanceof JCTree.JCFieldAccess) {
+                        returnVoid = false;
+                    } else if (expression instanceof JCTree.JCMethodInvocation) {
+                        final JCTree.JCExpression jcExpression = cleanExprNullSafeFlag(expression);
 //                            jcExpression.accept(this);
-                            final Type type = getType(env, jcExpression);
-                            System.err.println("JCTree.JCLambda==>>>>:" + jcExpression);
-                            System.err.println("JCTree.JCLambda==>>>>:" + type);
-                            returnVoid = type == syms.voidType;
-                        }
-                        if (returnVoid) {
-                            JCTree.JCStatement expressionStatement = make.at(tree.pos).Exec(expression);
-                            final Pair<Boolean, List<JCTree>> pair = treeTranslator(List.of(expressionStatement), env);
-                            if (pair.fst) {
-                                ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, pair.snd.map(a -> (JCTree.JCStatement) a));
-                            }
-                        } else {
-                            ((JCTree.JCLambda) tree).body = treeTranslator(expression);
-                        }
-                        System.err.println("JCTree.JCLambda==>>>>:" + ((JCTree.JCLambda) tree));
+                        final Type type = getType(env, jcExpression);
 
 
-//                        JCTree.JCReturn expressionStatement = make.at(tree.pos).Return(expression);
-//                        final Pair<Boolean, List<JCTree>> pair = treeTranslator(List.of(expressionStatement), env);
-//                        if (pair.fst) {
-//                            ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, pair.snd.map(a -> (JCTree.JCStatement) a));
-//                        }
+                        returnVoid = type == syms.voidType;
+                    }
+                    if (returnVoid) {
+                        JCTree.JCStatement expressionStatement = make.at(tree.pos).Exec(expression);
+                        final Pair<Boolean, List<JCTree>> pair = treeTranslator(List.of(expressionStatement), env);
+                        if (pair.fst) {
+                            ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, pair.snd.map(a -> (JCTree.JCStatement) a));
+                        }
+                    } else {
+                        ((JCTree.JCLambda) tree).body = treeTranslator(expression);
+                    }
+                } else {
+                    final JCTree.JCExpression jcExpression = treeTranslatorExpressionWithReturnType(expression);
+                    if (jcExpression != expression) {
+                        ((JCTree.JCLambda) tree).body = jcExpression;
                     }
                 }
-                System.err.println("JCTree.JCLambda:=>" + tree);
             }
-        }
-        final Type type = super.attribTree(tree, env, resultInfo);
 
-        return type;
+        }
+
+        return super.attribTree(tree, env, resultInfo);
     }
 
     private Type getType(Env<AttrContext> env, JCTree.JCExpression jcExpression) {
@@ -303,7 +264,7 @@ public class ZrAttr extends Attr {
 
     public JCTree.JCExpression cleanExprNullSafeFlag(JCTree.JCExpression expr) {
         expr = copyExpr(expr);
-        System.err.println("=>cleanExprNullSafeFlag:" + expr);
+
         new TreeScanner() {
             @Override
             public void visitSelect(JCTree.JCFieldAccess tree) {
@@ -314,14 +275,18 @@ public class ZrAttr extends Attr {
                             tree.selected = ((JCTree.JCFieldAccess) meth).selected;
                         }
                     }
+                } else if (tree.selected instanceof JCTree.JCFieldAccess) {
+                    if (((JCTree.JCFieldAccess) tree.selected).name.contentEquals("$$NullSafe")) {
+                        tree.selected = ((JCTree.JCFieldAccess) tree.selected).selected;
+                    }
                 }
+
                 super.visitSelect(tree);
             }
         }.scan(expr);
         if (expr instanceof JCTree.JCParens) expr = ((JCTree.JCParens) expr).expr;
-        System.err.println("=>cleanExprNullSafeFlag:" + expr);
+
         return expr;
-//        return _cleanExprNullSafeFlag(expr, expr);
     }
 
     public JCTree.JCExpression _cleanExprNullSafeFlag(JCTree jctree, JCTree.JCExpression allExpr) {
@@ -351,11 +316,7 @@ public class ZrAttr extends Attr {
 
     @Override
     public void visitTypeTest(JCTree.JCInstanceOf tree) {
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println("~~~~~~ visitTypeTest start " + tree + " " + tree.getClass().getName());
         super.visitTypeTest(tree);
-        if (env.enclClass.getSimpleName().contentEquals("TestOptionalChaining"))
-            System.err.println("~~~~~~ visitTypeTest " + tree + " " + tree.getClass().getName());
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -451,7 +412,6 @@ public class ZrAttr extends Attr {
                     }
                 }
             }
-//            System.err.println("==============\n" + oldTree + "=>\n" + that);
             encl = this.attribTree(that.meth, localEnv, new ResultInfo(kind, methodTemplate, this.resultInfo.checkContext));
         }
 
@@ -484,10 +444,12 @@ public class ZrAttr extends Attr {
     private JCTree.JCExpression changeOptionalChainingExpression2Expression(JCTree.JCExpression expr, Function<JCTree.JCExpression, JCTree.JCExpression> trueExpr, JCTree.JCExpression elseExpr) {
         final JCTree.JCExpression jcExpression = changeOptionalChainingExpression2Expression(null, expr, null, expr, trueExpr, elseExpr, new ArrayList<>(), false, false);
         if (jcExpression instanceof JCTree.JCConditional && elseExpr.getKind() == TypeTag.BOT.getKindLiteral()) {
+            //防止简化推断，或者使用的是基础类型，包裹
             final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
-            final JCTree.JCFieldAccess wrapMethod = make.Select(make.QualIdent(biopClass), names.fromString("wrap"));
-            argumentAttr.argumentTypeCache.clear();
-            ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart.setPos(expr.pos + 7)));
+            final JCTree.JCFieldAccess wrapMethod = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
+            ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS)));
+        } else if (jcExpression instanceof JCTree.JCConditional) {
+            ((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS);
         }
         return jcExpression;
     }
@@ -499,31 +461,27 @@ public class ZrAttr extends Attr {
         }
         make.at(expr);
         final int pos = expr.pos;
-        System.err.println("   + " + expr + "   pos    " + pos + "   rest    " + restExpr + "   all:    " + allExpr);
-        if (expr instanceof JCTree.JCMethodInvocation) {//a.b.$$NullSafe().c()
-            final JCTree.JCExpression meth = ((JCTree.JCMethodInvocation) expr).meth;//a.b.$$NullSafe().c
+
+        if (expr instanceof JCTree.JCMethodInvocation || expr instanceof JCTree.JCFieldAccess) {//a.b.$$NullSafe().c()
+            final JCTree.JCExpression meth = expr instanceof JCTree.JCFieldAccess ? expr : ((JCTree.JCMethodInvocation) expr).meth;//a.b.$$NullSafe().c
             if (meth instanceof JCTree.JCFieldAccess) {
                 final JCTree.JCExpression lastExpr = ((JCTree.JCFieldAccess) meth).getExpression();//a.b.$$NullSafe()
                 if (isNullSafeMethod(lastExpr)) {
                     final JCTree.JCExpression lastMethodSelect = ((JCTree.JCMethodInvocation) lastExpr).getMethodSelect();//a.b.$$NullSafe
-                    System.err.println("   lastMethodSelect=" + lastMethodSelect + "  " + lastMethodSelect.getClass().getName());
+
                     final JCTree.JCExpression lastExprLeft = ((JCTree.JCFieldAccess) lastMethodSelect).getExpression();//a.b
 
                     boolean wrap = !useVarAndSkipWarpByFirst || hasSkip;
                     final JCTree.JCLiteral nullLiteral = make.Literal(TypeTag.BOT, null);
                     hasSkip = true;
                     if (wrap) {
-//                        if (_lastExprLeft instanceof JCTree.JCParens) {
-//                            _lastExprLeft = ((JCTree.JCParens) _lastExprLeft).getExpression();
-//                        }
                         final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
                         final JCTree.JCFieldAccess dup = make.Select(make.QualIdent(biopClass), names.fromString("$$dup"));
                         final JCTree.JCFieldAccess ignore = make.Select(make.QualIdent(biopClass), names.fromString("$$ignore"));
 
 
-                        final JCTree.JCMethodInvocation copy = make.Apply(List.nil(), ignore, List.of(cleanExprNullSafeFlag(lastExprLeft.setPos(pos + 6))));
-//                        final JCTree.JCMethodInvocation copy = make.Apply(List.nil(), ignore, List.of(make.Literal(TypeTag.BOT, null)));
-                        final JCTree.JCMethodInvocation lastExprLeftAndDup = make.Apply(List.nil(), dup, List.of(lastExprLeft.setPos(pos + 2)));
+                        final JCTree.JCMethodInvocation copy = make.Apply(List.nil(), ignore, List.of(cleanExprNullSafeFlag(lastExprLeft)));
+                        final JCTree.JCMethodInvocation lastExprLeftAndDup = make.Apply(List.nil(), dup, List.of(lastExprLeft));
 
                         JCTree.JCExpression copyRestExpr = cleanExprNullSafeFlag(restExpr);
 
@@ -531,24 +489,15 @@ public class ZrAttr extends Attr {
                         final JCTree.JCConditional conditional;
                         if (elseExpr.getKind() == TypeTag.BOT.getKindLiteral()) {
                             final JCTree.JCFieldAccess $$pop$$useParam2WithParam1Type = make.Select(make.QualIdent(biopClass), names.fromString("$$pop$$useParam2WithParam1Type"));
-                            final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr.setPos(pos + 4), elseExpr.setPos(pos + 3)));
-                            conditional = make.Conditional(
-                                    make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral),
-                                    restExpr,
-                                    invokeUseParam2WithParam1Type
-                            );
+                            final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr.setPos(Position.NOPOS), elseExpr.setPos(Position.NOPOS)));
+                            conditional = make.Conditional(make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral), restExpr, invokeUseParam2WithParam1Type);
                         } else {
                             final JCTree.JCFieldAccess $$pop = make.Select(make.QualIdent(biopClass), names.fromString("$$pop"));
-                            final JCTree.JCMethodInvocation invokePop = make.Apply(List.nil(), $$pop, List.of(elseExpr.setPos(pos + 3)));
-                            conditional = make.Conditional(
-                                    make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral),
-                                    restExpr,
-                                    invokePop
-                            );
+                            final JCTree.JCMethodInvocation invokePop = make.Apply(List.nil(), $$pop, List.of(elseExpr));
+                            conditional = make.Conditional(make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral), restExpr, invokePop);
                         }
 
 
-                        System.err.println("     conditional=" + conditional);
                         conditional.pos = expr.pos + 1;
                         if (replace == null) {
                             allExpr = conditional;//a.b==null?null:a.b.c
@@ -556,7 +505,6 @@ public class ZrAttr extends Attr {
                             replace.accept(conditional);
                         }
                         replace = (ex) -> {
-//                            copy.args = List.of(ex);
                             lastExprLeftAndDup.args = List.of(ex);
                         };
                         restExpr = lastExprLeft;
@@ -564,36 +512,22 @@ public class ZrAttr extends Attr {
                         return changeOptionalChainingExpression2Expression(lastExprLeft, restExpr, replace, allExpr, trueExpr, elseExpr, varDecls, useVarAndSkipWarpByFirst, hasSkip);
                     } else {
                         final Type symsType = syms.objectType;
-                        System.err.println("restExpr::" + restExpr + "  " + restExpr.getClass().getName());
+
                         final JCTree.JCVariableDecl jcVariableDecl = make.VarDef(make.Modifiers(Flags.FINAL), names.fromString("ZROPTIONALCHAINING"), make.Type(symsType), restExpr);
                         jcVariableDecl.type = symsType;
-                        //                        jcVariableDecl.accept(this);
 
-
-                        jcVariableDecl.sym = new Symbol.VarSymbol(
-                                Flags.FINAL,
-                                jcVariableDecl.name,
-                                symsType,
-                                env.enclMethod.sym
-                        );
-//                        env.info.scope.enter(jcVariableDecl.sym);
+                        jcVariableDecl.sym = new Symbol.VarSymbol(Flags.FINAL, jcVariableDecl.name, symsType, env.enclMethod.sym);
                         final JCTree.JCExpression ident = make.at(pos + 1).Ident(jcVariableDecl);
 
 
                         final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
                         final JCTree.JCFieldAccess useParam2WithParam1Type = make.Select(make.QualIdent(biopClass), names.fromString("$$useParam2WithParam1Type"));
                         final JCTree.JCMethodInvocation copy = make.Apply(List.nil(), useParam2WithParam1Type, List.of(cleanExprNullSafeFlag(lastExprLeft), ident));
-
-//                        final JCTree.JCTypeCast copy = make.TypeCast(symsType, ident);
                         ((JCTree.JCFieldAccess) meth).selected = copy;//a.b.c
                         varDecls.add(jcVariableDecl);
                         final JCTree.JCBinary binary = make.Binary(JCTree.Tag.NE, ident, nullLiteral);
-                        final JCTree.JCConditional conditional = make.Conditional(
-                                binary,
-                                restExpr,
-                                elseExpr
-                        );
-                        System.err.println("     conditional=" + conditional);
+                        final JCTree.JCConditional conditional = make.Conditional(binary, restExpr, elseExpr);
+
                         conditional.pos = expr.pos + 1;
 
                         if (replace == null) {
@@ -602,7 +536,6 @@ public class ZrAttr extends Attr {
                             replace.accept(conditional);
                         }
                         replace = (ex) -> {
-//                            copy.args = List.of(ex, copy.args.get(1));
                             jcVariableDecl.init = ex;
                         };
                         restExpr = lastExprLeft;
@@ -627,16 +560,12 @@ public class ZrAttr extends Attr {
                 }
                 return allExpr;
             }
-        } else if (expr instanceof JCTree.JCFieldAccess) {
-            final JCTree.JCExpression lastExpr = ((JCTree.JCFieldAccess) expr).getExpression();
-            return changeOptionalChainingExpression2Expression(lastExpr, restExpr, replace, allExpr, trueExpr, elseExpr, varDecls, useVarAndSkipWarpByFirst, hasSkip);
         } else if (expr instanceof JCTree.JCParens) {
             if (replace != null) {
                 replace.accept(restExpr);
             }
             ((JCTree.JCParens) expr).expr = changeOptionalChainingExpression2Expression(((JCTree.JCParens) expr).expr);
 
-            System.err.println("find JCParens : all allExpr" + allExpr);
 
             return allExpr;
         }
@@ -646,21 +575,6 @@ public class ZrAttr extends Attr {
         return allExpr;
     }
 
-//    @Override
-//    public void visitIdent(JCTree.JCIdent tree) {
-//        if (tree.getName().contentEquals("ZROPTIONALCHAINING")) {
-//            for (Symbol decl : env.info.scope.getSymbols(Scope.LookupKind.NON_RECURSIVE)) {
-//                System.err.println("　　　symbol:" + decl.getSimpleName() + " " + decl.getClass().getName() + "  sym.owner:" + decl.owner + "  scope.owner:" + env.info.scope.owner);
-//                env.info.scope.enterIfAbsent(tree.sym);
-//            }
-//        }
-//        super.visitIdent(tree);
-//        System.err.println("visitIdent " + tree);
-//        for (Symbol decl : env.info.scope.getSymbols(Scope.LookupKind.NON_RECURSIVE)) {
-//            System.err.println("　　　symbol:" + decl.getSimpleName() + " " + decl.getClass().getName() + "  sym.owner:" + decl.owner + "  scope.owner:" + env.info.scope.owner);
-//        }
-//        System.err.println("visitIdent : " + tree + "   " + tree.sym + "   " + tree.sym.kind);
-//    }
 
     private JCTree.JCStatement changeOptionalChainingExpression2Call(JCTree.JCExpression allExpr, Env<AttrContext> env) {
         return changeOptionalChainingExpression2Call(allExpr, (trueExpression) -> {
@@ -681,15 +595,12 @@ public class ZrAttr extends Attr {
         if (expression instanceof JCTree.JCConditional) {
             List<JCTree.JCStatement> statements = List.nil();
             final JCTree.JCVariableDecl variableDecl = varDecls.get(0);
-            if (variableDecl.getInitializer() instanceof JCTree.JCIdent) {
+            if (!(variableDecl.getInitializer() instanceof JCTree.JCConditional)) {
                 //防止flow自动内联
                 final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
-                final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("wrap"));
+                final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
                 variableDecl.init = make.Apply(List.nil(), wrap, List.of(variableDecl.getInitializer()));
             }
-//            variableDecl.accept(this);
-//            visitVarDef(variableDecl);
-//            env.info.scope.enter(variableDecl.sym);
 
             statements = statements.prepend(variableDecl);
             {
@@ -702,7 +613,7 @@ public class ZrAttr extends Attr {
 
             return block;
         } else {
-            System.err.println("error changeOptionalChainingExpression2Call " + expression + "   type:" + expression.getClass().getName());
+
             return make.Exec(expression);
         }
 

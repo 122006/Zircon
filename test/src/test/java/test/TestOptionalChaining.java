@@ -1,10 +1,13 @@
 package test;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.lang.Nullable;
 import test.TestExMethod;
-import zircon.BiOp;
-import zircon.ExMethod;
+import zircon.example.ExArray;
+import zircon.example.ExCollection;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Supplier;
 
 /**
@@ -14,7 +17,6 @@ import java.util.function.Supplier;
  * @Description:
  */
 public class TestOptionalChaining {
-//    String staticAA = String.class.getClass()?.getCanonicalName();
 
 
     @Test
@@ -62,7 +64,10 @@ public class TestOptionalChaining {
                 () -> (v?.returnThis2())?.returnThis());
         checkMethodInvokes(
                 () -> (v?.returnThis()?.nullObj?.returnThis2() || v).returnThis(),
-                () -> (BiOp.$$dup(v) != null ? BiOp.$$ignore(v).returnThis2() : null).returnThis());
+                () -> {
+                    v.returnThis();
+                    return v.returnThis();
+                });
         checkMethodInvokes(
                 () -> v.returnThis()?.invoke(),
                 () -> v?.returnThis()?.invoke());
@@ -104,22 +109,140 @@ public class TestOptionalChaining {
         v123234141?.returnThis().returnThis2();
 
         v?.returnNull();
-
-
+//
+//
         if ((nullV?.returnNull()?.return_int() || 12) == 12) {
             v.returnThis();
         } else {
             throw new RuntimeException();
         }
-
+//
         Supplier<TestChildClass> re = v?.getTestImplClass();
         re.get();
 
         v?.getTestImplClass()?.get();
 
+
+        TestChildClass.nullStaticObj?.getTestImplClass();
+        (TestChildClass.class?.getName() + "")?.getClass();
+
+
+        checkMethodInvokes(
+                () -> (TestChildClass.class?.getName() + "")?.getClass()
+                , () -> String.class);
+        checkMethodInvokes(
+                () -> (TestChildClass.class?.getName() + null)?.getClass()
+                , () -> String.class);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.returnBoolean() + (String) null
+                , () -> "nullnull");
+        checkMethodInvokes(
+                () -> (TestChildClass.nullStaticObj?.returnNull() + (String) null)?.getClass()
+                , () -> String.class);
+        List<String> data = Arrays.asList("123", "456");
+
+        checkMethodInvokes(
+                () -> data.stream().filter(a -> a.length() == 0).findFirst().orElse("1234")?.length()
+                , () -> 4);
+        checkMethodInvokes(
+                () -> data.find(a -> a.length() == 0)?.length()
+                , () -> null);
+        checkMethodInvokes(
+                () -> data.find(a -> a.length() == 0)?.length() || 4
+                , () -> 4);
+        checkMethodInvokes(
+                () -> classNullVar?.obj = classVar.returnThis()
+                , () -> classVar.returnThis());
+        checkMethodInvokes(
+                () -> classNullVar?.obj = classNullVar?.returnThis()
+                , () -> null);
+        checkMethodInvokes(
+                () -> {
+                    return classNullVar?.obj = classVar.returnThis();
+                }
+                , () -> classVar.returnThis());
+        checkMethodInvokes(
+                () -> {
+                    return classNullVar?.obj = classNullVar?.returnThis();
+                }
+                , () -> null);
+        checkMethodInvokes(
+                () -> {
+                    classNullVar?.obj = classNullVar?.returnThis();
+                }
+                , () -> {
+                });
+        checkMethodInvokes(
+                () -> {
+                    return classNullVar?.obj = (classNullVar?.returnThis() || classVar);
+                }
+                , () -> classVar);
+        checkMethodInvokes(
+                () -> {
+                    classNullVar?.obj = (classNullVar?.returnThis() || classVar);
+                }
+                , () -> {
+                });
+
+
+        checkMethodInvokes(
+                () -> {
+                    String[] array = null;
+                    return array?.get(0);
+                }
+                , () -> {
+                    return null;
+                });
+        final TestChildClass testChildClass = new TestChildClass();
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[1];
+                    return array?.get(0) || new TestChildClass();
+                }
+                , () -> {
+                    return null;
+                });
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = null;
+                    return array?.get(0) || testChildClass;
+                }
+                , () -> {
+                    return testChildClass;
+                });
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[1];
+                    return array?.get(0)?.getClass();
+                }
+                , () -> {
+                    return null;
+                });
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
+                    return array?.get(0)?.getClass();
+                }
+                , () -> {
+                    return TestChildClass.class;
+                });
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
+                    return array?.get(0)?.returnThis().getClass();
+                }
+                , () -> {
+                    new TestChildClass().returnThis();
+                    return TestChildClass.class;
+                });
+
+
         testEnd();
 
     }
+
+    TestClass classVar = new TestClass();
+    TestClass classNullVar;
 
     public static class TestChildClass extends TestClass {
     }
@@ -131,8 +254,11 @@ public class TestOptionalChaining {
             };
         }
 
-        TestClass obj = new TestClass();
+        static TestClass nullStaticObj = null;
+
         TestClass nullObj = null;
+
+        TestClass obj = null;
 
 
         public static TestClass staticIgnoreAction() {
@@ -165,6 +291,7 @@ public class TestOptionalChaining {
             return this;
         }
 
+        @Nullable
         public TestClass returnNull() {
             TestExMethod.methodNames.add("returnNull");
             return null;
@@ -182,8 +309,8 @@ public class TestOptionalChaining {
     }
 
 
-    @ExMethod
-    public static <T> T $$NullSafe(T o) {
-        throw new RuntimeException("异常链路：" + o);
-    }
+//    @ExMethod
+//    public static <T> T $$NullSafe(T o) {
+//        throw new RuntimeException("异常链路：" + o);
+//    }
 }
