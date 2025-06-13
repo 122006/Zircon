@@ -12,12 +12,11 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.TypeConversionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExObject;
 
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
-
-import static com.by122006.zircon.util.ZrPluginUtil.hasOptionalChaining;
 
 public class ZrHighlightInfoFilter implements HighlightInfoFilter {
     public static final Key<Set<String>> CACHE_IMPORT_EXMETHOD = Key.create("ZrHighlightInfoFilter_CACHE_IMPORT_EXMETHOD");
@@ -69,11 +68,44 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
             if (elementAt == null) return true;
             final PsiBinaryExpression expr = PsiTreeUtil.getParentOfType(elementAt, PsiBinaryExpression.class);
             if (expr == null) return true;
-            if (expr.getOperationTokenType() == JavaTokenType.OROR
+            final PsiJavaToken operationSign = expr.getOperationSign();
+            if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
                     && expr.getLOperand() != null && expr.getLOperand().getType() != null && ZrPluginUtil.hasOptionalChaining(expr.getLOperand())
                     && expr.getROperand() != null && expr.getROperand().getType() != null
                     && TypeConversionUtil.isAssignable(expr.getLOperand().getType(), expr.getROperand().getType())) {
                 return false;
+            }
+            return true;
+        }
+        if (highlightInfo.getDescription() != null) {
+            final String regex = JavaAnalysisBundle.message("dataflow.message.npe.method.invocation")
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll("#[a-zA-Z0-9]* ", "");
+            final String regex2 = JavaAnalysisBundle.message("dataflow.message.npe.method.invocation.sure")
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll("#[a-zA-Z0-9]* ", "");
+
+            if (highlightInfo.getDescription().matches(regex) || highlightInfo.getDescription().matches(regex2)) {
+                final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
+                if (elementAt == null) {
+                    return true;
+                }
+                final PsiElement parent = elementAt.getParent();
+                if (!(parent instanceof PsiReferenceExpression)) {
+                    return true;
+                }
+                final PsiElement prevSibling = elementAt.getPrevSibling().getPrevSibling();
+                if (!(prevSibling instanceof PsiJavaToken)) {
+                    return true;
+                }
+                if (((PsiJavaToken) prevSibling).getTokenType() != JavaTokenType.DOT) {
+                    return true;
+                }
+                if (prevSibling.getText().equals("?.")) {
+                    return false;
+                }
+
+                return true;
             }
         }
         return true;

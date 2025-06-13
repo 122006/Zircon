@@ -63,7 +63,7 @@ public class TestOptionalChaining {
                 () -> (v.returnThis2())?.returnThis(),
                 () -> (v?.returnThis2())?.returnThis());
         checkMethodInvokes(
-                () -> (v?.returnThis()?.nullObj?.returnThis2() || v).returnThis(),
+                () -> (v?.returnThis()?.nullObj?.returnThis2() ?: v).returnThis(),
                 () -> {
                     v.returnThis();
                     return v.returnThis();
@@ -111,12 +111,38 @@ public class TestOptionalChaining {
         v?.returnNull();
 //
 //
-        if ((nullV?.returnNull()?.return_int() || 12) == 12) {
+
+        if ((nullV?.returnNull()?.return_int() ?: 12) == 12) {
             v.returnThis();
         } else {
             throw new RuntimeException();
         }
-//
+        try {
+            if ((nullV?.returnNull()?.return_int()) == 12) {
+                v.returnThis();
+            }
+            throw new RuntimeException("对于可选链最终结果类型为基础类型时，不满足时会抛出空指针异常。如果为抛出则错误");
+        } catch (NullPointerException e) {
+            //可选链默认可能返回null。对于基本类型会扩展为包装器类型。所以在后续转化时发生拆箱动作时会空指针异常
+        } catch (RuntimeException e) {
+            throw new RuntimeException(e);
+        }
+        if ((nullV?.returnNull()?.return_int()) == Integer.valueOf(12)) {
+            //如果作为非基本类型使用则没问题
+        }
+        if ((nullV?.returnNull()?.return_long() ?: 12L) == 12) {
+            v.returnThis();
+        }
+        try {
+            if ((nullV?.returnNull()?.return_long()) == 12) {
+                v.returnThis();
+            }
+            throw new RuntimeException("long基础类型同理");
+        } catch (NullPointerException e) {
+        } catch (RuntimeException e) {
+            throw new RuntimeException(e);
+        }
+
         Supplier<TestChildClass> re = v?.getTestImplClass();
         re.get();
 
@@ -148,7 +174,10 @@ public class TestOptionalChaining {
                 () -> data.find(a -> a.length() == 0)?.length()
                 , () -> null);
         checkMethodInvokes(
-                () -> data.find(a -> a.length() == 0)?.length() || 4
+                () -> TestChildClass.nullStaticObj ?: classVar
+                , () -> classVar);
+        checkMethodInvokes(
+                () -> data.find(a -> a.length() == 0)?.length() ?: 4
                 , () -> 4);
         checkMethodInvokes(
                 () -> classNullVar?.obj = classVar.returnThis()
@@ -174,12 +203,12 @@ public class TestOptionalChaining {
                 });
         checkMethodInvokes(
                 () -> {
-                    return classNullVar?.obj = (classNullVar?.returnThis() || classVar);
+                    return classNullVar?.obj = (classNullVar?.returnThis() ?: classVar);
                 }
                 , () -> classVar);
         checkMethodInvokes(
                 () -> {
-                    classNullVar?.obj = (classNullVar?.returnThis() || classVar);
+                    classNullVar?.obj = (classNullVar?.returnThis() ?: classVar);
                 }
                 , () -> {
                 });
@@ -197,15 +226,15 @@ public class TestOptionalChaining {
         checkMethodInvokes(
                 () -> {
                     TestChildClass[] array = new TestChildClass[1];
-                    return array?.get(0) || new TestChildClass();
+                    return array?.get(0) ?: classVar;
                 }
                 , () -> {
-                    return null;
+                    return classVar;
                 });
         checkMethodInvokes(
                 () -> {
                     TestChildClass[] array = null;
-                    return array?.get(0) || testChildClass;
+                    return array?.get(0) ?: testChildClass;
                 }
                 , () -> {
                     return testChildClass;
@@ -300,6 +329,11 @@ public class TestOptionalChaining {
         public int return_int() {
             TestExMethod.methodNames.add("return_int");
             return 1;
+        }
+
+        public long return_long() {
+            TestExMethod.methodNames.add("return_long");
+            return 1L;
         }
 
         public void invoke() {

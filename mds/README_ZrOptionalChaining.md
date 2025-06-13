@@ -1,4 +1,4 @@
-### 什么是拓展方法
+### 什么是可选链
 
 
 ### 是否会重复触发左侧结果值？
@@ -16,6 +16,11 @@
 >     eg: \
 >  1. `classA.var1?.var2=action().getResult();`=>`Object obj=classA.var1;if (obj!=null){obj.var2=action().getResult();}`
 >  2. `String.valueOf(classA.var1?.var2=action().getResult())`=>`String.valueOf(Object obj=classA.var1;obj!=null?obj.var2=action().getResult():action().getResult())`
+
+### 默认值
+1. 该功能同时重写了`||`操作符，如果该二元操作符左侧表达式使用了可选运算符，该二元操作符的右侧表达式将作为左侧表达式的默认值
+2. 与`elvis`表达式不同，操作符深度绑定该功能，但是如果最后方法返回值为null、仍然链路会返回null、而不是传入的默认值
+
 
 ### 和拓展方法的组合使用
 

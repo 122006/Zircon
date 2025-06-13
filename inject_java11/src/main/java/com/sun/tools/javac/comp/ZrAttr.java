@@ -65,10 +65,7 @@ public class ZrAttr extends Attr {
         try {
             super.visitVarDef(that);
         } catch (NeedReplaceLambda needReplaceLambda) {
-            JCTree.JCExpression initializer = that.getInitializer();
-            while (initializer instanceof JCTree.JCParens) {
-                initializer = ((JCTree.JCParens) initializer).getExpression();
-            }
+            JCTree.JCExpression initializer = TreeInfo.skipParens(that.getInitializer());
             if (Objects.equals(initializer.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                 that.init = needReplaceLambda.bestSoFar;
             }
@@ -106,14 +103,6 @@ public class ZrAttr extends Attr {
 
     JCTree.JCExpression treeTranslatorExpressionWithReturnType(JCTree.JCExpression tree) {
         if (tree instanceof JCTree.JCBinary) {
-            if (tree.getTag() == JCTree.Tag.OR) {
-                final JCTree.JCExpression lhs = ((JCTree.JCBinary) tree).lhs;
-                final JCTree.JCExpression rhs = ((JCTree.JCBinary) tree).rhs;
-                if (checkMethodInvocationIsOptionalChaining(lhs)) {
-                    final JCTree.JCExpression elseExpr = checkMethodInvocationIsOptionalChaining(rhs) ? changeOptionalChainingExpression2Expression(rhs) : rhs;
-                    return changeOptionalChainingExpression2Expression(lhs, (e) -> e, elseExpr);
-                }
-            }
         } else if (tree instanceof JCTree.JCAssign) {
             final JCTree.JCExpression variable = ((JCTree.JCAssign) tree).getVariable();
             if (checkMethodInvocationIsOptionalChaining(variable)) {
@@ -121,6 +110,23 @@ public class ZrAttr extends Attr {
                 final JCTree.JCExpression expression = ((JCTree.JCAssign) tree).getExpression();
                 final JCTree.JCExpression elseExpr = checkMethodInvocationIsOptionalChaining(expression) ? changeOptionalChainingExpression2Expression(expression) : expression;
                 return changeOptionalChainingExpression2Expression(variable, e -> make.Assign(e, elseExpr), elseExpr);
+            }
+        } else if (tree instanceof JCTree.JCConditional) {
+            final JCTree.JCExpression trueExpression = ((JCTree.JCConditional) tree).getTrueExpression();
+            if (trueExpression instanceof JCTree.JCFieldAccess) {
+                if (((JCTree.JCFieldAccess) trueExpression).name.contentEquals("$$elvisExpr")) {
+                    make.at(tree);
+                    final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                    final JCTree.JCFieldAccess $$elvisExpr = make.Select(make.QualIdent(biopClass), names.fromString("$$elvisExpr"));
+                    final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
+                    JCTree.JCExpression condition = ((JCTree.JCConditional) tree).getCondition();
+                    JCTree.JCExpression falseExpression = ((JCTree.JCConditional) tree).getFalseExpression();
+                    if (checkMethodInvocationIsOptionalChaining(condition)) {
+                        condition = changeOptionalChainingExpression2Expression(condition, (e) -> e, falseExpression);
+                    }
+                    final JCTree.JCExpression apply = make.Apply(List.nil(), $$elvisExpr, List.of(condition.setPos(tree.pos + 1), falseExpression.setPos(tree.pos + 2))).setPos(tree.pos);
+                    return apply;
+                }
             }
         }
         return tree;
@@ -284,7 +290,7 @@ public class ZrAttr extends Attr {
                 super.visitSelect(tree);
             }
         }.scan(expr);
-        if (expr instanceof JCTree.JCParens) expr = ((JCTree.JCParens) expr).expr;
+        expr = TreeInfo.skipParens(expr);
 
         return expr;
     }
@@ -330,10 +336,7 @@ public class ZrAttr extends Attr {
         } catch (NeedReplaceLambda needReplaceLambda) {
             List<JCTree.JCExpression> newList = List.nil();
             for (int i = 0; i < that.args.size(); i++) {
-                JCTree.JCExpression argument = that.args.get(i);
-                while (argument instanceof JCTree.JCParens) {
-                    argument = ((JCTree.JCParens) argument).getExpression();
-                }
+                JCTree.JCExpression argument = TreeInfo.skipParens(that.args.get(i));
                 if (Objects.equals(argument.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                     newList = newList.append(needReplaceLambda.bestSoFar);
                 } else {

@@ -25,13 +25,14 @@ import java.util.Map;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class ZrJavaLexer extends LexerBase {
-    private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
+    private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class .getName());
 
     static {
         try {
             //强制设置)和.之间不含空格
             Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -181,6 +182,10 @@ public final class ZrJavaLexer extends LexerBase {
             case '?':
                 if (charAt(myBufferIndex + 1) == '.' && ((charAt(myBufferIndex + 2) < '0') || (charAt(myBufferIndex + 2) > '9'))) {
                     myTokenType = JavaTokenType.DOT;
+                    myTokenEndOffset = myBufferIndex + 2;
+//                    flexLocateToken();
+                } else if (charAt(myBufferIndex + 1) == ':') {
+                    myTokenType = JavaTokenType.OROR;
                     myTokenEndOffset = myBufferIndex + 2;
 //                    flexLocateToken();
                 } else {

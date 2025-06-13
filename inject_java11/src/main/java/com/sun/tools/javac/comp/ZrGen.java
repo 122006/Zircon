@@ -10,8 +10,10 @@ import com.sun.tools.javac.jvm.StringConcat;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic;
+import com.sun.tools.javac.util.Names;
 
 import java.lang.reflect.Method;
 
@@ -22,6 +24,8 @@ public class ZrGen extends Gen {
     private final Context context;
     private final Types types;
     final Symtab syms;
+    private Names names;
+    private TreeMaker make;
 
 
     protected ZrGen(Context context) {
@@ -29,6 +33,9 @@ public class ZrGen extends Gen {
         this.context = context;
         types = Types.instance(context);
         syms = Symtab.instance(context);
+        make = TreeMaker.instance(context);
+        names = Names.instance(context);
+
 
     }
 
@@ -106,6 +113,26 @@ public class ZrGen extends Gen {
                 if (((JCTree.JCFieldAccess) tree.meth).name.contentEquals("$$wrap")) {
                     final JCTree.JCExpression head = tree.getArguments().get(0);
                     loadItem(genExpr(head, head.type));
+                    updateResult();
+                    return;
+                }
+                if (((JCTree.JCFieldAccess) tree.meth).name.contentEquals("$$elvisExpr")) {
+                    final JCTree.JCExpression second = tree.getArguments().get(1);
+                    final JCTree.JCExpression head = tree.getArguments().get(0);
+                    //模拟三元
+                    Code code = getCode();
+                    code.statBegin(head.pos);
+                    loadItem(genExpr(head, head.type));
+                    code.emitop0(dup);
+                    Code.Chain elseChain = code.branch(if_acmp_null);
+                    Code.Chain thenExit = code.branch(goto_);
+                    {
+                        code.resolve(elseChain);
+                        code.statBegin(second.pos);
+                        code.emitop0(pop);
+                        loadItem(genExpr(second, second.type));
+                    }
+                    code.resolve(thenExit);
                     updateResult();
                     return;
                 }

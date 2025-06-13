@@ -2,6 +2,8 @@ package zircon;
 
 @SuppressWarnings("unchecked")
 public class BiOp {
+    public static Object $$elvisExpr;
+
     public static void sInvoke(Object obj, Void cName) {
     }
 
@@ -21,6 +23,10 @@ public class BiOp {
     //危险(该方法及参数会被忽视。请一定不要直接调用该方法)
     public static <T> T $$ignore(T t) {
         return t;
+    }
+
+    public static <T, T2 extends T> T $$elvisExpr(T t, T2 t2) {
+        return t2;
     }
 
     //危险(该方法会前置补充dup指令。请一定不要直接调用该方法)
