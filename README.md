@@ -23,7 +23,7 @@
 
 ![](others/exmethod_show4.gif)
 
-### 2. 可选链
+### 2. 可选链 <kbd>_v3.3.0预览支持_</kbd>
 
 `String text=XXX.returnNull()?.getText(); //不会抛出空指针异常，而是返回null`
 
@@ -33,11 +33,9 @@
 >
 > 在编程中，“短路”是指当沿着正在访问的属性或方法链遇到null值时，表达式的评估会立即停止的行为。与继续评估表达式不同，结果会立即设置为null，并跳过任何后续的属性或方法访问。
 >
-> 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。
->
-> 特别的，对于<kbd>单赋值语句</kbd>，链式不满足时直接跳过该语句执行
+> 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。 特别的，对于<kbd>单赋值语句</kbd>，链式不满足时直接跳过该语句执行
 
-### 3. `elvis`表达式
+### 3. `elvis`表达式 <kbd>_v3.3.0预览支持_</kbd>
 
 `String text= xxxx.returnNull() ?: "默认值"; //简单使用`
 
@@ -63,6 +61,8 @@
 #### [内插模板字符串（点击跳转）](mds/README_ZrString.md)
 
 #### [全局拓展方法（点击跳转）](mds/README_ZrExMethod.md)
+
+#### [可选链 & `elvis`表达式（点击跳转）](mds/README_ZrOptionalChaining.md)
 
 > 如何定义一个拓展方法？[
 *快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)

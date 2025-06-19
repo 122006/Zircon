@@ -228,14 +228,15 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             if (is == null) {
                 throw new RuntimeException("dismiss class:  " + claz + ", in path:" + path);
             }
-            byte[] bytes = new byte[is.available()];
+            final int available = is.available();
+            byte[] bytes = new byte[available];
             is.read(bytes);
             Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
                     String.class, byte[].class, int.class, int.class});
             setAccessibleTrue(m);
-            return (Class<T>) m.invoke(outcl, claz, bytes, 0, bytes.length);
+            return (Class<T>) m.invoke(outcl, claz, bytes, 0, available);
         } catch (Exception e) {
-            throw new Exception("Zircon编译错误，可能是使用了无法支持的java编译器", e);
+            throw new Exception("Zircon加载错误。运行环境不匹配或内部错误", e);
         }
     }
     //</editor-fold>

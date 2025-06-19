@@ -20,9 +20,12 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
 
     @Override
     public void startTask(Context context, JavaCompiler compiler, ClassLoader pcl, ClassLoader classLoader) throws Exception {
-        if (!javaVersionUpper(11))
+        if (!javaVersionUpper(11)) {
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolveEx", pcl, classLoader);
-
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx$ChangeOptionalChainingExpression2Expression", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx", pcl, classLoader);
+            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx$1", pcl, classLoader);
+        }
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod$MethodInfo", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod$CompareEnv", pcl, classLoader);
@@ -50,7 +53,7 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         getInstance(ZrResolve, context);
 
 
-        if (javaVersionUpper(11)) try {
+        try {
             final Class<?> ZrGen = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrGen", pcl, classLoader);
             getInstance(ZrGen, context);
         } catch (Exception e) {

@@ -1,11 +1,14 @@
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Position;
 
 import java.lang.reflect.Method;
 import java.nio.CharBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.sun.tools.javac.util.LayoutCharacters.FF;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
@@ -23,8 +26,22 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     int groupStartIndex, groupEndIndex;
+    Tokens.Token[] appendTokens = null;
 
     public Tokens.Token readToken() {
+        if (appendTokens != null) {
+            if (appendTokens.length > 1) {
+                final Tokens.Token appendToken = appendTokens[0];
+                Tokens.Token[] newTokens = new Tokens.Token[appendTokens.length - 1];
+                System.arraycopy(appendTokens, 1, newTokens, 0, newTokens.length);
+                appendTokens = newTokens;
+                return appendToken;
+            } else if (appendTokens.length == 1) {
+                final Tokens.Token appendToken = appendTokens[0];
+                appendTokens = null;
+                return appendToken;
+            }
+        }
         try {
             int bp = reader.bp;
             boolean outLog = items == null;
@@ -98,12 +115,12 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             for (String prefix : getPrefixes()) {
                 final int length = prefix.length();
                 int endIndex = startIndex + length;
-                if (startIndex >= reader.buflen - length) return super.readToken();
+                if (startIndex >= reader.buflen - length) return superReadToken();
                 if (charAt(endIndex) == '"' && subChars(startIndex, endIndex).equals(prefix)) {
                     usePrefix = prefix;
                 }
             }
-            if (usePrefix == null) return super.readToken();
+            if (usePrefix == null) return superReadToken();
             Formatter formatter = null;
             for (Formatter f : getAllFormatters()) {
                 if (f.prefix().equals(usePrefix)) {
@@ -151,7 +168,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 }
                 return handler();
             } else {
-                return super.readToken();
+                return superReadToken();
             }
         }
         Tokens.Token token = nowItem.token;
@@ -163,6 +180,54 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             reIndex(nowItem.mappingStartIndex + groupStartIndex);
         }
         return token;
+    }
+
+    private Tokens.Token superReadToken() {
+        switch (reader.ch) {
+            case ' ': // (Spec 3.6)
+            case '\t': // (Spec 3.6)
+            case FF: // (Spec 3.6)
+                do {
+                    reader.scanChar();
+                } while (reader.ch == ' ' || reader.ch == '\t' || reader.ch == FF);
+        }
+        int pos = reader.bp;
+        if (reader.ch == '?') {
+            if (charAt(pos + 1) == '.' && (charAt(pos + 2) < '0' || charAt(pos + 2) > '9')) {
+                Name name = fac.names.fromString("$$NullSafe");
+                Tokens.TokenKind tk = fac.tokens.lookupKind(name);
+                Tokens.NamedToken stringToken = new Tokens.NamedToken(tk, pos, pos, name, null);
+                appendTokens = new Tokens.Token[]{stringToken
+                        , new Tokens.Token(Tokens.TokenKind.LPAREN, pos, pos, null)
+                        , new Tokens.Token(Tokens.TokenKind.RPAREN, pos, pos, null)};
+                reader.scanChar();
+                return new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null);
+            }
+        }
+        if (reader.ch == '?') {
+            if (charAt(pos + 1) == ':') {
+
+                Name name0 = fac.names.fromString("zircon");
+                Tokens.TokenKind tk0 = fac.tokens.lookupKind(name0);
+                Tokens.NamedToken token0 = new Tokens.NamedToken(tk0, pos, pos, name0, null);
+                Name name1 = fac.names.fromString("BiOp");
+                Tokens.TokenKind tk1 = fac.tokens.lookupKind(name1);
+                Tokens.NamedToken token1 = new Tokens.NamedToken(tk1, pos, pos, name1, null);
+                Name name2 = fac.names.fromString("$$elvisExpr");
+                Tokens.TokenKind tk2 = fac.tokens.lookupKind(name1);
+                Tokens.NamedToken token2 = new Tokens.NamedToken(tk2, pos, pos, name2, null);
+                appendTokens = new Tokens.Token[]{
+                        token0, new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null),
+                        token1, new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null),
+                        token2,
+                        new Tokens.Token(Tokens.TokenKind.COLON, pos + 1, pos + 1, null)};
+                reader.scanChar();
+                reader.scanChar();
+                return new Tokens.Token(Tokens.TokenKind.QUES, pos, pos, null);
+            }
+        }
+
+        return super.readToken();
     }
 
 

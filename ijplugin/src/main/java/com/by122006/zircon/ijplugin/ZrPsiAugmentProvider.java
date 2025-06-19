@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ZrPsiAugmentProvider extends PsiAugmentProvider {
-    private static final Logger LOG = Logger.getInstance(ZrPsiAugmentProvider.class .getName());
+    private static final Logger LOG = Logger.getInstance(ZrPsiAugmentProvider.class.getName());
 
 
     public static class CacheMethodInfo {
@@ -63,10 +63,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
         return ProgressManager.getInstance().runProcess(() -> {
             try {
-                final String qualifiedName = ExMethod.class .getName();
+                final String qualifiedName = ExMethod.class.getName();
                 GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
                 final PsiClassType javaLangObject = PsiClassType.getTypeByName("java.lang.Object", module.getProject(), GlobalSearchScope.allScope(module.getProject()));
-                final List<PsiMethod> distinctMethods = JavaAnnotationIndex.getInstance().get(ExMethod.class .getSimpleName(), module.getProject(), moduleScope).copy2List().map(element -> PsiTreeUtil.getParentOfType(element, PsiMethod.class)).filter(Objects::nonNull).distinct();
+                final List<PsiMethod> distinctMethods = JavaAnnotationIndex.getInstance().get(ExMethod.class.getSimpleName(), module.getProject(), moduleScope).copy2List().map(element -> PsiTreeUtil.getParentOfType(element, PsiMethod.class)).filter(Objects::nonNull).distinct();
                 final List<CacheMethodInfo> collect = distinctMethods.filter(PsiElement::isValid).map(method -> {
                     final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
                     if (annotation == null) return null;
@@ -138,7 +138,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                             cacheMethodInfo.targetType = referencedTypes.length == 0 ? List.of(javaLangObject) : Arrays.asList(referencedTypes);
                         }
                     }
-                    final PsiAnnotation ideAnnotation = method.getAnnotation(ExMethodIDE.class .getName());
+                    final PsiAnnotation ideAnnotation = method.getAnnotation(ExMethodIDE.class.getName());
                     if (ideAnnotation != null) {
                         PsiAnnotationMemberValue shouldInvokeDirectly = ideAnnotation.findDeclaredAttributeValue("shouldInvokeDirectly");
                         if (shouldInvokeDirectly != null) {

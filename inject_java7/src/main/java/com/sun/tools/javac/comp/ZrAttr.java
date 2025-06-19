@@ -1,33 +1,27 @@
 package com.sun.tools.javac.comp;
 
-import static com.sun.tools.javac.code.TypeTag.VOID;
-
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.code.Attribute;
-import com.sun.tools.javac.code.Kinds;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.TypeAnnotations;
-import com.sun.tools.javac.code.TypeTag;
+import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.ListBuffer;
-import com.sun.tools.javac.util.Name;
+import com.sun.tools.javac.util.*;
 
 import java.util.Objects;
-import java.util.Optional;
+
+import static com.sun.tools.javac.code.TypeTag.VOID;
 
 public class ZrAttr extends Attr {
     private final Context context;
+    ZrAttrEx zrAttrEx;
 
     protected ZrAttr(Context context) {
         super(context);
         this.context = context;
+        this.zrAttrEx = new ZrAttrEx(this);
     }
 
     public static ZrAttr instance(Context context) {
@@ -45,17 +39,27 @@ public class ZrAttr extends Attr {
         return zrAttr;
     }
 
-    Symbol.ClassSymbol biopClass = null;
-
     @Override
+    <T extends JCTree> void attribStats(List<T> trees, Env<AttrContext> env) {
+
+        final Pair<Boolean, List<JCTree>> booleanListPair = zrAttrEx.treeTranslator(trees, env);
+        if (booleanListPair.fst) {
+            if (env.tree instanceof JCTree.JCBlock) {
+//                argumentAttr.argumentTypeCache.clear();
+                ((JCTree.JCBlock) env.tree).stats = zrAttrEx.listMap(booleanListPair.snd, a -> (JCTree.JCStatement) a);
+                super.attribStats(((JCTree.JCBlock) env.tree).stats, env);
+
+                return;
+            }
+        }
+        super.attribStats(trees, env);
+    }
+
     public void visitVarDef(JCTree.JCVariableDecl that) {
         try {
             super.visitVarDef(that);
         } catch (NeedReplaceLambda needReplaceLambda) {
-            JCTree.JCExpression initializer = that.getInitializer();
-            while (initializer instanceof JCTree.JCParens) {
-                initializer = ((JCTree.JCParens) initializer).getExpression();
-            }
+            JCTree.JCExpression initializer = TreeInfo.skipParens(that.getInitializer());
             if (Objects.equals(initializer.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                 that.init = needReplaceLambda.bestSoFar;
             }
@@ -63,15 +67,101 @@ public class ZrAttr extends Attr {
         }
     }
 
-
     @Override
     public void visitApply(JCTree.JCMethodInvocation that) {
         Name methName = TreeInfo.name(that.meth);
         boolean isConstructorCall = methName == this.names._this || methName == this.names._super;
         if (isConstructorCall) {
             super.visitApply(that);
-        } else
+        } else {
             visitNoConstructorApply(that);
+        }
+    }
+
+
+    @Override
+    Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
+
+        if (tree instanceof JCTree.JCVariableDecl) {
+            ((JCTree.JCVariableDecl) tree).init = zrAttrEx.treeTranslator(((JCTree.JCVariableDecl) tree).init);
+        } else if (tree instanceof JCTree.JCBinary) {
+            ((JCTree.JCBinary) tree).lhs = zrAttrEx.treeTranslator(((JCTree.JCBinary) tree).lhs);
+            ((JCTree.JCBinary) tree).rhs = zrAttrEx.treeTranslator(((JCTree.JCBinary) tree).rhs);
+        } else if (tree instanceof JCTree.JCParens) {
+            ((JCTree.JCParens) tree).expr = zrAttrEx.treeTranslator(((JCTree.JCParens) tree).expr);
+        } else if (tree instanceof JCTree.JCIf) {
+            ((JCTree.JCIf) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCIf) tree).cond);
+        } else if (tree instanceof JCTree.JCSwitch) {
+            ((JCTree.JCSwitch) tree).selector = zrAttrEx.treeTranslator(((JCTree.JCSwitch) tree).selector);
+        } else if (tree instanceof JCTree.JCDoWhileLoop) {
+            ((JCTree.JCDoWhileLoop) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCDoWhileLoop) tree).cond);
+        } else if (tree instanceof JCTree.JCConditional) {
+            ((JCTree.JCConditional) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).cond);
+            ((JCTree.JCConditional) tree).truepart = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).truepart);
+            ((JCTree.JCConditional) tree).falsepart = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).falsepart);
+        } else if (tree instanceof JCTree.JCAssert) {
+            ((JCTree.JCAssert) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCAssert) tree).cond);
+        } else if (tree instanceof JCTree.JCReturn) {
+
+            final JCTree.JCExpression expr = zrAttrEx.treeTranslator(((JCTree.JCReturn) tree).expr);
+
+            ((JCTree.JCReturn) tree).expr = expr;
+        } else if (tree instanceof JCTree.JCLambda) {
+            JCTree body = ((JCTree.JCLambda) tree).body;
+            final LambdaExpressionTree.BodyKind bodyKind = ((JCTree.JCLambda) tree).getBodyKind();
+
+
+            if (bodyKind == LambdaExpressionTree.BodyKind.STATEMENT) {
+                final Pair<Boolean, List<JCTree>> pair = zrAttrEx.treeTranslator(((JCTree.JCBlock) body).stats, env);
+                if (pair.fst) {
+                    ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, zrAttrEx.listMap(pair.snd, a -> (JCTree.JCStatement) a));
+
+                }
+            } else if (bodyKind == LambdaExpressionTree.BodyKind.EXPRESSION) {
+                final JCTree.JCExpression expression = (JCTree.JCExpression) body;
+                if (zrAttrEx.findChainHasNullSafeFlag(expression, false)) {
+                    boolean returnVoid = false;
+                    if (expression instanceof JCTree.JCFieldAccess) {
+                        returnVoid = false;
+                    } else if (expression instanceof JCTree.JCMethodInvocation) {
+                        final JCTree.JCExpression jcExpression = zrAttrEx.cleanExprNullSafeFlag(expression);
+//                            jcExpression.accept(this);
+                        final Type type = zrAttrEx.getType(env, jcExpression);
+
+
+                        returnVoid = type == syms.voidType;
+                    }
+                    if (returnVoid) {
+                        JCTree.JCStatement expressionStatement = make.at(tree.pos).Exec(expression);
+                        final Pair<Boolean, List<JCTree>> pair = zrAttrEx.treeTranslator(List.of(expressionStatement), env);
+                        if (pair.fst) {
+                            ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, zrAttrEx.listMap(pair.snd, a -> (JCTree.JCStatement) a));
+                        }
+                    } else {
+                        ((JCTree.JCLambda) tree).body = zrAttrEx.treeTranslator(expression);
+                    }
+                } else {
+                    final JCTree.JCExpression jcExpression = zrAttrEx.treeTranslatorExpressionWithReturnType(expression);
+                    if (jcExpression != expression) {
+                        ((JCTree.JCLambda) tree).body = jcExpression;
+                    }
+                }
+            }
+
+        }
+
+        return super.attribTree(tree, env, resultInfo);
+    }
+
+
+    @Override
+    public void visitLambda(JCTree.JCLambda that) {
+        super.visitLambda(that);
+    }
+
+    @Override
+    public void visitTypeTest(JCTree.JCInstanceOf tree) {
+        super.visitTypeTest(tree);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -85,10 +175,7 @@ public class ZrAttr extends Attr {
         } catch (NeedReplaceLambda needReplaceLambda) {
             List<JCTree.JCExpression> newList = List.nil();
             for (int i = 0; i < that.args.size(); i++) {
-                JCTree.JCExpression argument = that.args.get(i);
-                while (argument instanceof JCTree.JCParens) {
-                    argument = ((JCTree.JCParens) argument).getExpression();
-                }
+                JCTree.JCExpression argument = TreeInfo.skipParens(that.args.get(i));
                 if (Objects.equals(argument.getStartPosition(), needReplaceLambda.memberReference.getStartPosition())) {
                     newList = newList.append(needReplaceLambda.bestSoFar);
                 } else {
@@ -167,7 +254,6 @@ public class ZrAttr extends Attr {
                     }
                 }
             }
-//            System.out.println("==============\n" + oldTree + "=>\n" + that);
             encl = this.attribTree(that.meth, localEnv, new ResultInfo(kind, methodTemplate, this.resultInfo.checkContext));
         }
 
@@ -178,8 +264,11 @@ public class ZrAttr extends Attr {
         Type qualifier = that.meth.hasTag(JCTree.Tag.SELECT) ? ((JCTree.JCFieldAccess) that.meth).selected.type : this.env.enclClass.sym.type;
         restype = this.adjustMethodReturnType(qualifier, methName, argtypes, restype);
         this.chk.checkRefTypes(that.typeargs, typeargtypes);
-        this.result = this.check(that, this.types.capture(restype), Kinds.VAL, this.resultInfo);
+        Type capturedRes = this.resultInfo.checkContext.inferenceContext().cachedCapture(that, restype, true);
+        this.result = this.check(that, capturedRes, Kinds.VAL, this.resultInfo);
         this.chk.validate(that.typeargs, localEnv);
 
     }
+
+
 }
