@@ -3,6 +3,7 @@ package test;
 import org.junit.jupiter.api.Test;
 import org.springframework.lang.Nullable;
 import test.TestExMethod;
+import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
 
@@ -127,8 +128,13 @@ public class TestOptionalChaining {
         } catch (RuntimeException e) {
             throw new RuntimeException(e);
         }
-        if ((nullV?.returnNull()?.return_int()) == Integer.valueOf(12)) {
+        if (nullV?.returnNull()?.return_int() == Integer.valueOf(12)) {
             //如果作为非基本类型使用则没问题
+            throw new RuntimeException();
+        }
+        if (nullV?.returnNull()?.return_int() != (Integer) null) {
+            //同时可以与(Integer) null比较
+            throw new RuntimeException();
         }
         if ((nullV?.returnNull()?.return_long() ?: 12L) == 12) {
             v.returnThis();
@@ -343,8 +349,9 @@ public class TestOptionalChaining {
     }
 
 
-//    @ExMethod
-//    public static <T> T $$NullSafe(T o) {
+    @ExMethod
+    public static <T> T $$NullSafe(T o) {
 //        throw new RuntimeException("异常链路：" + o);
-//    }
+        return o;
+    }
 }

@@ -1,5 +1,6 @@
 package com.sun.tools.javac.parser;
 
+import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Position;
 
 import java.lang.reflect.Field;
@@ -7,6 +8,8 @@ import java.lang.reflect.Method;
 import java.nio.CharBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.sun.tools.javac.util.LayoutCharacters.FF;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
@@ -34,7 +37,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             return assignableFrom;
         }
 
-        assignableFrom = UnicodeReader.class.isAssignableFrom(JavaTokenizer.class);
+        assignableFrom = UnicodeReader.class .isAssignableFrom(JavaTokenizer.class);
         return assignableFrom;
     }
 
@@ -47,6 +50,19 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     public Tokens.Token readToken() {
+        if (appendTokens != null) {
+            if (appendTokens.length > 1) {
+                final Tokens.Token appendToken = appendTokens[0];
+                Tokens.Token[] newTokens = new Tokens.Token[appendTokens.length - 1];
+                System.arraycopy(appendTokens, 1, newTokens, 0, newTokens.length);
+                appendTokens = newTokens;
+                return appendToken;
+            } else if (appendTokens.length == 1) {
+                final Tokens.Token appendToken = appendTokens[0];
+                appendTokens = null;
+                return appendToken;
+            }
+        }
         try {
             int bp = getReaderBp();
             boolean outLog = items == null;
@@ -104,6 +120,8 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         return formatters = invoke.stream().map(Formatter.class::cast).collect(Collectors.toList());
     }
 
+    Tokens.Token[] appendTokens = null;
+
     private Tokens.Token handler() throws Exception {
         if (items == null || itemsIndex >= items.size()) {
             items = null;
@@ -117,13 +135,13 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             for (String prefix : getPrefixes()) {
                 final int length = prefix.length();
                 int endIndex = startIndex + length;
-                if (startIndex >= getReaderBuflen() - length) return super.readToken();
+                if (startIndex >= getReaderBuflen() - length) return superReadToken();
                 if (charAt(endIndex) == '"' && subChars(startIndex, endIndex).equals(prefix)) {
                     usePrefix = prefix;
                 }
             }
 
-            if (usePrefix == null) return super.readToken();
+            if (usePrefix == null) return superReadToken();
             Formatter formatter = null;
             for (Formatter f : getAllFormatters()) {
                 if (f.prefix().equals(usePrefix)) {
@@ -179,7 +197,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
                 return handler();
             } else {
-                return super.readToken();
+                return superReadToken();
             }
 
         }
@@ -193,6 +211,53 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             reIndex(nowItem.mappingStartIndex + groupStartIndex);
         }
         return token;
+    }
+
+    private Tokens.Token superReadToken() {
+        switch (getReaderCh()) {
+            case ' ': // (Spec 3.6)
+            case '\t': // (Spec 3.6)
+            case FF: // (Spec 3.6)
+                do {
+                    reIndex(getReaderBp() + 1);
+                } while (getReaderCh() == ' ' || getReaderCh() == '\t' || getReaderCh() == FF);
+        }
+        int pos = getReaderBp();
+        if (getReaderCh() == '?') {
+            if (charAt(pos + 1) == '.' && (charAt(pos + 2) < '0' || charAt(pos + 2) > '9')) {
+                Name name = fac.names.fromString("$$NullSafe");
+                Tokens.TokenKind tk = fac.tokens.lookupKind(name);
+                Tokens.NamedToken stringToken = new Tokens.NamedToken(tk, pos, pos, name, null);
+                appendTokens = new Tokens.Token[]{stringToken
+                        , new Tokens.Token(Tokens.TokenKind.LPAREN, pos, pos, null)
+                        , new Tokens.Token(Tokens.TokenKind.RPAREN, pos, pos, null)};
+                reIndex(getReaderBp() + 1);
+                return new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null);
+            }
+        }
+        if (getReaderCh() == '?') {
+            if (charAt(pos + 1) == ':') {
+
+                Name name0 = fac.names.fromString("zircon");
+                Tokens.TokenKind tk0 = fac.tokens.lookupKind(name0);
+                Tokens.NamedToken token0 = new Tokens.NamedToken(tk0, pos, pos, name0, null);
+                Name name1 = fac.names.fromString("BiOp");
+                Tokens.TokenKind tk1 = fac.tokens.lookupKind(name1);
+                Tokens.NamedToken token1 = new Tokens.NamedToken(tk1, pos, pos, name1, null);
+                Name name2 = fac.names.fromString("$$elvisExpr");
+                Tokens.TokenKind tk2 = fac.tokens.lookupKind(name1);
+                Tokens.NamedToken token2 = new Tokens.NamedToken(tk2, pos, pos, name2, null);
+                appendTokens = new Tokens.Token[]{
+                        token0, new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null),
+                        token1, new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null),
+                        token2,
+                        new Tokens.Token(Tokens.TokenKind.COLON, pos + 1, pos + 1, null)};
+                reIndex(getReaderBp() + 2);
+                return new Tokens.Token(Tokens.TokenKind.QUES, pos, pos, null);
+            }
+        }
+
+        return super.readToken();
     }
 
     private char getReaderCh() {
@@ -212,7 +277,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     private char[] getReaderBuf() {
         if (buffer != null) return buffer;
         try {
-            final Field bufferField = UnicodeReader.class.getDeclaredField("buffer");
+            final Field bufferField = UnicodeReader.class .getDeclaredField("buffer");
             bufferField.setAccessible(true);
             return (char[]) bufferField.get(this);
         } catch (NoSuchFieldException e) {
