@@ -12,6 +12,10 @@
 
 ## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
 
+*  **快速接入**: 在已有java项目使用，最快**2**行代码引入。
+*  **无缝衔接**: 所有新增语法和java8-23版本基础语法完全兼容，无需更换语言提升开发体验。
+*  **依赖安全**: 不依赖第三方库，且构建结果为正常jar文件，无依赖传染
+
 ----------------
 
 #### 已支持的语法特性：
@@ -62,11 +66,10 @@
 
 #### [全局拓展方法（点击跳转）](mds/README_ZrExMethod.md)
 
-#### [可选链 & `elvis`表达式（点击跳转）](mds/README_ZrOptionalChaining.md)
-
 > 如何定义一个拓展方法？[
 *快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
 
+#### [可选链 & `elvis`表达式（点击跳转）](mds/README_ZrOptionalChaining.md)
 ### 插件引入
 
 <details>
@@ -335,4 +338,4 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 > Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
 
-`implementation 'com.github.122006:ExMethodUtil:1.1.7'`
+`implementation 'com.github.122006:ExMethodUtil:1.1.8'`
