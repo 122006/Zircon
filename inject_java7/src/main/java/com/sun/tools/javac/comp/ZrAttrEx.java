@@ -309,11 +309,15 @@ public class ZrAttrEx {
         }
     }
 
-    public Symbol.ClassSymbol getBiopClass() {
-        final Symbol.ClassSymbol biopClass = syms.classes.get(names.fromString("zircon.BiOp"));
-        if (biopClass == null)
-            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
-        return biopClass;
+    private Symbol.ClassSymbol getBiopClass() {
+        final Symbol.PackageSymbol zircon = syms.packages.get(names.fromString("zircon"));
+        if (zircon == null)
+            throw new ZrUnSupportCodeError("编译时未找到zircon相关模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
+        final Iterable<Symbol> symbolsByName = zircon.members().getElementsByName(names.fromString("BiOp"));
+        for (Symbol symsClass : symbolsByName) {
+            return (Symbol.ClassSymbol) symsClass;
+        }
+        throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
     }
 
 

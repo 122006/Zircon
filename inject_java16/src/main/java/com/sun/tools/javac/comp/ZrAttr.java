@@ -133,10 +133,14 @@ public class ZrAttr extends Attr {
     }
 
     private Symbol.ClassSymbol getBiopClass() {
-        final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
-        if (biopClass == null)
-            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
-        return biopClass;
+        final Symbol.PackageSymbol zircon = syms.lookupPackage(syms.unnamedModule, names.fromString("zircon"));
+        if (zircon == null)
+            throw new ZrUnSupportCodeError("编译时未找到zircon相关模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
+        final Iterable<Symbol> symbolsByName = zircon.members().getSymbolsByName(names.fromString("BiOp"));
+        for (Symbol symsClass : symbolsByName) {
+            return (Symbol.ClassSymbol) symsClass;
+        }
+        throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
     }
 
     <T extends JCTree> Pair<Boolean, List<JCTree>> treeTranslator(List<T> trees, Env<AttrContext> env) {
