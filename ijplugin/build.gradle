@@ -1,7 +1,20 @@
+buildscript {
+    repositories {
+        maven {
+            url uri('../../repo')
+        }
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies{
+        classpath 'com.github.122006.Zircon:gradle:407841c0a6'
+    }
+}
+
 plugins {
     id 'java'
     id 'org.jetbrains.intellij.platform' version '2.5.0'
 }
+apply plugin: 'zircon'
 
 group 'com.by122006.zircon'
 version '4.3'
@@ -36,9 +49,6 @@ patchPluginXml {
     sinceBuild = "212.*"
     untilBuild = "251.*"
 }
-ext{
-    zirconVersion = '3.2.5'
-}
 dependencies {
 //    annotationProcessor 'com.github.122006.zircon:javac:3.2.3'
 //    implementation project(":base")
@@ -49,12 +59,11 @@ dependencies {
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation('com.github.122006:ExMethodUtil:1.1.7')
-    annotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
-    testAnnotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
-    implementation "com.github.122006.zircon:zircon:${zirconVersion}"
-    implementation "com.github.122006.zircon:base:${zirconVersion}"
-
+    implementation('com.github.122006:ExMethodUtil:1.1.8')
+//    annotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
+//    testAnnotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
+//    implementation "com.github.122006.zircon:zircon:${zirconVersion}"
+//    implementation "com.github.122006.zircon:base:407841c0a6"
 //            {
 //        exclude group: 'com.github.122006.zircon', module: 'zircon'
 //    }

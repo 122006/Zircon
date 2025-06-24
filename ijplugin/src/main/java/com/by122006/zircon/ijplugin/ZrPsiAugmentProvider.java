@@ -228,7 +228,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         return extensionMethod.targetType.stream().anyMatch(a -> a.isValid() && TypeConversionUtil.isAssignable(a, ownType));
                     };
                 } else {
-                    System.out.println("未知调用方类型" + (resolve == null ? null : resolve.getClass().getName()));
+                    System.out.println("未知调用方类型" + (resolve?.getClass().getName()));
                     ownType = null;
                     predicate = a -> true;
                 }

@@ -135,7 +135,7 @@ public class ZrAttr extends Attr {
     private Symbol.ClassSymbol getBiopClass() {
         final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
         if (biopClass == null)
-            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.zircon:zircon:${zirconVersion}\"]");
+            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
         return biopClass;
     }
 
