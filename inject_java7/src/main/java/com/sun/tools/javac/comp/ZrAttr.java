@@ -101,6 +101,9 @@ public class ZrAttr extends Attr {
             ((JCTree.JCConditional) tree).falsepart = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).falsepart);
         } else if (tree instanceof JCTree.JCAssert) {
             ((JCTree.JCAssert) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCAssert) tree).cond);
+        } else if (tree instanceof JCTree.JCArrayAccess) {
+            ((JCTree.JCArrayAccess) tree).index = zrAttrEx.treeTranslator(((JCTree.JCArrayAccess) tree).index);
+            ((JCTree.JCArrayAccess) tree).indexed = zrAttrEx.treeTranslator(((JCTree.JCArrayAccess) tree).indexed);
         } else if (tree instanceof JCTree.JCReturn) {
 
             final JCTree.JCExpression expr = zrAttrEx.treeTranslator(((JCTree.JCReturn) tree).expr);

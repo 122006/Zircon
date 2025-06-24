@@ -25,6 +25,8 @@ import java.util.function.Predicate;
 import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
 
 public class ZrPluginUtil {
+    static boolean lastEnablePlugin = false;
+
     public static synchronized boolean hasZrPlugin(PsiElement psiElement) {
         final Project project = psiElement.getProject();
         if (project.isDefault() || !project.isInitialized()) {
@@ -33,18 +35,30 @@ public class ZrPluginUtil {
         if (!ZirconSettings.getInstance().enableAll) {
             return false;
         }
-        ApplicationManager.getApplication().assertReadAccessAllowed();
-        // 获取当前模块
-        final PsiFile containingFile = psiElement.getContainingFile();
-        if (containingFile instanceof PsiCodeFragment) return false;
-        @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(containingFile);
-        if (module == null) return false;
-        // 获取模块的搜索范围
-        return CachedValuesManager.getManager(project).getCachedValue(module, () -> {
-            GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
-            PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
-            return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
-        }) != null;
+        long start = System.currentTimeMillis();
+        try {
+            ApplicationManager.getApplication().assertReadAccessAllowed();
+            // 获取当前模块
+            final PsiFile containingFile = psiElement.getContainingFile();
+            if (containingFile instanceof PsiCodeFragment) return false;
+            @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(containingFile);
+            if (module == null) return false;
+            // 获取模块的搜索范围
+            try {
+                return lastEnablePlugin = CachedValuesManager.getManager(project).getCachedValue(module, () -> {
+                    GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
+                    PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
+                    return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
+                }) != null;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return lastEnablePlugin;
+            }
+        } finally {
+            if (System.currentTimeMillis() - start > 100)
+                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start));
+
+        }
     }
 
     public static boolean isAssignableSite(PsiMethod method, PsiType psiType2) {
@@ -175,8 +189,13 @@ public class ZrPluginUtil {
                     ? (PsiReferenceExpression) element
                     : ((PsiMethodCallExpression) element).getMethodExpression();
             final @NotNull PsiElement[] children = methodExpression.getChildren();
+            if (children.length <= 1) return false;
+            final PsiElement firstElement = children.get(1);
+            if (firstElement == null) return false;
+            if (!(firstElement instanceof PsiJavaToken)) {
+                return false;
+            }
             final PsiJavaToken javaToken = (PsiJavaToken) children.get(1);
-            if (javaToken == null) return false;
             if (javaToken.getTokenType() == JavaTokenType.DOT) {
                 if (javaToken.getText().equals("?.")) {
                     return true;

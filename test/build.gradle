@@ -5,10 +5,8 @@ buildscript {
         }
         maven { url 'https://jitpack.io' }
     }
-    dependencies {
-//        classpath 'com.github.122006.Zircon:gradle:2.8t'
-    }
 }
+
 apply plugin: 'java'
 //apply plugin: 'zircon'
 
@@ -22,7 +20,6 @@ repositories {
     maven { url 'https://jitpack.io' }
     mavenCentral()
 }
-
 
 
 //sourceCompatibility = JavaVersion.VERSION_1_8
@@ -39,9 +36,7 @@ dependencies {
     implementation project(":zircon")
     annotationProcessor "org.projectlombok:lombok:1.18.20"
     compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation('com.github.122006:ExMethodUtil:1.1.7') {
-        exclude group: 'com.github.122006.zircon', module: 'zircon'
-    }
+    implementation('com.github.122006:ExMethodUtil:1.1.8')
     implementation 'com.alibaba:fastjson:1.1.72.android'
     implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'

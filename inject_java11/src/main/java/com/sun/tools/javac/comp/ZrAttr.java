@@ -116,7 +116,7 @@ public class ZrAttr extends Attr {
             if (trueExpression instanceof JCTree.JCFieldAccess) {
                 if (((JCTree.JCFieldAccess) trueExpression).name.contentEquals("$$elvisExpr")) {
                     make.at(tree);
-                    final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                    final Symbol.ClassSymbol biopClass = getBiopClass();
                     final JCTree.JCFieldAccess $$elvisExpr = make.Select(make.QualIdent(biopClass), names.fromString("$$elvisExpr"));
                     final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
                     JCTree.JCExpression condition = ((JCTree.JCConditional) tree).getCondition();
@@ -130,6 +130,13 @@ public class ZrAttr extends Attr {
             }
         }
         return tree;
+    }
+
+    private Symbol.ClassSymbol getBiopClass() {
+        final Symbol.ClassSymbol symsClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+        if (symsClass == null)
+            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.zircon:zircon:${zirconVersion}\"]");
+        return symsClass;
     }
 
     <T extends JCTree> Pair<Boolean, List<JCTree>> treeTranslator(List<T> trees, Env<AttrContext> env) {
@@ -206,6 +213,9 @@ public class ZrAttr extends Attr {
             ((JCTree.JCConditional) tree).cond = treeTranslator(((JCTree.JCConditional) tree).cond);
             ((JCTree.JCConditional) tree).truepart = treeTranslator(((JCTree.JCConditional) tree).truepart);
             ((JCTree.JCConditional) tree).falsepart = treeTranslator(((JCTree.JCConditional) tree).falsepart);
+        } else if (tree instanceof JCTree.JCArrayAccess) {
+            ((JCTree.JCArrayAccess) tree).index = treeTranslator(((JCTree.JCArrayAccess) tree).index);
+            ((JCTree.JCArrayAccess) tree).indexed = treeTranslator(((JCTree.JCArrayAccess) tree).indexed);
         } else if (tree instanceof JCTree.JCAssert) {
             ((JCTree.JCAssert) tree).cond = treeTranslator(((JCTree.JCAssert) tree).cond);
         } else if (tree instanceof JCTree.JCReturn) {
@@ -403,7 +413,7 @@ public class ZrAttr extends Attr {
                         if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(VOID)) {
                             throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", oldTree);
                         } else {
-                            final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                            final Symbol.ClassSymbol biopClass = getBiopClass();
                             final JCTree.JCFieldAccess and = make.Select(make.QualIdent(biopClass), names.fromString("sec"));
                             final JCTree.JCMethodInvocation copy = make.Apply(that.typeargs, that.meth, that.args);
                             that.typeargs = List.nil();
@@ -448,7 +458,7 @@ public class ZrAttr extends Attr {
         final JCTree.JCExpression jcExpression = changeOptionalChainingExpression2Expression(null, expr, null, expr, trueExpr, elseExpr, new ArrayList<>(), false, false);
         if (jcExpression instanceof JCTree.JCConditional && elseExpr.getKind() == TypeTag.BOT.getKindLiteral()) {
             //防止简化推断，或者使用的是基础类型，包裹
-            final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+            final Symbol.ClassSymbol biopClass = getBiopClass();
             final JCTree.JCFieldAccess wrapMethod = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
             ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS)));
         } else if (jcExpression instanceof JCTree.JCConditional) {
@@ -478,7 +488,7 @@ public class ZrAttr extends Attr {
                     final JCTree.JCLiteral nullLiteral = make.Literal(TypeTag.BOT, null);
                     hasSkip = true;
                     if (wrap) {
-                        final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                        final Symbol.ClassSymbol biopClass = getBiopClass();
                         final JCTree.JCFieldAccess dup = make.Select(make.QualIdent(biopClass), names.fromString("$$dup"));
                         final JCTree.JCFieldAccess ignore = make.Select(make.QualIdent(biopClass), names.fromString("$$ignore"));
 
@@ -523,7 +533,7 @@ public class ZrAttr extends Attr {
                         final JCTree.JCExpression ident = make.at(pos + 1).Ident(jcVariableDecl);
 
 
-                        final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                        final Symbol.ClassSymbol biopClass = getBiopClass();
                         final JCTree.JCFieldAccess useParam2WithParam1Type = make.Select(make.QualIdent(biopClass), names.fromString("$$useParam2WithParam1Type"));
                         final JCTree.JCMethodInvocation copy = make.Apply(List.nil(), useParam2WithParam1Type, List.of(cleanExprNullSafeFlag(lastExprLeft), ident));
                         ((JCTree.JCFieldAccess) meth).selected = copy;//a.b.c
@@ -600,7 +610,7 @@ public class ZrAttr extends Attr {
             final JCTree.JCVariableDecl variableDecl = varDecls.get(0);
             if (!(variableDecl.getInitializer() instanceof JCTree.JCConditional)) {
                 //防止flow自动内联
-                final Symbol.ClassSymbol biopClass = syms.getClass(syms.unnamedModule, names.fromString("zircon.BiOp"));
+                final Symbol.ClassSymbol biopClass = getBiopClass();
                 final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
                 variableDecl.init = make.Apply(List.nil(), wrap, List.of(variableDecl.getInitializer()));
             }

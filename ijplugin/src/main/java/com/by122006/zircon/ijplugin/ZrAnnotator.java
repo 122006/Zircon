@@ -95,11 +95,11 @@ public class ZrAnnotator implements Annotator {
                 final PsiMethod method = ((PsiMethodCallExpression) element).resolveMethod();
 
                 if (method instanceof ZrPsiExtensionMethod) {
-                    registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiExtensionMethod) method, holder);
+                    registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiExtensionMethod) method, holder, HighlightSeverity.ERROR);
                 } else if (method != null) {
                     final ZrPsiExtensionMethod zrPsiExtensionMethod = resolveCoverZrMethod(element, method);
                     if (zrPsiExtensionMethod == null) return;
-                    registerZrMethodUsage((PsiMethodCallExpression) element, zrPsiExtensionMethod, holder);
+                    registerZrMethodUsage((PsiMethodCallExpression) element, zrPsiExtensionMethod, holder, HighlightSeverity.WEAK_WARNING);
                 }
                 return;
             }
@@ -173,7 +173,7 @@ public class ZrAnnotator implements Annotator {
         return zrPsiExtensionMethod;
     }
 
-    private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
+    private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder, HighlightSeverity errLevel) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
                 .collect(Collectors.joining(" , "));
@@ -260,7 +260,7 @@ public class ZrAnnotator implements Annotator {
             if (qualifiedName == null) return;
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
-                holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getMethodExpression().getLastChild())
+                holder.newSilentAnnotation(errLevel).range(element.getMethodExpression().getLastChild())
                         .textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName)
                         .withFix(new IntentionAction() {
                             @Override

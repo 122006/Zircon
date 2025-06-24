@@ -76,7 +76,8 @@
                             serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl"
                             overrides="true"/>
         <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
-        <projectService serviceInterface="com.intellij.psi.impl.source.resolve.JavaResolveCache" serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaResolveCache" overrides="true"/>
+        <projectService serviceInterface="com.intellij.psi.impl.source.resolve.JavaResolveCache"
+                        serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaResolveCache" overrides="true"/>
         <inspection.basicVisitor class="com.by122006.zircon.ijplugin.ZrJavaElementVisitor"/>
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>.
@@ -110,5 +111,8 @@
                 id="ZrExMethodSettingsConfigurable"
                 displayName="Extension Method"/>
         <applicationService serviceImplementation="com.by122006.zircon.ijplugin.ZirconSettings"/>
+        <projectService serviceInterface="com.intellij.codeInsight.AutoPopupController"
+                        serviceImplementation="com.by122006.zircon.ijplugin.ZrAutoPopupController"
+                        overrides="true"/>
     </extensions>
 </idea-plugin>

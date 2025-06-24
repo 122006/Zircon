@@ -30,7 +30,7 @@ public final class ZrJavaLexer extends LexerBase {
     static {
         try {
             //强制设置)和.之间不含空格
-            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
+            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class .getStaticFieldValue("ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
 
         } catch (Exception e) {

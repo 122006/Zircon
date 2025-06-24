@@ -4,7 +4,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
 
-
 class ZrPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.tasks.withType(JavaCompile) { JavaCompile it ->
@@ -16,6 +15,18 @@ class ZrPlugin implements Plugin<Project> {
             }
         }
         var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.2.6";
+
+        def find = project.buildscript.configurations.classpath.dependencies
+                .find { it.group.equals("com.github.122006.Zircon") && it.name.equals("gradle") };
+        if (find != null) {
+            version = find.version;
+        } else {
+            find = project.rootProject.buildscript.configurations.classpath.dependencies
+                    .find { it.group.equals("com.github.122006.Zircon") && it.name.equals("gradle") };
+            if (find != null) {
+                version = find.version;
+            }
+        }
         project.dependencies.add("annotationProcessor"
                 , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
         project.dependencies.add("implementation"

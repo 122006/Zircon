@@ -6,6 +6,7 @@ import test.TestExMethod;
 import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
+import zircon.example.ExString;
 
 import java.util.Arrays;
 import java.util.List;
@@ -27,11 +28,13 @@ public class TestOptionalChaining {
 
         TestClass var = v?.returnThis()?.returnThis2();
 
+        float testNormalExpr = true ? .5f : .3f;
+
         v?.returnThis()?.returnThis2();
 
         checkMethodInvokes(
-                () -> v?.return_int(),
-                () -> v.return_int());
+                () -> v?.return_int1(),
+                () -> v.return_int1());
 //
         checkMethodInvokes(
                 () -> v?.returnThis()?.returnThis(),
@@ -113,13 +116,13 @@ public class TestOptionalChaining {
 //
 //
 
-        if ((nullV?.returnNull()?.return_int() ?: 12) == 12) {
+        if ((nullV?.returnNull()?.return_int1() ?: 12) == 12) {
             v.returnThis();
         } else {
             throw new RuntimeException();
         }
         try {
-            if ((nullV?.returnNull()?.return_int()) == 12) {
+            if ((nullV?.returnNull()?.return_int1()) == 12) {
                 v.returnThis();
             }
             throw new RuntimeException("对于可选链最终结果类型为基础类型时，不满足时会抛出空指针异常。如果为抛出则错误");
@@ -128,11 +131,11 @@ public class TestOptionalChaining {
         } catch (RuntimeException e) {
             throw new RuntimeException(e);
         }
-        if (nullV?.returnNull()?.return_int() == Integer.valueOf(12)) {
+        if (nullV?.returnNull()?.return_int1() == Integer.valueOf(12)) {
             //如果作为非基本类型使用则没问题
             throw new RuntimeException();
         }
-        if (nullV?.returnNull()?.return_int() != (Integer) null) {
+        if (nullV?.returnNull()?.return_int1() != (Integer) null) {
             //同时可以与(Integer) null比较
             throw new RuntimeException();
         }
@@ -156,14 +159,14 @@ public class TestOptionalChaining {
 
 
         TestChildClass.nullStaticObj?.getTestImplClass();
-        (TestChildClass.class?.getName() + "")?.getClass();
+        (TestChildClass.class ?.getName() + "")?.getClass();
 
 
         checkMethodInvokes(
-                () -> (TestChildClass.class?.getName() + "")?.getClass()
+                () -> (TestChildClass.class ?.getName() + "")?.getClass()
                 , () -> String.class);
         checkMethodInvokes(
-                () -> (TestChildClass.class?.getName() + null)?.getClass()
+                () -> (TestChildClass.class ?.getName() + null)?.getClass()
                 , () -> String.class);
         checkMethodInvokes(
                 () -> TestChildClass.nullStaticObj?.returnBoolean() + (String) null
@@ -182,6 +185,15 @@ public class TestOptionalChaining {
         checkMethodInvokes(
                 () -> TestChildClass.nullStaticObj ?: classVar
                 , () -> classVar);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.return_int1() ?: 1
+                , () -> 1);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.return_int1() ?: Integer.valueOf(1)
+                , () -> 1);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.return_Integer1() ?: 1
+                , () -> 1);
         checkMethodInvokes(
                 () -> data.find(a -> a.length() == 0)?.length() ?: 4
                 , () -> 4);
@@ -270,7 +282,34 @@ public class TestOptionalChaining {
                     new TestChildClass().returnThis();
                     return TestChildClass.class;
                 });
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
+                    return array[new int[]{0, 1, 2, 3} ?.copy()[0]].getClass();
+                }
+                , () -> TestChildClass.class);
 
+        checkMethodInvokes(
+                () -> {
+                    TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
+                    return array[array?.copy()[0].return_int1() - 1].getClass();
+                }
+                , () -> {
+                    new TestChildClass().return_int1();
+                    return TestChildClass.class;
+                });
+        checkMethodInvokes(
+                () -> {
+                    final TestClass testClass = new TestClass();
+                    return testClass?.returnBoolean() ?: false;
+                }
+                , () -> {
+                    return new TestClass().returnBoolean();
+                });
+        String emptyString = null;
+        if (emptyString?.isEmpty() ?: false) {
+            throw new RuntimeException();
+        }
 
         testEnd();
 
@@ -332,8 +371,13 @@ public class TestOptionalChaining {
             return null;
         }
 
-        public int return_int() {
+        public int return_int1() {
             TestExMethod.methodNames.add("return_int");
+            return 1;
+        }
+
+        public Integer return_Integer1() {
+            TestExMethod.methodNames.add("return_Integer1");
             return 1;
         }
 
@@ -351,7 +395,7 @@ public class TestOptionalChaining {
 
     @ExMethod
     public static <T> T $$NullSafe(T o) {
-//        throw new RuntimeException("异常链路：" + o);
-        return o;
+        throw new RuntimeException("异常链路：" + o);
+//        return o;
     }
 }

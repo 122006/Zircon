@@ -1,6 +1,7 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Names;
@@ -310,6 +311,8 @@ public class ZrAttrEx {
 
     public Symbol.ClassSymbol getBiopClass() {
         final Symbol.ClassSymbol biopClass = syms.classes.get(names.fromString("zircon.BiOp"));
+        if (biopClass == null)
+            throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.zircon:zircon:${zirconVersion}\"]");
         return biopClass;
     }
 

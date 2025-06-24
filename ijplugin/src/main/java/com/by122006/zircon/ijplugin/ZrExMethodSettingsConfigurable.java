@@ -3,12 +3,10 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.util.ui.FormBuilder;
-
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JComponent;
-import javax.swing.JPanel;
+import javax.swing.*;
 import java.util.Objects;
 
 public class ZrExMethodSettingsConfigurable implements Configurable {
@@ -68,7 +66,6 @@ public class ZrExMethodSettingsConfigurable implements Configurable {
         private final JBCheckBox allowUseStaticOnNoStaticMethod = new JBCheckBox("是否允许在实例上调用静态方法");
         private final JBCheckBox allowZrMethodAllowAutoFind = new JBCheckBox("快速自动注册拓展方法");
 
-
         public AppSettingsComponent() {
             myMainPanel = FormBuilder
                     .createFormBuilder()
@@ -76,6 +73,7 @@ public class ZrExMethodSettingsConfigurable implements Configurable {
                     .addComponent(allowZrMethodAllowAutoFind, 1)
                     .addComponentFillVertically(new JPanel(), 0)
                     .getPanel();
+            allowZrMethodAllowAutoFind.setToolTipText("启用后，会跟随每次修改，快速自动注册拓展方法。如果禁用，仅在项目文件变动时重新搜寻");
         }
 
         public JPanel getPanel() {
