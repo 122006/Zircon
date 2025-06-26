@@ -310,6 +310,19 @@ public class TestOptionalChaining {
         if (emptyString?.isEmpty() ?: false) {
             throw new RuntimeException();
         }
+        if (emptyString?.isEmpty() ?: true) {
+        } else {
+            throw new RuntimeException();
+        }
+        checkMethodInvokes(
+                () -> {
+                    Integer integer = null;
+                    return integer ?: 0;
+                }
+                , () -> {
+                    Integer integer = null;
+                    return integer ?: Integer.valueOf(0);
+                });
 
         testEnd();
 

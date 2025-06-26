@@ -91,7 +91,7 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                 if (expr == null) return true;
                 final PsiJavaToken operationSign = expr.getOperationSign();
                 if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
-                        && expr.getLOperand() != null && expr.getLOperand().getType() != null && ZrPluginUtil.hasOptionalChaining(expr.getLOperand())
+                        && expr.getLOperand() != null && expr.getLOperand().getType() != null
                         && expr.getROperand() != null && expr.getROperand().getType() != null
                         && TypeConversionUtil.isAssignable(expr.getROperand().getType(), expr.getLOperand().getType())) {
                     return false;
@@ -100,6 +100,48 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
             }
         }
 
+        if (highlightInfo.getDescription() != null) {
+            final String matchString = JavaAnalysisBundle.message("dataflow.message.constant.condition", 0)
+                    .trim()
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll(" #[a-zA-Z0-9]*", "")
+                    .trim();
+            if (highlightInfo.getDescription().matches(matchString)) {
+                final PsiElement elementAt = file.findElementAt(highlightInfo.getEndOffset());
+                if (elementAt == null) return true;
+                if (!(elementAt.getParent() instanceof PsiBinaryExpression)) return true;
+                final PsiBinaryExpression expr = (PsiBinaryExpression) elementAt.getParent();
+                final PsiJavaToken operationSign = expr.getOperationSign();
+                if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
+                        && expr.getLOperand() != null && expr.getLOperand().getType() != null && ZrPluginUtil.hasOptionalChaining(expr.getLOperand())
+                        && expr.getROperand() != null && expr.getROperand().getType() != null
+                        && TypeConversionUtil.isAssignable(expr.getROperand().getType(), expr.getLOperand().getType())) {
+                    return false;
+                }
+                return true;
+            }
+        }
+        if (highlightInfo.getDescription() != null) {
+            final String matchString = JavaAnalysisBundle.message("dataflow.message.unboxing")
+                    .trim()
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll(" #[a-zA-Z0-9]*", "")
+                    .trim();
+            if (highlightInfo.getDescription().matches(matchString)) {
+                final PsiElement elementAt = file.findElementAt(highlightInfo.getEndOffset());
+                if (elementAt == null) return true;
+                if (!(elementAt.getParent() instanceof PsiBinaryExpression)) return true;
+                final PsiBinaryExpression expr = (PsiBinaryExpression) elementAt.getParent();
+                if (expr == null) return true;
+                final PsiJavaToken operationSign = expr.getOperationSign();
+                if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
+                        && expr.getLOperand() != null && expr.getLOperand().getType() != null
+                        && expr.getROperand() != null && expr.getROperand().getType() != null) {
+                    return false;
+                }
+                return true;
+            }
+        }
 
         if (highlightInfo.getDescription() != null) {
             final String regex = JavaAnalysisBundle.message("dataflow.message.npe.method.invocation")
