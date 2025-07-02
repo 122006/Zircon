@@ -12,6 +12,8 @@ if (System.getProperty("user.name", "") == "jitpack") {
     System.out.println("build by JITPACK")
 } else {
     include ':ijplugin'
+    include ':ijplugin_223'
+    include ':ijplugin_241'
     include ':test'
     include ':inject_java7'
     include ':inject_java11'

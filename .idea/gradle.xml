@@ -12,6 +12,8 @@
             <option value="$PROJECT_DIR$/base" />
             <option value="$PROJECT_DIR$/gradle_plugin" />
             <option value="$PROJECT_DIR$/ijplugin" />
+            <option value="$PROJECT_DIR$/ijplugin_223" />
+            <option value="$PROJECT_DIR$/ijplugin_241" />
             <option value="$PROJECT_DIR$/inject_java11" />
             <option value="$PROJECT_DIR$/inject_java16" />
             <option value="$PROJECT_DIR$/inject_java7" />

@@ -9,7 +9,6 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.util.Key;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
@@ -179,6 +178,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 System.out.println("find ExtensionMethods size(" + module.getName() + "):" + collect.size());
                 return collect;
             } catch (Exception e) {
+                if (e.getClass().getName().contains("com.intellij")) throw (RuntimeException) e;
                 e.printStackTrace();
                 return new ArrayList<>();
             }
@@ -228,7 +228,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         return extensionMethod.targetType.stream().anyMatch(a -> a.isValid() && TypeConversionUtil.isAssignable(a, ownType));
                     };
                 } else {
-                    System.out.println("未知调用方类型" + (resolve?.getClass().getName()));
+                    System.out.println("未知调用方类型" + (resolve ?.getClass().getName()));
                     ownType = null;
                     predicate = a -> true;
                 }
@@ -392,8 +392,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
     }
 
     public static synchronized List<CacheMethodInfo> getCachedAllMethod(@NotNull Module module) {
-        ZirconSettings settings = ZirconSettings.getInstance();
-        final Object dependency = settings.ZrMethodAllowAutoFind ? PsiModificationTracker.MODIFICATION_COUNT : ProjectRootManager.getInstance(module.getProject());
+        final Object dependency = PsiModificationTracker.MODIFICATION_COUNT;
         return CachedValuesManager.getManager(module.getProject()).getCachedValue(module, cachedAllExMethod, () -> CachedValueProvider.Result.create(scanModuleUsedMethod(module), dependency), false);
     }
 

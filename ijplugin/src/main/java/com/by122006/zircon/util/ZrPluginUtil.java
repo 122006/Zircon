@@ -25,7 +25,7 @@ import java.util.function.Predicate;
 import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
 
 public class ZrPluginUtil {
-    static boolean lastEnablePlugin = false;
+    static int EnablePluginChecker = 3;
 
     public static synchronized boolean hasZrPlugin(PsiElement psiElement) {
         final Project project = psiElement.getProject();
@@ -45,14 +45,21 @@ public class ZrPluginUtil {
             if (module == null) return false;
             // 获取模块的搜索范围
             try {
-                return lastEnablePlugin = CachedValuesManager.getManager(project).getCachedValue(module, () -> {
+                final boolean b = CachedValuesManager.getManager(project).getCachedValue(module, () -> {
                     GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
                     PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
                     return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
                 }) != null;
+                if (!b) {
+                    EnablePluginChecker--;
+                    return EnablePluginChecker > 0;
+                } else {
+                    EnablePluginChecker = 3;
+                    return b;
+                }
             } catch (Exception e) {
                 e.printStackTrace();
-                return lastEnablePlugin;
+                return true;
             }
         } finally {
             if (System.currentTimeMillis() - start > 100)

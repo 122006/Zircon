@@ -8,6 +8,7 @@ import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExString;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
@@ -310,10 +311,12 @@ public class TestOptionalChaining {
         if (emptyString?.isEmpty() ?: false) {
             throw new RuntimeException();
         }
+
         if (emptyString?.isEmpty() ?: true) {
         } else {
             throw new RuntimeException();
         }
+
         checkMethodInvokes(
                 () -> {
                     Integer integer = null;
@@ -323,6 +326,12 @@ public class TestOptionalChaining {
                     Integer integer = null;
                     return integer ?: Integer.valueOf(0);
                 });
+        checkMethodInvokes(
+                () -> {
+                    List<String> strings = List.of(1, 2, 3).map(String::valueOf) ?: new ArrayList<>();
+                    return strings;
+                }
+                , () -> List.of(1,2,3).map(String::valueOf));
 
         testEnd();
 

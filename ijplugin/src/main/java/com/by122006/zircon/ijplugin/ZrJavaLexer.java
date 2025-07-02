@@ -20,17 +20,18 @@ import zircon.example.ExReflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Map;
 
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class ZrJavaLexer extends LexerBase {
-    private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class .getName());
+    private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class.getName());
 
     static {
         try {
             //强制设置)和.之间不含空格
-            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class .getStaticFieldValue("ourTokenStickingMatrix");
+            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
 
         } catch (Exception e) {
@@ -124,8 +125,32 @@ public final class ZrJavaLexer extends LexerBase {
         myTokenType = null;
     }
 
+    ElementTypesInfo[] infos = null;
+
+    public static class ElementTypesInfo {
+        IElementType iElementType = null;
+        int endTokenEndOffset = -1;
+
+        public ElementTypesInfo(IElementType iElementType, int endTokenEndOffset) {
+            this.iElementType = iElementType;
+            this.endTokenEndOffset = endTokenEndOffset;
+        }
+    }
+
     private void locateToken() {
         if (myTokenType != null) return;
+        if (infos != null) {
+            if (infos.length != 0) {
+                final ElementTypesInfo info = infos[0];
+                infos = Arrays.copyOfRange(infos, 1, infos.length);
+                myBufferIndex = info.endTokenEndOffset;
+                myTokenType = info.iElementType;
+                return;
+            } else {
+                infos = null;
+            }
+        }
+
 
         if (myTokenEndOffset == myBufferEndOffset) {
             myBufferIndex = myBufferEndOffset;
@@ -185,7 +210,13 @@ public final class ZrJavaLexer extends LexerBase {
                     myTokenEndOffset = myBufferIndex + 2;
 //                    flexLocateToken();
                 } else if (charAt(myBufferIndex + 1) == ':') {
-                    myTokenType = JavaTokenType.OROR;
+//                    infos = new ElementTypesInfo[]{new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
+//                            new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
+//                            new ElementTypesInfo(JavaTokenType.NULL_KEYWORD, myTokenEndOffset),
+//                            new ElementTypesInfo(JavaTokenType.COLON, myTokenEndOffset + 1)};
+//                    myTokenType = JavaTokenType.QUEST;
+//                    myTokenEndOffset = myBufferIndex;
+                    myTokenType = ZrJavaTokenType.ELVIS;
                     myTokenEndOffset = myBufferIndex + 2;
 //                    flexLocateToken();
                 } else {

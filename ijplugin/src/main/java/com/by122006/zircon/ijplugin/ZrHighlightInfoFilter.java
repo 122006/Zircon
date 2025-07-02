@@ -1,7 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.util.ZrPluginUtil;
-import com.intellij.codeInsight.daemon.JavaErrorBundle;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.HighlightInfoFilter;
 import com.intellij.java.analysis.JavaAnalysisBundle;
@@ -9,8 +8,6 @@ import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.TypeConversionUtil;
-import com.siyeh.InspectionGadgetsBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.example.ExObject;
@@ -64,85 +61,6 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
             }
             return !cacheExMethodClasses.contains(qualifiedName);
         }
-        if (highlightInfo.getDescription() != null && highlightInfo.getDescription().matches(JavaErrorBundle.message("binary.operator.not.applicable", ".*", ".*", ".*"))) {
-            final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
-            if (elementAt == null) return true;
-            final PsiBinaryExpression expr = PsiTreeUtil.getParentOfType(elementAt, PsiBinaryExpression.class);
-            if (expr == null) return true;
-            final PsiJavaToken operationSign = expr.getOperationSign();
-            if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
-                    && expr.getLOperand() != null && expr.getLOperand().getType() != null
-                    && expr.getROperand() != null && expr.getROperand().getType() != null
-                    && TypeConversionUtil.isAssignable(expr.getROperand().getType(), expr.getLOperand().getType())) {
-                return false;
-            }
-            return true;
-        }
-        if (highlightInfo.getDescription() != null) {
-            final String matchString = InspectionGadgetsBundle.message("boolean.expression.can.be.simplified.problem.descriptor", ".*")
-                    .trim()
-                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
-                    .replaceAll("#[a-zA-Z0-9]*", "")
-                    .trim();
-            if (highlightInfo.getDescription().matches(matchString)) {
-                final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
-                if (elementAt == null) return true;
-                final PsiBinaryExpression expr = PsiTreeUtil.getParentOfType(elementAt, PsiBinaryExpression.class);
-                if (expr == null) return true;
-                final PsiJavaToken operationSign = expr.getOperationSign();
-                if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
-                        && expr.getLOperand() != null && expr.getLOperand().getType() != null
-                        && expr.getROperand() != null && expr.getROperand().getType() != null
-                        && TypeConversionUtil.isAssignable(expr.getROperand().getType(), expr.getLOperand().getType())) {
-                    return false;
-                }
-                return true;
-            }
-        }
-
-        if (highlightInfo.getDescription() != null) {
-            final String matchString = JavaAnalysisBundle.message("dataflow.message.constant.condition", 0)
-                    .trim()
-                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
-                    .replaceAll(" #[a-zA-Z0-9]*", "")
-                    .trim();
-            if (highlightInfo.getDescription().matches(matchString)) {
-                final PsiElement elementAt = file.findElementAt(highlightInfo.getEndOffset());
-                if (elementAt == null) return true;
-                if (!(elementAt.getParent() instanceof PsiBinaryExpression)) return true;
-                final PsiBinaryExpression expr = (PsiBinaryExpression) elementAt.getParent();
-                final PsiJavaToken operationSign = expr.getOperationSign();
-                if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
-                        && expr.getLOperand() != null && expr.getLOperand().getType() != null && ZrPluginUtil.hasOptionalChaining(expr.getLOperand())
-                        && expr.getROperand() != null && expr.getROperand().getType() != null
-                        && TypeConversionUtil.isAssignable(expr.getROperand().getType(), expr.getLOperand().getType())) {
-                    return false;
-                }
-                return true;
-            }
-        }
-        if (highlightInfo.getDescription() != null) {
-            final String matchString = JavaAnalysisBundle.message("dataflow.message.unboxing")
-                    .trim()
-                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
-                    .replaceAll(" #[a-zA-Z0-9]*", "")
-                    .trim();
-            if (highlightInfo.getDescription().matches(matchString)) {
-                final PsiElement elementAt = file.findElementAt(highlightInfo.getEndOffset());
-                if (elementAt == null) return true;
-                if (!(elementAt.getParent() instanceof PsiBinaryExpression)) return true;
-                final PsiBinaryExpression expr = (PsiBinaryExpression) elementAt.getParent();
-                if (expr == null) return true;
-                final PsiJavaToken operationSign = expr.getOperationSign();
-                if (operationSign.getTokenType() == JavaTokenType.OROR && operationSign.getText().equals("?:")
-                        && expr.getLOperand() != null && expr.getLOperand().getType() != null
-                        && expr.getROperand() != null && expr.getROperand().getType() != null) {
-                    return false;
-                }
-                return true;
-            }
-        }
-
         if (highlightInfo.getDescription() != null) {
             final String regex = JavaAnalysisBundle.message("dataflow.message.npe.method.invocation")
                     .replaceAll("<.*?>.*?</.*?>", "'.*'")

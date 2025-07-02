@@ -12,12 +12,12 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.5.0'
+    id 'org.jetbrains.intellij.platform' version '2.6.0'
 }
 apply plugin: 'zircon'
 
 group 'com.by122006.zircon'
-version '4.3'
+version '4.4'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -54,6 +54,7 @@ dependencies {
 //    implementation project(":base")
 //    implementation project(":javac")
     intellijPlatform {
+//        intellijIdeaCommunity '2022.3'
         intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
@@ -71,11 +72,7 @@ dependencies {
 }
 tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 ////IU-202.7319.50
-//intellij {
-//    plugins = ['java']
-//    version = "2024.1"
-//    type = "IC"
-//}
+
 
 tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"

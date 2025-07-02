@@ -36,42 +36,80 @@ ext {
 // gradle testWithDiffJavaVersion -Ptjv=21
 }
 if (System.getProperty("user.name", "") != "jitpack") {
-    def allData = [
-            [version: 8, project: ":inject_java7"]
-            , [version: 11, project: ":inject_java11"]
-            , [version: 17, project: ":inject_java16"]]
-    def useJavaVersion = allData.collect { it -> it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
+    {
+        def allData = [
+                [version: 8, project: ":inject_java7"]
+                , [version: 11, project: ":inject_java11"]
+                , [version: 17, project: ":inject_java16"]]
+        def useJavaVersion = allData.collect { it -> it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
 
-    task testWithDiffJavaVersion {
-        group "zircon"
-        dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
-        doLast {
-            project(":test").test.executeTests()
-        }
-    }
-
-    allData.forEach(data -> {
-        task "cleanJava${data.version}Clazz"(type: Delete) {
+        task testWithDiffJavaVersion {
             group "zircon"
-            delete "javac/src/main/resources/clazz/" + data.project.split("_")[1]
+            dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
+            doLast {
+                project(":test").test.executeTests()
+            }
         }
-        task "buildClazzByJava${data.version}" {
+
+        allData.forEach(data -> {
+            task "cleanJava${data.version}Clazz"(type: Delete) {
+                group "zircon"
+                delete "javac/src/main/resources/clazz/" + data.project.split("_")[1]
+            }
+            task "buildClazzByJava${data.version}" {
+                group "zircon"
+                dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
+            }
+            tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:clean", "${data.project}:compileJava")
+            tasks.findByPath(":javac:processResources").mustRunAfter(allData.collect { "${it.project}:copyJavacClass" })
+        })
+
+
+        task cleanAllClazz(type: Delete) {
             group "zircon"
-            dependsOn "${data.project}:clean", "${data.project}:compileJava", "${data.project}:copyJavacClass"
+            delete "javac/src/main/resources/clazz/"
         }
-        tasks.findByPath("${data.project}:copyJavacClass").dependsOn("${data.project}:clean", "${data.project}:compileJava")
-        tasks.findByPath(":javac:processResources").mustRunAfter(allData.collect { "${it.project}:copyJavacClass" })
-    })
+        task buildClazzByAllJavaVersion {
+            group "zircon"
+            dependsOn allData.collect { "buildClazzByJava${it.version}" }
+        }
 
-
-    task cleanAllClazz(type: Delete) {
-        group "zircon"
-        delete "javac/src/main/resources/clazz/"
-    }
-    task buildClazzByAllJavaVersion {
-        group "zircon"
-        dependsOn allData.collect { "buildClazzByJava${it.version}" }
+        cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)
     }
 
-    cleanAllClazz.mustRunAfter(buildClazzByAllJavaVersion)
+
+    {
+        def moduleNames = ["ijplugin_223", "ijplugin_241"]
+        moduleNames.forEach { moduleName ->
+            project(":${moduleName}") {
+                task "copyIJPluginClass"(type: Copy) {
+                    group "zircon"
+                    from "${buildDir}/classes/java/main/"
+                    into "${rootDir}/ijplugin/src/main/resources/clazz/${moduleName}"
+                    eachFile { file ->
+                        // 保留包路径结构
+                        file.path = file.relativePath.toString()
+                    }
+
+                    include "**/*.class"
+                    rename { String fileName ->
+                        fileName.replaceAll(/\.class$/, ".clazz")
+                    }
+                    dependsOn "cleanIJPluginClass", "build"
+                }
+                task "cleanIJPluginClass"(type: Delete) {
+                    group "zircon"
+                    delete "${rootDir}/ijplugin/src/main/resources/clazz/${moduleName}"
+                }
+            }
+        }
+        task "copyIJPluginClass" {
+            group "zircon"
+            dependsOn moduleNames.collect { ":${it}:copyIJPluginClass" }
+        }
+        tasks.findByPath(":ijplugin:runIde").dependsOn ":copyIJPluginClass"
+
+        tasks.findByPath(":ijplugin:buildPlugin").dependsOn ":copyIJPluginClass"
+    }
+
 }
