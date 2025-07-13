@@ -119,7 +119,7 @@ public class ZrAttrEx {
                     if (checkMethodInvocationIsOptionalChaining(condition)) {
                         condition = changeOptionalChainingExpression2Expression.change(condition, (e) -> e, falseExpression);
                     }
-                    final JCTree.JCExpression apply = make.Apply(List.nil(), $$elvisExpr, List.of(condition.setPos(tree.pos + 1), falseExpression.setPos(tree.pos + 2))).setPos(tree.pos);
+                    final JCTree.JCExpression apply = make.Apply(List.nil(), $$elvisExpr, List.of(condition.setPos(tree.pos + 1), falseExpression));
                     return apply;
                 }
             }
@@ -181,7 +181,7 @@ public class ZrAttrEx {
                 //防止简化推断，或者使用的是基础类型，包裹
                 final Symbol.ClassSymbol biopClass = getBiopClass();
                 final JCTree.JCFieldAccess wrapMethod = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
-                ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS)));
+                ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart));
             } else if (jcExpression instanceof JCTree.JCConditional) {
                 ((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS);
             }
@@ -222,7 +222,7 @@ public class ZrAttrEx {
                             final JCTree.JCConditional conditional;
                             if (elseExpr.getKind() == TypeTag.BOT.getKindLiteral()) {
                                 final JCTree.JCFieldAccess $$pop$$useParam2WithParam1Type = make.Select(make.QualIdent(biopClass), names.fromString("$$pop$$useParam2WithParam1Type"));
-                                final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr.setPos(Position.NOPOS), elseExpr.setPos(Position.NOPOS)));
+                                final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr.setPos(Position.NOPOS), elseExpr));
                                 conditional = make.Conditional(make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral), restExpr, invokeUseParam2WithParam1Type);
                             } else {
                                 final JCTree.JCFieldAccess $$pop = make.Select(make.QualIdent(biopClass), names.fromString("$$pop"));

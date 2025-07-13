@@ -28,6 +28,7 @@ task copyJavacClass(type: Copy) {
     from "${buildDir}/classes/java/main/com/sun/tools/javac/parser"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"
     from "${buildDir}/classes/java/main/com/sun/tools/javac/util"
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/jvm"
     into "${rootDir}/javac/src/main/resources/clazz/java16"
     rename ~/(.*)\.class/, '$1.clazz'
 }

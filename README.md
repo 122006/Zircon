@@ -242,10 +242,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.2
+### idea插件4.4
 
-1. 修复4.1版本对基本类型数组拓展方法无法补全的问题
-2. 对cover类型拓展方法使用处增加提示信息及自动import
+1. 提供对可选链 &`elvis` 支持
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -327,6 +326,12 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 拓展方法注解能力拓展，支持3.2.5新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
 2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
+
+### idea插件4.2
+
+1. 修复4.1版本对基本类型数组拓展方法无法补全的问题
+2. 对cover类型拓展方法使用处增加提示信息及自动import
+
 
 </details>
 

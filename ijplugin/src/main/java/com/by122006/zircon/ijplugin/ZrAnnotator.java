@@ -1019,8 +1019,9 @@ public class ZrAnnotator implements Annotator {
     }
 
     @Nullable
-    private Formatter registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
+    private Formatter registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String _text) {
         List<Formatter> allFormatters = Formatter.getAllFormatters();
+        String text = _text.replace("\\", "");
         int endIndex = text.indexOf("\"");
         if (endIndex == -1) {
             LOG.info(element + "字符串前缀无法识别: " + text);

@@ -54,4 +54,21 @@ public class BiOp {
     public static <T> T $$wrap(T value) {
         return value;
     }
+
+    //elvisExpr标识
+    public static boolean $$elvisExpr() {
+        return true;
+    }
+
+    @ExMethod
+    public static <T> T $$NullSafe(T o) {
+        throw new RuntimeException("异常链路：" + o);
+//        return o;
+    }
+
+    @ExMethod
+    public static <T> T $$NullSafeWrap(T o) {
+        throw new RuntimeException("异常链路：" + o);
+//        return o;
+    }
 }

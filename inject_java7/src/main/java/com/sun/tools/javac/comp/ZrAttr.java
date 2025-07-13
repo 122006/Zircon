@@ -91,6 +91,11 @@ public class ZrAttr extends Attr {
             ((JCTree.JCParens) tree).expr = zrAttrEx.treeTranslator(((JCTree.JCParens) tree).expr);
         } else if (tree instanceof JCTree.JCIf) {
             ((JCTree.JCIf) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCIf) tree).cond);
+        } else if (tree instanceof JCTree.JCMethodInvocation) {
+            ((JCTree.JCMethodInvocation) tree).args = zrAttrEx.listMap(((JCTree.JCMethodInvocation) tree).args, a -> zrAttrEx.treeTranslator(a));
+            return super.attribTree(tree, env, resultInfo);
+        } else if (tree instanceof JCTree.JCMemberReference) {
+            ((JCTree.JCMemberReference) tree).expr = zrAttrEx.treeTranslator(((JCTree.JCMemberReference) tree).expr);
         } else if (tree instanceof JCTree.JCSwitch) {
             ((JCTree.JCSwitch) tree).selector = zrAttrEx.treeTranslator(((JCTree.JCSwitch) tree).selector);
         } else if (tree instanceof JCTree.JCDoWhileLoop) {

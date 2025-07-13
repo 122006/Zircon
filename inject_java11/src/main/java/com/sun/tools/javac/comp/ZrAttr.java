@@ -12,7 +12,6 @@ import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.*;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -118,13 +117,12 @@ public class ZrAttr extends Attr {
                     make.at(tree);
                     final Symbol.ClassSymbol biopClass = getBiopClass();
                     final JCTree.JCFieldAccess $$elvisExpr = make.Select(make.QualIdent(biopClass), names.fromString("$$elvisExpr"));
-                    final JCTree.JCFieldAccess wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
                     JCTree.JCExpression condition = ((JCTree.JCConditional) tree).getCondition();
                     JCTree.JCExpression falseExpression = ((JCTree.JCConditional) tree).getFalseExpression();
                     if (checkMethodInvocationIsOptionalChaining(condition)) {
                         condition = changeOptionalChainingExpression2Expression(condition, (e) -> e, falseExpression);
                     }
-                    final JCTree.JCExpression apply = make.Apply(List.nil(), $$elvisExpr, List.of(condition.setPos(tree.pos + 1), falseExpression.setPos(tree.pos + 2))).setPos(tree.pos);
+                    final JCTree.JCExpression apply = make.Apply(List.nil(), $$elvisExpr, List.of(condition, falseExpression));
                     return apply;
                 }
             }
@@ -198,6 +196,7 @@ public class ZrAttr extends Attr {
         return Pair.of(replace, nList);
     }
 
+
     @Override
     Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
 
@@ -210,6 +209,23 @@ public class ZrAttr extends Attr {
             ((JCTree.JCParens) tree).expr = treeTranslator(((JCTree.JCParens) tree).expr);
         } else if (tree instanceof JCTree.JCIf) {
             ((JCTree.JCIf) tree).cond = treeTranslator(((JCTree.JCIf) tree).cond);
+        } else if (tree instanceof JCTree.JCMethodInvocation) {
+            ((JCTree.JCMethodInvocation) tree).args = ((JCTree.JCMethodInvocation) tree).args.map(this::treeTranslator);
+            final Type type = super.attribTree(tree, env, resultInfo);
+            //调用后清除临时的argumentTypeCache。
+            java.util.List<ArgumentAttr.UniquePos> toRemove = new ArrayList<>();
+            for (ArgumentAttr.UniquePos entry : argumentAttr.argumentTypeCache.keySet()) {
+                if (entry.pos == Position.NOPOS) {
+                    toRemove.add(entry);
+                }
+            }
+            for (ArgumentAttr.UniquePos entry : toRemove) {
+                argumentAttr.argumentTypeCache.remove(entry);
+            }
+            return type;
+
+        } else if (tree instanceof JCTree.JCMemberReference) {
+            ((JCTree.JCMemberReference) tree).expr = treeTranslator(((JCTree.JCMemberReference) tree).expr);
         } else if (tree instanceof JCTree.JCSwitch) {
             ((JCTree.JCSwitch) tree).selector = treeTranslator(((JCTree.JCSwitch) tree).selector);
         } else if (tree instanceof JCTree.JCDoWhileLoop) {
@@ -304,7 +320,7 @@ public class ZrAttr extends Attr {
 
                 super.visitSelect(tree);
             }
-        }.scan(expr);
+        } .scan(expr);
         expr = TreeInfo.skipParens(expr);
 
         return expr;
@@ -416,7 +432,7 @@ public class ZrAttr extends Attr {
                 if (!staticInvoke) {
                     if (methodInfo.isStatic) {
                         if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(VOID)) {
-                            throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", oldTree);
+                            throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法",context, oldTree);
                         } else {
                             final Symbol.ClassSymbol biopClass = getBiopClass();
                             final JCTree.JCFieldAccess and = make.Select(make.QualIdent(biopClass), names.fromString("sec"));
@@ -465,7 +481,7 @@ public class ZrAttr extends Attr {
             //防止简化推断，或者使用的是基础类型，包裹
             final Symbol.ClassSymbol biopClass = getBiopClass();
             final JCTree.JCFieldAccess wrapMethod = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
-            ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS)));
+            ((JCTree.JCConditional) jcExpression).truepart = make.Apply(List.nil(), wrapMethod, List.of(((JCTree.JCConditional) jcExpression).truepart));
         } else if (jcExpression instanceof JCTree.JCConditional) {
             ((JCTree.JCConditional) jcExpression).truepart.setPos(Position.NOPOS);
         }
@@ -507,7 +523,7 @@ public class ZrAttr extends Attr {
                         final JCTree.JCConditional conditional;
                         if (elseExpr.getKind() == TypeTag.BOT.getKindLiteral()) {
                             final JCTree.JCFieldAccess $$pop$$useParam2WithParam1Type = make.Select(make.QualIdent(biopClass), names.fromString("$$pop$$useParam2WithParam1Type"));
-                            final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr.setPos(Position.NOPOS), elseExpr.setPos(Position.NOPOS)));
+                            final JCTree.JCMethodInvocation invokeUseParam2WithParam1Type = make.Apply(List.nil(), $$pop$$useParam2WithParam1Type, List.of(copyRestExpr, elseExpr));
                             conditional = make.Conditional(make.Binary(JCTree.Tag.NE, lastExprLeftAndDup, nullLiteral), restExpr, invokeUseParam2WithParam1Type);
                         } else {
                             final JCTree.JCFieldAccess $$pop = make.Select(make.QualIdent(biopClass), names.fromString("$$pop"));
@@ -663,17 +679,6 @@ public class ZrAttr extends Attr {
             }
         }
         return false;
-    }
-
-    public static Object get(Object obj, String field) {
-        try {
-            Field f = obj.getClass().getDeclaredField(field);
-            f.setAccessible(true);
-            return f.get(obj);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-
-        }
     }
 
 }

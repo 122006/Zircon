@@ -6,6 +6,7 @@ import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.PsiElementFactory;
 import com.intellij.psi.PsiExpression;
 import com.intellij.psi.impl.source.tree.ChildRole;
+import com.intellij.psi.impl.source.tree.ElementType;
 import com.intellij.psi.impl.source.tree.java.PsiConditionalExpressionImpl;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
@@ -29,7 +30,7 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
             return elementFactory.createExpressionFromText("null", getParent());
         }
         return CachedValuesManager.getCachedValue(this, () -> {
-            final String s = "\"\".hashCode()>100";
+            final String s = getThenExpression().getText() + "!=null";
             final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
             if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
                 ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
@@ -57,13 +58,13 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
             case 87:
                 return this.findChildByType(ZrJavaTokenType.ELVIS);
             case 112:
-                return this.getFirstChildNode();
+                return ElementType.EXPRESSION_BIT_SET.contains(this.getFirstChildNode().getElementType()) ? this.getFirstChildNode() : null;
             case 113:
                 ASTNode colon = this.findChildByType(ZrJavaTokenType.ELVIS);
                 if (colon == null) {
                     return null;
                 }
-                return this.getLastChildNode();
+                return ElementType.EXPRESSION_BIT_SET.contains(this.getLastChildNode().getElementType()) ? this.getLastChildNode() : null;
             case 114:
                 return this.findChildByType(ZrJavaTokenType.ELVIS);
             default:

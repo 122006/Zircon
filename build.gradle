@@ -79,7 +79,7 @@ if (System.getProperty("user.name", "") != "jitpack") {
 
 
     {
-        def moduleNames = ["ijplugin_223", "ijplugin_241"]
+        def moduleNames = rootProject.subprojects.collect { it.name }.findAll { it.startsWith("ijplugin_") }
         moduleNames.forEach { moduleName ->
             project(":${moduleName}") {
                 task "copyIJPluginClass"(type: Copy) {

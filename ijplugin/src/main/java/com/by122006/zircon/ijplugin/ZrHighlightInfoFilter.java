@@ -8,9 +8,9 @@ import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
+import com.siyeh.InspectionGadgetsBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.example.ExObject;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -60,6 +60,20 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                 cacheExMethodClasses = file.getUserData(CACHE_IMPORT_EXMETHOD);
             }
             return !cacheExMethodClasses.contains(qualifiedName);
+        }
+        if (highlightInfo.getDescription() != null) {
+            final String matchString = InspectionGadgetsBundle.message("simplifiable.conditional.expression.problem.descriptor", ".*", ".*")
+                    .trim()
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll("#[a-zA-Z0-9]*", "")
+                    .trim();
+            if (highlightInfo.getDescription().matches(matchString)) {
+                final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
+                if (elementAt == null) return true;
+                final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
+                if (expr == null) return true;
+                return false;
+            }
         }
         if (highlightInfo.getDescription() != null) {
             final String regex = JavaAnalysisBundle.message("dataflow.message.npe.method.invocation")

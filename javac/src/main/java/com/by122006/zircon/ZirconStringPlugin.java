@@ -17,7 +17,7 @@ public class ZirconStringPlugin extends ZirconPlugin {
 
     @Override
     public String getCName() {
-        return "模板字符串" ;
+        return "FString" ;
     }
 
 

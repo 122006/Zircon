@@ -14,7 +14,7 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
 
     @Override
     public String getCName() {
-        return "拓展方法";
+        return "ExMethod";
     }
 
 
@@ -33,10 +33,9 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedRedirectMethod", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedReplaceLambda", pcl, classLoader);
         if (javaVersionUpper(11)) try {
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrGen", pcl, classLoader);
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr$1", pcl, classLoader);
         } catch (Exception e) {
-            e.printStackTrace();
+//            e.printStackTrace();
         }
         reloadClassJavacVersion("com.sun.tools.javac.comp.ExMethodInfo", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrMethodReferenceLookupHelper", pcl, classLoader);
@@ -52,13 +51,6 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
         final Class<?> ZrResolve = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolve", pcl, classLoader);
         getInstance(ZrResolve, context);
 
-
-        try {
-            final Class<?> ZrGen = reloadClassJavacVersion("com.sun.tools.javac.comp.ZrGen", pcl, classLoader);
-            getInstance(ZrGen, context);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
     }
 
