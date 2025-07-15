@@ -11,6 +11,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.siyeh.InspectionGadgetsBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExObject;
 
 import java.util.HashSet;
 import java.util.Objects;
@@ -68,7 +69,11 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                     .replaceAll("#[a-zA-Z0-9]*", "")
                     .trim();
             if (highlightInfo.getDescription().matches(matchString)) {
-                final PsiElement elementAt = file.findElementAt(highlightInfo.getStartOffset());
+                final int startOffset = highlightInfo.getStartOffset();
+                if (startOffset <= 0) {
+                    return false;
+                }
+                final PsiElement elementAt = file.findElementAt(startOffset);
                 if (elementAt == null) return true;
                 final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
                 if (expr == null) return true;

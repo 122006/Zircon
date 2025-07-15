@@ -9,7 +9,7 @@ public class ZirconOptionalChainPlugin extends ZirconPlugin {
 
     @Override
     public String getName() {
-        return "OptionalChain";
+        return "ZrOptionalChain";
     }
 
     @Override
@@ -22,11 +22,17 @@ public class ZirconOptionalChainPlugin extends ZirconPlugin {
     public void startTask(Context context, JavaCompiler compiler, ClassLoader pcl, ClassLoader classLoader) throws Exception {
         try {
             reloadClassJavacVersion("com.sun.tools.javac.jvm.ZrGenApplyDepthInfo", pcl, classLoader);
+            if (!javaVersionUpper(11)) try {
+                reloadClassJavacVersion("com.sun.tools.javac.jvm.ZrGenEx", pcl, classLoader);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             final Class<?> ZrGen = reloadClassJavacVersion("com.sun.tools.javac.jvm.ZrGen", pcl, classLoader);
             getInstance(ZrGen, context);
         } catch (Exception e) {
             e.printStackTrace();
         }
+
 
     }
 

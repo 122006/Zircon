@@ -63,7 +63,7 @@ import java.util.stream.Collectors;
 
 
 public class ZrAnnotator implements Annotator {
-    private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
+    private static final Logger LOG = Logger.getInstance(ZrAnnotator.class .getName());
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
@@ -98,15 +98,89 @@ public class ZrAnnotator implements Annotator {
                     registerZrMethodUsage((PsiMethodCallExpression) element, (ZrPsiExtensionMethod) method, holder, HighlightSeverity.ERROR);
                 } else if (method != null) {
                     final ZrPsiExtensionMethod zrPsiExtensionMethod = resolveCoverZrMethod(element, method);
-                    if (zrPsiExtensionMethod == null) return;
-                    registerZrMethodUsage((PsiMethodCallExpression) element, zrPsiExtensionMethod, holder, HighlightSeverity.WEAK_WARNING);
+                    if (zrPsiExtensionMethod != null)
+                        registerZrMethodUsage((PsiMethodCallExpression) element, zrPsiExtensionMethod, holder, HighlightSeverity.WEAK_WARNING);
                 }
+                registerZrOptionalChain(((PsiMethodCallExpression) element).getMethodExpression(), holder, method);
+
                 return;
             }
         } catch (ProcessCanceledException e) {
             throw e;
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void registerZrOptionalChain(@NotNull PsiReferenceExpression element, @NotNull AnnotationHolder holder, PsiMethod method) {
+        if (!(element.getParent() instanceof PsiReferenceExpression)) {
+            List<PsiReferenceExpression> elements = new ArrayList<>();
+            PsiElement _element = element;
+            while (true) {
+                if (_element == null) break;
+                if (_element instanceof PsiReferenceExpression) {
+                    elements.add((PsiReferenceExpression) _element);
+                    _element = ((PsiReferenceExpression) _element).getQualifierExpression();
+                    continue;
+                }
+                if (_element instanceof PsiMethodCallExpression) {
+                    final PsiReferenceExpression methodExpression = ((PsiMethodCallExpression) _element).getMethodExpression();
+                    _element = methodExpression.getQualifierExpression();
+                    elements.add(methodExpression);
+                    continue;
+                }
+                break;
+            }
+            final boolean anyMatch = elements.anyMatch(elem -> elem.getChildren().toList().anyMatch(a -> a instanceof PsiJavaToken && a.getText().equals("?.")));
+            if (anyMatch) {
+                final PsiExpression fElement = element.getParent() instanceof PsiMethodCallExpression ? (PsiMethodCallExpression) element.getParent() : element;
+                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "", "?:")) {
+
+                } else {
+                    if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText("void") ?: false) && !(method?.getReturnType().equalsToText("null") ?: false)) {
+                        holder.newAnnotation(HighlightSeverity.WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
+                                        ", it may lead to a null pointer exception" +
+                                        ". Use the Elvis operator `?:` to append a default value to avoid this issue.")
+                                .range(fElement)
+                                .withFix(new IntentionAction() {
+                                    @Override
+                                    public @IntentionName @NotNull String getText() {
+                                        return "[ZrOptionalChain]: append Elvis";
+                                    }
+
+                                    @Override
+                                    public @NotNull @IntentionFamilyName String getFamilyName() {
+                                        return "ZrOptionalChain";
+                                    }
+
+                                    @Override
+                                    public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
+                                        return true;
+                                    }
+
+                                    @Override
+                                    public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
+                                        PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                                        String s;
+                                        if (fElement.getParent() instanceof PsiBinaryExpression) {
+                                            s = "(" + fElement.getText() + "?:" + PsiTypesUtil.getDefaultValueOfType(method.getReturnType()) + ")";
+                                        } else {
+                                            s = fElement.getText() + "?:" + PsiTypesUtil.getDefaultValueOfType(method.getReturnType());
+                                        }
+                                        @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, fElement);
+                                        fElement.replace(codeBlockFromText);
+                                        CodeStyleManager.getInstance(project).reformat(fElement);
+                                    }
+
+                                    @Override
+                                    public boolean startInWriteAction() {
+                                        return true;
+                                    }
+                                }).create();
+                    }
+
+                }
+            }
         }
     }
 
@@ -439,7 +513,7 @@ public class ZrAnnotator implements Annotator {
         if (!method.isValid()) return;
         final PsiAnnotation[] annotations = method.getAnnotations();
         final List<PsiAnnotation> collect = Arrays.stream(annotations)
-                .filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class.getName()))
+                .filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class .getName()))
                 .collect(Collectors.toList());
         if (collect.isEmpty()) return;
         if (collect.size() > 1) {
@@ -746,7 +820,7 @@ public class ZrAnnotator implements Annotator {
     }
 
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
-        final Constructor<?> constructor = TextAttributesKey.class.getDeclaredConstructors().list()
+        final Constructor<?> constructor = TextAttributesKey.class .getDeclaredConstructors().list()
                 .filter(a -> a.getParameterCount() == 3).head()
                 .orElseThrow(() -> new RuntimeException("不支持的idea版本"));
         constructor.setAccessible(true);

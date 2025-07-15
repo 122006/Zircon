@@ -22,9 +22,6 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
     public void startTask(Context context, JavaCompiler compiler, ClassLoader pcl, ClassLoader classLoader) throws Exception {
         if (!javaVersionUpper(11)) {
             reloadClassJavacVersion("com.sun.tools.javac.comp.ZrResolveEx", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx$ChangeOptionalChainingExpression2Expression", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx", pcl, classLoader);
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttrEx$1", pcl, classLoader);
         }
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.CompareSameMethod$MethodInfo", pcl, classLoader);
@@ -32,11 +29,6 @@ public class ZirconExMethodPlugin extends ZirconPlugin {
 
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedRedirectMethod", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.NeedReplaceLambda", pcl, classLoader);
-        if (javaVersionUpper(11)) try {
-            reloadClassJavacVersion("com.sun.tools.javac.comp.ZrAttr$1", pcl, classLoader);
-        } catch (Exception e) {
-//            e.printStackTrace();
-        }
         reloadClassJavacVersion("com.sun.tools.javac.comp.ExMethodInfo", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrMethodReferenceLookupHelper", pcl, classLoader);
         reloadClassJavacVersion("com.sun.tools.javac.comp.ZrLookupHelper", pcl, classLoader);

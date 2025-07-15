@@ -50,9 +50,6 @@ public class ZrGen extends Gen {
         final ZrGen zrGen = new ZrGen(context);
         ReflectionUtil.setDeclaredField(JavaCompiler.instance(context), JavaCompiler.class, "gen", zrGen);
         ReflectionUtil.setDeclaredField(StringConcat.instance(context), StringConcat.class, "gen", zrGen);
-        final ClassWriter instance = ClassWriter.instance(context);
-        final Object poolWriter = ReflectionUtil.getDeclaredField(zrGen, Gen.class, "poolWriter");
-        ReflectionUtil.setDeclaredField(instance, ClassWriter.class, "poolWriter", poolWriter);
         return zrGen;
     }
 
@@ -200,7 +197,6 @@ public class ZrGen extends Gen {
                     this.pt = prevPt;
                 }
             }
-
             return super.genExpr(tree, pt);
         } catch (Exception e) {
             CommonUtil.logError(log, tree, "genExpr fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage());
@@ -286,8 +282,7 @@ public class ZrGen extends Gen {
 
                 code.emitop0(ByteCodes.dup);
                 Code.Chain nonnull = chainCreate(if_acmp_nonnull);
-                //应该剩下一个调用链本身的object
-                while (code.state.stacksize - currentChains.backState.stacksize  > 0) {
+                while (code.state.stacksize - currentChains.backState.stacksize > 0) {
                     pop();
                 }
                 code.emitop0(ByteCodes.aconst_null);
@@ -415,6 +410,7 @@ public class ZrGen extends Gen {
     @Override
     public void visitConditional(JCTree.JCConditional tree) {
         final Code code = getCode();
+
         try {
             if (tree.cond instanceof JCTree.JCMethodInvocation) {
                 final JCTree.JCMethodInvocation cond = (JCTree.JCMethodInvocation) tree.cond;
@@ -446,7 +442,6 @@ public class ZrGen extends Gen {
                             //单链第一个方法引用，需要承接跳转
                             Code.Chain thenExit = chainCreate(goto_);
                             chainJoin(nullChain, tree.truepart);
-
 
                             pop();
 
@@ -487,9 +482,9 @@ public class ZrGen extends Gen {
     }
 
     private void throwNullPointerException(String str) {
-        final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.java_base, names.fromString(NullPointerException.class.getName()));
+        final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.java_base, names.fromString(NullPointerException.class .getName()));
         Code code = getCode();
-        code.emitop2(new_, classSymbol.type, PoolWriter::putClass);
+        code.emitop2(new_, ReflectionUtil.<Gen, Pool>getDeclaredField(this, Gen.class, "pool").put(classSymbol.type));
         code.emitop0(dup);
         getItems().makeImmediateItem(syms.stringType, str).load();
         final Iterable<Symbol> symbolsByName = classSymbol.members().getSymbolsByName(names.fromString("<init>"));
@@ -497,6 +492,5 @@ public class ZrGen extends Gen {
         ReflectionUtil.invokeMethod(code, Code.class, "emitop", athrow);
         code.state.pop(1);
         code.markDead();
-
     }
 }

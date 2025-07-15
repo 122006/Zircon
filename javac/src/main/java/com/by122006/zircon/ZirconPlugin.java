@@ -46,10 +46,11 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                     }
                     isLoad = true;
                     try {
-                        reloadClass("com.sun.tools.javac.parser.ReflectionUtil", ZirconPlugin.class .getClassLoader(), Attr.class .getClassLoader());
-                        reloadClass("com.sun.tools.javac.parser.ZrUnSupportCodeError", ZirconPlugin.class .getClassLoader(), Attr.class .getClassLoader());
-                        reloadClass("com.sun.tools.javac.parser.ZrConstants", ZirconPlugin.class .getClassLoader(), Attr.class .getClassLoader());
-                        startTask(context, compiler, ZirconPlugin.class .getClassLoader(), Attr.class .getClassLoader());
+                        reloadClass("com.sun.tools.javac.parser.ReflectionUtil", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        reloadClass("com.sun.tools.javac.parser.ZrUnSupportCodeError", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        reloadClass("com.sun.tools.javac.parser.ZrConstants", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        reloadClassJavacVersion("com.sun.tools.javac.util.CommonUtil", ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
+                        startTask(context, compiler, ZirconPlugin.class.getClassLoader(), Attr.class.getClassLoader());
                     } catch (Exception exception) {
                         exception.printStackTrace();
                         throw new RuntimeException(exception);
@@ -109,7 +110,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
     }
 
     public static boolean checkJavaTokenizerVersionNew() {
-        return UnicodeReader.class .isAssignableFrom(JavaTokenizer.class);
+        return UnicodeReader.class.isAssignableFrom(JavaTokenizer.class);
     }
 
     static <T> Class<T> reloadClass(String claz, ClassLoader incl, ClassLoader outcl) throws Exception {
@@ -194,7 +195,7 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
             theUnsafe.setAccessible(true);
             Object unsafe = theUnsafe.get(null);
             final Method objectFieldOffset = aClass.getMethod("objectFieldOffset", Field.class);
-            long firstFieldOffset = (long) objectFieldOffset.invoke(unsafe, Parent.class .getDeclaredField("first"));
+            long firstFieldOffset = (long) objectFieldOffset.invoke(unsafe, Parent.class.getDeclaredField("first"));
             final Method putBooleanVolatile = aClass.getMethod("putBooleanVolatile", Object.class, long.class, boolean.class);
             putBooleanVolatile.invoke(unsafe, m, firstFieldOffset, true);
         }
@@ -224,14 +225,14 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
         } catch (ClassNotFoundException e) {
         }
         String path = oPath != null ? oPath : (claz.replace('.', '/') + ".class");
-        try (InputStream is = path.startsWith("/") ? ZirconPlugin.class .getResourceAsStream(path) : incl.getResourceAsStream(path);) {
+        try (InputStream is = path.startsWith("/") ? ZirconPlugin.class.getResourceAsStream(path) : incl.getResourceAsStream(path);) {
             if (is == null) {
                 throw new RuntimeException("dismiss class:  " + claz + ", in path:" + path);
             }
             final int available = is.available();
             byte[] bytes = new byte[available];
             is.read(bytes);
-            Method m = ClassLoader.class .getDeclaredMethod("defineClass", new Class[]{
+            Method m = ClassLoader.class.getDeclaredMethod("defineClass", new Class[]{
                     String.class, byte[].class, int.class, int.class});
             setAccessibleTrue(m);
             return (Class<T>) m.invoke(outcl, claz, bytes, 0, available);

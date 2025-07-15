@@ -16,6 +16,7 @@ import com.sun.tools.javac.util.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -62,7 +63,7 @@ public class ZrResolve extends Resolve {
         java.util.List<ExMethodInfo> result = CompilationUnitCache.get(env.toplevel);
         if (result == null) {
             CompilationUnitCache.put(env.toplevel, result = new ArrayList<>());
-            java.util.List<Symbol> symbols = new ArrayList<>();
+            java.util.Set<Symbol> symbols = new HashSet<>();
             try {
                 symbols.addAll(env.toplevel.packge.getEnclosedElements());
             } catch (Exception e) {
@@ -84,6 +85,12 @@ public class ZrResolve extends Resolve {
                     symbols.add(currentSym);
                 }
             } catch (Exception ignored) {
+            }
+            try {
+                final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.noModule, names.fromString("zircon.BiOp"));
+                symbols.add(classSymbol);
+            } catch (Exception e) {
+                throw new RuntimeException("编译时载入zircon模块时发生错误", e);
             }
             for (Symbol symbol : symbols) {
                 if (!(symbol instanceof Symbol.ClassSymbol)) {

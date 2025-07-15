@@ -20,7 +20,7 @@ import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 
 @SuppressWarnings("unchecked")
-public class ZrGen extends Gen {
+public class ZrGen extends ZrGenEx {
     private final Context context;
     private final Types types;
     final Symtab syms;
@@ -28,19 +28,18 @@ public class ZrGen extends Gen {
     private TreeMaker make;
     private final Type methodType;
     private final Check chk;
-    private final Log log;
 
     protected ZrGen(Context context) {
         super(context);
         this.context = context;
         types = Types.instance(context);
-        log = Log.instance(context);
         syms = Symtab.instance(context);
         make = TreeMaker.instance(context);
         names = Names.instance(context);
         chk = Check.instance(context);
         methodType = ReflectionUtil.getDeclaredField(this, Gen.class, "methodType");
     }
+
 
     public static ZrGen instance(Context context) {
         Gen res = context.get(genKey);
@@ -49,48 +48,13 @@ public class ZrGen extends Gen {
 //        Options.instance(context).put("debug.code", "1");
         final ZrGen zrGen = new ZrGen(context);
         ReflectionUtil.setDeclaredField(JavaCompiler.instance(context), JavaCompiler.class, "gen", zrGen);
-        ReflectionUtil.setDeclaredField(StringConcat.instance(context), StringConcat.class, "gen", zrGen);
-        final ClassWriter instance = ClassWriter.instance(context);
-        final Object poolWriter = ReflectionUtil.getDeclaredField(zrGen, Gen.class, "poolWriter");
-        ReflectionUtil.setDeclaredField(instance, ClassWriter.class, "poolWriter", poolWriter);
         return zrGen;
     }
 
-    /**
-     * 判断是否为 $$NullSafe 方法调用。
-     */
-    private boolean isNullSafeMethod(JCTree.JCExpression expr) {
-        if (expr instanceof JCTree.JCMethodInvocation) {
-            JCTree.JCMethodInvocation invoc = (JCTree.JCMethodInvocation) expr;
-            if (invoc.meth instanceof JCTree.JCFieldAccess) {
-                final JCTree.JCFieldAccess meth = (JCTree.JCFieldAccess) invoc.meth;
-                return meth.name.contentEquals("$$NullSafe");
-            }
-        }
-        return false;
-    }
 
     Map<Integer, ZrGenApplyDepthInfo> applyChains = new HashMap<Integer, ZrGenApplyDepthInfo>();
     int applyDepth = 0;
 
-    private boolean isValueOfMethod(Symbol.MethodSymbol msym) {
-        if (!msym.getQualifiedName().contentEquals("valueOf")) return false;
-        final Name qualifiedName = msym.getEnclosingElement().getQualifiedName();
-        if (msym.getParameters().size() != 1) {
-            return false;
-        }
-        if (!msym.getParameters().get(0).type.isPrimitive()) {
-            return false;
-        }
-        if (qualifiedName.contentEquals("java.lang.Integer") || qualifiedName.contentEquals("java.lang.Long")
-                || qualifiedName.contentEquals("java.lang.Short") || qualifiedName.contentEquals("java.lang.Byte")
-                || qualifiedName.contentEquals("java.lang.Character") || qualifiedName.contentEquals("java.lang.Boolean")
-                || qualifiedName.contentEquals("java.lang.Float") || qualifiedName.contentEquals("java.lang.Double")) {
-            return true;
-        }
-        return false;
-
-    }
 
     void intoNewApplyDepthAndNoAcceptNull() {
         applyDepth++;
@@ -99,28 +63,6 @@ public class ZrGen extends Gen {
     void leaveCurrentApplyDepth() {
         applyChains.remove(applyDepth);
         applyDepth--;
-    }
-
-
-    Type getTopStackType(Code.State state) {
-        if (state.stacksize == 0) {
-            return null;
-        }
-        if (state.stacksize == 1)
-            return state.stack[0];
-        final Type type = state.stack[state.stacksize - 1];
-        if (type != null) {
-            return type;
-        }
-        final Type type2 = state.stack[state.stacksize - 2];
-        final int width = Code.width(type2);
-        if (width <= 1) {
-            return type;
-        }
-        if (width == 2) {
-            return type2;
-        }
-        throw new AssertionError();
     }
 
 
@@ -287,7 +229,7 @@ public class ZrGen extends Gen {
                 code.emitop0(ByteCodes.dup);
                 Code.Chain nonnull = chainCreate(if_acmp_nonnull);
                 //应该剩下一个调用链本身的object
-                while (code.state.stacksize - currentChains.backState.stacksize  > 0) {
+                while (code.state.stacksize - currentChains.backState.stacksize > 0) {
                     pop();
                 }
                 code.emitop0(ByteCodes.aconst_null);
@@ -362,7 +304,7 @@ public class ZrGen extends Gen {
             }
             result = getItems().makeStackItem(pt);
         } catch (Error e) {
-            CommonUtil.logError(log, tree, "genApply fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
+            CommonUtil.logError(log, tree.pos(), "genApply fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
                     + "\ncode.stack[" + code.state.stacksize + "]:" + Arrays.toString(code.state.stack));
             e.printStackTrace();
             throw e;
@@ -370,26 +312,6 @@ public class ZrGen extends Gen {
 
     }
 
-    private Code.Chain chainCreate(int bit) {
-        return getCode().branch(bit);
-    }
-
-    private void chainJoin(Code.Chain thenExit, JCDiagnostic.DiagnosticPosition pos) {
-        final Code code = getCode();
-        try {
-            code.resolve(thenExit);
-        } catch (Error e) {
-            CommonUtil.logError(log, pos, "chainJoin fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
-                    + "\nchain.stack[" + thenExit.state.stacksize + "]:" + Arrays.toString(thenExit.state.stack)
-                    + "\ncode.stack[" + code.state.stacksize + "]:" + Arrays.toString(code.state.stack));
-            e.printStackTrace();
-            throw e;
-        }
-    }
-
-    private void _setTypeAnnotationPositions(int pos) {
-        ReflectionUtil.invokeMethod(this, Gen.class, "setTypeAnnotationPositions", pos);
-    }
 
     @Override
     public Items.CondItem genCond(JCTree _tree, boolean markBranches) {
@@ -415,6 +337,7 @@ public class ZrGen extends Gen {
     @Override
     public void visitConditional(JCTree.JCConditional tree) {
         final Code code = getCode();
+
         try {
             if (tree.cond instanceof JCTree.JCMethodInvocation) {
                 final JCTree.JCMethodInvocation cond = (JCTree.JCMethodInvocation) tree.cond;
@@ -487,16 +410,18 @@ public class ZrGen extends Gen {
     }
 
     private void throwNullPointerException(String str) {
-        final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.java_base, names.fromString(NullPointerException.class.getName()));
+
+        final Symbol.ClassSymbol classSymbol = syms.classes.get(names.fromString(NullPointerException.class .getName()));
         Code code = getCode();
-        code.emitop2(new_, classSymbol.type, PoolWriter::putClass);
+        code.emitop2(new_, ReflectionUtil.<Gen, Pool>getDeclaredField(this, Gen.class, "pool").put(classSymbol.type));
         code.emitop0(dup);
         getItems().makeImmediateItem(syms.stringType, str).load();
-        final Iterable<Symbol> symbolsByName = classSymbol.members().getSymbolsByName(names.fromString("<init>"));
+        final Iterable<Symbol> symbolsByName = classSymbol.members().getElementsByName(names.fromString("<init>"));
         getItems().makeMemberItem(symbolsByName.iterator().next(), true).invoke();
         ReflectionUtil.invokeMethod(code, Code.class, "emitop", athrow);
         code.state.pop(1);
         code.markDead();
+
 
     }
 }

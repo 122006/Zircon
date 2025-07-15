@@ -14,10 +14,10 @@ plugins {
     id 'java'
     id 'org.jetbrains.intellij.platform' version '2.6.0'
 }
-apply plugin: 'zircon'
+//apply plugin: 'zircon'
 
 group 'com.by122006.zircon'
-version '4.4'
+version '4.5'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -50,9 +50,6 @@ patchPluginXml {
     untilBuild = "251.*"
 }
 dependencies {
-//    annotationProcessor 'com.github.122006.zircon:javac:3.2.3'
-//    implementation project(":base")
-//    implementation project(":javac")
     intellijPlatform {
 //        intellijIdeaCommunity '2022.3'
         intellijIdeaCommunity '2024.1'
@@ -60,15 +57,13 @@ dependencies {
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
+    annotationProcessor project(":javac")
+    implementation project(":zircon")
+    implementation project(":base")
+    annotationProcessor "org.projectlombok:lombok:1.18.20"
+    compileOnly 'org.projectlombok:lombok:1.18.20'
     implementation('com.github.122006:ExMethodUtil:1.1.8')
-//    annotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
-//    testAnnotationProcessor "com.github.122006.zircon:javac:${zirconVersion}"
-//    implementation "com.github.122006.zircon:zircon:${zirconVersion}"
-//    implementation "com.github.122006.zircon:base:407841c0a6"
-//            {
-//        exclude group: 'com.github.122006.zircon', module: 'zircon'
-//    }
-//    implementation project(":zircon")
+    testAnnotationProcessor project(":javac")
 }
 tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 ////IU-202.7319.50
@@ -77,6 +72,7 @@ tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"
     it.options.compilerArgs << "-Xplugin:ZrString"
+    it.options.compilerArgs << "-Xplugin:ZrOptionalChain"
     it.options.fork = true
 }
 

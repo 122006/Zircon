@@ -1,6 +1,5 @@
 package com.sun.tools.javac.comp;
 
-import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.tools.javac.api.JavacTrees;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -8,7 +7,10 @@ import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrUnSupportCodeError;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeInfo;
-import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
+import com.sun.tools.javac.util.Name;
 
 import java.util.Objects;
 
@@ -16,12 +18,10 @@ import static com.sun.tools.javac.code.TypeTag.VOID;
 
 public class ZrAttr extends Attr {
     private final Context context;
-    ZrAttrEx zrAttrEx;
 
     protected ZrAttr(Context context) {
         super(context);
         this.context = context;
-        this.zrAttrEx = new ZrAttrEx(this);
     }
 
     public static ZrAttr instance(Context context) {
@@ -40,21 +40,6 @@ public class ZrAttr extends Attr {
     }
 
     @Override
-    <T extends JCTree> void attribStats(List<T> trees, Env<AttrContext> env) {
-
-        final Pair<Boolean, List<JCTree>> booleanListPair = zrAttrEx.treeTranslator(trees, env);
-        if (booleanListPair.fst) {
-            if (env.tree instanceof JCTree.JCBlock) {
-//                argumentAttr.argumentTypeCache.clear();
-                ((JCTree.JCBlock) env.tree).stats = zrAttrEx.listMap(booleanListPair.snd, a -> (JCTree.JCStatement) a);
-                super.attribStats(((JCTree.JCBlock) env.tree).stats, env);
-
-                return;
-            }
-        }
-        super.attribStats(trees, env);
-    }
-
     public void visitVarDef(JCTree.JCVariableDecl that) {
         try {
             super.visitVarDef(that);
@@ -73,103 +58,29 @@ public class ZrAttr extends Attr {
         boolean isConstructorCall = methName == this.names._this || methName == this.names._super;
         if (isConstructorCall) {
             super.visitApply(that);
+        } else if (isNullSafeMethod(that)) {
+            useNullSafeWrapper(that);
         } else {
             visitNoConstructorApply(that);
         }
     }
 
 
-    @Override
-    Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
-
-        if (tree instanceof JCTree.JCVariableDecl) {
-            ((JCTree.JCVariableDecl) tree).init = zrAttrEx.treeTranslator(((JCTree.JCVariableDecl) tree).init);
-        } else if (tree instanceof JCTree.JCBinary) {
-            ((JCTree.JCBinary) tree).lhs = zrAttrEx.treeTranslator(((JCTree.JCBinary) tree).lhs);
-            ((JCTree.JCBinary) tree).rhs = zrAttrEx.treeTranslator(((JCTree.JCBinary) tree).rhs);
-        } else if (tree instanceof JCTree.JCParens) {
-            ((JCTree.JCParens) tree).expr = zrAttrEx.treeTranslator(((JCTree.JCParens) tree).expr);
-        } else if (tree instanceof JCTree.JCIf) {
-            ((JCTree.JCIf) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCIf) tree).cond);
-        } else if (tree instanceof JCTree.JCMethodInvocation) {
-            ((JCTree.JCMethodInvocation) tree).args = zrAttrEx.listMap(((JCTree.JCMethodInvocation) tree).args, a -> zrAttrEx.treeTranslator(a));
-            return super.attribTree(tree, env, resultInfo);
-        } else if (tree instanceof JCTree.JCMemberReference) {
-            ((JCTree.JCMemberReference) tree).expr = zrAttrEx.treeTranslator(((JCTree.JCMemberReference) tree).expr);
-        } else if (tree instanceof JCTree.JCSwitch) {
-            ((JCTree.JCSwitch) tree).selector = zrAttrEx.treeTranslator(((JCTree.JCSwitch) tree).selector);
-        } else if (tree instanceof JCTree.JCDoWhileLoop) {
-            ((JCTree.JCDoWhileLoop) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCDoWhileLoop) tree).cond);
-        } else if (tree instanceof JCTree.JCConditional) {
-            ((JCTree.JCConditional) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).cond);
-            ((JCTree.JCConditional) tree).truepart = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).truepart);
-            ((JCTree.JCConditional) tree).falsepart = zrAttrEx.treeTranslator(((JCTree.JCConditional) tree).falsepart);
-        } else if (tree instanceof JCTree.JCAssert) {
-            ((JCTree.JCAssert) tree).cond = zrAttrEx.treeTranslator(((JCTree.JCAssert) tree).cond);
-        } else if (tree instanceof JCTree.JCArrayAccess) {
-            ((JCTree.JCArrayAccess) tree).index = zrAttrEx.treeTranslator(((JCTree.JCArrayAccess) tree).index);
-            ((JCTree.JCArrayAccess) tree).indexed = zrAttrEx.treeTranslator(((JCTree.JCArrayAccess) tree).indexed);
-        } else if (tree instanceof JCTree.JCReturn) {
-
-            final JCTree.JCExpression expr = zrAttrEx.treeTranslator(((JCTree.JCReturn) tree).expr);
-
-            ((JCTree.JCReturn) tree).expr = expr;
-        } else if (tree instanceof JCTree.JCLambda) {
-            JCTree body = ((JCTree.JCLambda) tree).body;
-            final LambdaExpressionTree.BodyKind bodyKind = ((JCTree.JCLambda) tree).getBodyKind();
-
-
-            if (bodyKind == LambdaExpressionTree.BodyKind.STATEMENT) {
-                final Pair<Boolean, List<JCTree>> pair = zrAttrEx.treeTranslator(((JCTree.JCBlock) body).stats, env);
-                if (pair.fst) {
-                    ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, zrAttrEx.listMap(pair.snd, a -> (JCTree.JCStatement) a));
-
-                }
-            } else if (bodyKind == LambdaExpressionTree.BodyKind.EXPRESSION) {
-                final JCTree.JCExpression expression = (JCTree.JCExpression) body;
-                if (zrAttrEx.findChainHasNullSafeFlag(expression, false)) {
-                    boolean returnVoid = false;
-                    if (expression instanceof JCTree.JCFieldAccess) {
-                        returnVoid = false;
-                    } else if (expression instanceof JCTree.JCMethodInvocation) {
-                        final JCTree.JCExpression jcExpression = zrAttrEx.cleanExprNullSafeFlag(expression);
-//                            jcExpression.accept(this);
-                        final Type type = zrAttrEx.getType(env, jcExpression);
-
-
-                        returnVoid = type == syms.voidType;
-                    }
-                    if (returnVoid) {
-                        JCTree.JCStatement expressionStatement = make.at(tree.pos).Exec(expression);
-                        final Pair<Boolean, List<JCTree>> pair = zrAttrEx.treeTranslator(List.of(expressionStatement), env);
-                        if (pair.fst) {
-                            ((JCTree.JCLambda) tree).body = make.at(tree.pos).Block(0, zrAttrEx.listMap(pair.snd, a -> (JCTree.JCStatement) a));
-                        }
-                    } else {
-                        ((JCTree.JCLambda) tree).body = zrAttrEx.treeTranslator(expression);
-                    }
-                } else {
-                    final JCTree.JCExpression jcExpression = zrAttrEx.treeTranslatorExpressionWithReturnType(expression);
-                    if (jcExpression != expression) {
-                        ((JCTree.JCLambda) tree).body = jcExpression;
-                    }
-                }
+    private boolean isNullSafeMethod(JCTree.JCMethodInvocation that) {
+        if (that.args.isEmpty() && that.meth instanceof JCTree.JCFieldAccess) {
+            if (((JCTree.JCFieldAccess) that.meth).name.contentEquals("$$NullSafe")) {
+                return true;
             }
-
         }
-
-        return super.attribTree(tree, env, resultInfo);
+        return false;
     }
 
-
-    @Override
-    public void visitLambda(JCTree.JCLambda that) {
-        super.visitLambda(that);
-    }
-
-    @Override
-    public void visitTypeTest(JCTree.JCInstanceOf tree) {
-        super.visitTypeTest(tree);
+    private void useNullSafeWrapper(JCTree.JCMethodInvocation that) {
+        final Symbol.ClassSymbol biopClass = getBiopClass();
+        final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) that.meth).selected;
+        that.meth = make.Select(make.QualIdent(biopClass), names.fromString("$$NullSafe"));
+        that.args = List.of(selected);
+        visitApply(that);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -248,7 +159,7 @@ public class ZrAttr extends Attr {
                 if (!staticInvoke) {
                     if (methodInfo.isStatic) {
                         if (((Symbol.MethodSymbol) bestSoFar).getReturnType().hasTag(VOID)) {
-                            throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", oldTree);
+                            throw new ZrUnSupportCodeError("对实例对象调用无返回值的静态方法", context, oldTree);
                         } else {
                             final Symbol.ClassSymbol biopClass = syms.classes.get(names.fromString("zircon.BiOp"));
                             final JCTree.JCFieldAccess and = make.Select(make.QualIdent(biopClass), names.fromString("sec"));
@@ -277,6 +188,35 @@ public class ZrAttr extends Attr {
         this.chk.validate(that.typeargs, localEnv);
 
     }
+    @Override
+    public void visitConditional(JCTree.JCConditional tree) {
+        if (tree.truepart instanceof JCTree.JCFieldAccess) {
+            final JCTree.JCFieldAccess truepart = (JCTree.JCFieldAccess) tree.truepart;
+            if (truepart.name.contentEquals("$$elvisExpr")) {
+                final JCTree.JCExpression condition = tree.getCondition();
+                final int pos = tree.pos;
+                make.at(pos);
+                final Symbol.ClassSymbol biopClass = getBiopClass();
+                final JCTree.JCFieldAccess $$elvisExpr = make.Select(make.QualIdent(biopClass), names.fromString("$$elvisExpr"));
+                tree.cond = make.Apply(List.nil(), $$elvisExpr, List.nil());
+                final JCTree.JCFieldAccess $$wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
+                tree.falsepart = make.Apply(List.nil(), $$wrap, List.of(tree.falsepart));
+                tree.truepart = condition;
+                super.visitConditional(tree);
+                return;
+            }
+        }
+        super.visitConditional(tree);
+    }
 
-
+    protected Symbol.ClassSymbol getBiopClass() {
+        final Symbol.PackageSymbol zircon = syms.packages.get(names.fromString("zircon"));
+        if (zircon == null)
+            throw new ZrUnSupportCodeError("编译时未找到zircon相关模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
+        final Iterable<Symbol> symbolsByName = zircon.members().getElementsByName(names.fromString("BiOp"));
+        for (Symbol symsClass : symbolsByName) {
+            return (Symbol.ClassSymbol) symsClass;
+        }
+        throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
+    }
 }

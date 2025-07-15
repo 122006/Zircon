@@ -9,14 +9,15 @@ import com.sun.tools.javac.jvm.ClassReader;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrConstants;
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Optional;
 
 
 @SuppressWarnings("rawtypes")
-public class ZrResolve extends Resolve {
+public class ZrResolve extends ZrResolveEx {
 
     protected Symbol methodNotFound;
 
@@ -26,7 +27,6 @@ public class ZrResolve extends Resolve {
     }
 
     ClassReader classReader;
-    Context context;
 
 
     public static ZrResolve instance(Context context) {
@@ -237,7 +237,7 @@ public class ZrResolve extends Resolve {
     protected Pair<Symbol, ExMethodInfo> findMethod2(Env<AttrContext> env, Type site, Name name, List<Type> argtypes, List<Type> typeargtypes, Symbol bestSoFar, boolean allowBoxing, boolean useVarargs, boolean operator, boolean memberReference) {
         final List<ExMethodInfo> redirectMethod = findRedirectMethod(env, name, methodSymbolEnable(bestSoFar));
         if (redirectMethod != null && !redirectMethod.isEmpty()) {
-            return ZrResolveEx.selectBestFromList(this, redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
+            return selectBestFromList(this, redirectMethod, env, site, argtypes, typeargtypes, bestSoFar, allowBoxing, useVarargs, memberReference, operator);
 
         } else {
             return Pair.of(bestSoFar, null);

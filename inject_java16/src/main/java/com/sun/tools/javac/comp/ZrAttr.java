@@ -61,10 +61,30 @@ public class ZrAttr extends Attr {
         boolean isConstructorCall = methName == this.names._this || methName == this.names._super;
         if (isConstructorCall) {
             super.visitApply(that);
+        } else if (isNullSafeMethod(that)) {
+            useNullSafeWrapper(that);
         } else {
             visitNoConstructorApply(that);
         }
     }
+
+    private boolean isNullSafeMethod(JCTree.JCMethodInvocation that) {
+        if (that.args.isEmpty() && that.meth instanceof JCTree.JCFieldAccess) {
+            if (((JCTree.JCFieldAccess) that.meth).name.contentEquals("$$NullSafe")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void useNullSafeWrapper(JCTree.JCMethodInvocation that) {
+        final Symbol.ClassSymbol biopClass = getBiopClass();
+        final JCTree.JCExpression selected = ((JCTree.JCFieldAccess) that.meth).selected;
+        that.meth = make.Select(make.QualIdent(biopClass), names.fromString("$$NullSafe"));
+        that.args = List.of(selected);
+        visitApply(that);
+    }
+
 
     private Symbol.ClassSymbol getBiopClass() {
         final Symbol.ClassSymbol classSymbol;

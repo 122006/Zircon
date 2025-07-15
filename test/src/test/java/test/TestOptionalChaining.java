@@ -28,6 +28,8 @@ public class TestOptionalChaining {
         TestClass nullV = null;
         TestClass var = v?.returnThis()?.returnThis2();
         Integer varInt = v?.return_int1();
+        Integer nullInt = nullV?.return_int1() ?: null;
+        assert nullInt == null;
         int varint = v?.return_int1() ?: 1;
         float testNormalExpr = true ? .5f : .3f;
         v?.returnThis()?.returnThis2();
@@ -129,6 +131,14 @@ public class TestOptionalChaining {
             }
         } catch (NullPointerException ignore) {
         }
+        try {
+            if (nullV?.returnNull()?.valInt == (Integer) null) {
+                throw new RuntimeException();
+            }
+        } catch (NullPointerException ignore) {
+        }
+
+
         if ((nullV?.returnNull()?.return_long() ?: 12L) == 12) {
             v.returnThis();
         }
@@ -204,6 +214,12 @@ public class TestOptionalChaining {
                 , () -> 1);
         checkMethodInvokes(
                 () -> TestChildClass.nullStaticObj?.returnDouble() ?: 2.0d
+                , () -> 2.0d);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.valInt ?: 1
+                , () -> 1);
+        checkMethodInvokes(
+                () -> TestChildClass.nullStaticObj?.valDouble ?: 2.0d
                 , () -> 2.0d);
         checkMethodInvokes(
                 () -> {
@@ -508,6 +524,10 @@ public class TestOptionalChaining {
 
         static TestClass nullStaticObj = null;
         static TestClass staticObj = new TestClass();
+        static int staticInt = 0;
+        int valInt = 0;
+        int valDouble = 0;
+
 
         TestClass nullObj = null;
 

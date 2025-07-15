@@ -44,7 +44,7 @@ class ZrMethodReferenceLookupHelper extends Resolve.ReferenceLookupHelper {
                 if (!zrResolve.types.isCastable(site, nParams.get(0).type)) {
                     continue;
                 }
-                final JCTree.JCLambda lambdaTree = ZrResolveEx.createLambdaTree(zrResolve, referenceTree, methodInfo);
+                final JCTree.JCLambda lambdaTree = zrResolve.createLambdaTree(referenceTree, methodInfo);
                 throw new NeedReplaceLambda(lambdaTree, referenceTree, methodInfo);
             }
             return method2;
@@ -56,7 +56,7 @@ class ZrMethodReferenceLookupHelper extends Resolve.ReferenceLookupHelper {
                 if (!zrResolve.types.isCastable(site, methodInfo.targetClass.head)) {
                     continue;
                 }
-                final JCTree.JCLambda lambdaTree = ZrResolveEx.createLambdaTree(zrResolve, referenceTree, methodInfo);
+                final JCTree.JCLambda lambdaTree = zrResolve.createLambdaTree(referenceTree, methodInfo);
                 throw new NeedReplaceLambda(lambdaTree, referenceTree, methodInfo);
             }
         }

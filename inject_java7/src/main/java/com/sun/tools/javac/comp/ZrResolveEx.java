@@ -6,17 +6,20 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.parser.CompareSameMethod;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.TreeMaker;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.ListBuffer;
-import com.sun.tools.javac.util.Name;
-import com.sun.tools.javac.util.Pair;
+import com.sun.tools.javac.util.*;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import static com.sun.tools.javac.code.Flags.PARAMETER;
 
-public class ZrResolveEx {
+public class ZrResolveEx extends Resolve {
+    Context context;
+
+
+    protected ZrResolveEx(Context context) {
+        super(context);
+    }
 
     public static boolean equalsIgnoreMetadata(Type t1, Type t2) {
         return t1.baseType().equals(t2.baseType());
@@ -63,7 +66,8 @@ public class ZrResolveEx {
                     final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
                     final List<Type> typeArguments = head.type.getTypeArguments();
                     final Type firstTypeArgument = typeArguments.isEmpty() ? zrResolve.syms.objectType : zrResolve.types.erasure(typeArguments.head);
-                    final Type.MethodType oldType = methodInfo.methodSymbol.type.asMethodType();;
+                    final Type.MethodType oldType = methodInfo.methodSymbol.type.asMethodType();
+                    ;
                     if (sameType || zrResolve.types.isAssignable(site, firstTypeArgument)) {
                         Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
                         Symbol.MethodSymbol clone = new Symbol.MethodSymbol(methodInfo.methodSymbol.flags_field, methodInfo.methodSymbol.name, newType, type.tsym);
@@ -157,19 +161,19 @@ public class ZrResolveEx {
         }
     }
 
-    static JCTree.JCLambda createLambdaTree(ZrResolve zrResolve, JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
+    protected JCTree.JCLambda createLambdaTree(JCTree.JCMemberReference memberReference, ExMethodInfo methodInfo) {
         final JCTree.JCLambda lambda;
-        final TreeMaker maker = TreeMaker.instance(zrResolve.context);
+        final TreeMaker maker = TreeMaker.instance(context);
         final List<Symbol.VarSymbol> params = methodInfo.methodSymbol.params();
         if (methodInfo.siteCopyByClassHeadArgMethod) {
             ListBuffer<JCTree.JCVariableDecl> jcVariableDecls = new ListBuffer<>();
             ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
-            jcIdents.add(maker.ClassLiteral(memberReference.expr.type).setType(zrResolve.syms.classType));
+            jcIdents.add(maker.ClassLiteral(memberReference.expr.type).setType(syms.classType));
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
-                final Name nameA = zrResolve.names.fromString("$zr$a" + i);
-                final Type type = zrResolve.types.boxedTypeOrType(param.type);
-                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, zrResolve.syms.noSymbol);
+                final Name nameA = names.fromString("$zr$a" + i);
+                final Type type = types.boxedTypeOrType(param.type);
+                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, syms.noSymbol);
                 symA.adr = 1 << i;
                 jcVariableDecls.add(maker.VarDef(symA, null));
                 jcIdents.add(maker.Ident(symA));
@@ -182,9 +186,9 @@ public class ZrResolveEx {
             ListBuffer<JCTree.JCExpression> jcIdents = new ListBuffer<>();
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
-                final Name nameA = zrResolve.names.fromString("$zr$a" + i);
-                final Type type = zrResolve.types.boxedTypeOrType(param.type);
-                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, zrResolve.syms.noSymbol);
+                final Name nameA = names.fromString("$zr$a" + i);
+                final Type type = types.boxedTypeOrType(param.type);
+                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, syms.noSymbol);
                 jcVariableDecls.add(maker.VarDef(symA, null));
                 jcIdents.add(maker.Ident(symA));
             }
@@ -197,9 +201,9 @@ public class ZrResolveEx {
             jcIdents.add(memberReference.expr);
             for (int i = 1; i < params.size(); i++) {
                 Symbol.VarSymbol param = params.get(i);
-                final Name nameA = zrResolve.names.fromString("$zr$a" + i);
-                final Type type = zrResolve.types.boxedTypeOrType(param.type);
-                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, zrResolve.syms.noSymbol);
+                final Name nameA = names.fromString("$zr$a" + i);
+                final Type type = types.boxedTypeOrType(param.type);
+                Symbol.VarSymbol symA = new Symbol.VarSymbol(PARAMETER, nameA, type, syms.noSymbol);
                 symA.adr = 1 << i;
                 jcVariableDecls.add(maker.VarDef(symA, null));
                 jcIdents.add(maker.Ident(symA));
