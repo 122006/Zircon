@@ -110,9 +110,18 @@ public class ZrAttr extends Attr {
                 final JCTree.JCFieldAccess $$elvisExpr = make.Select(make.QualIdent(biopClass), names.fromString("$$elvisExpr"));
                 tree.cond = make.Apply(List.nil(), $$elvisExpr, List.nil());
                 final JCTree.JCFieldAccess $$wrap = make.Select(make.QualIdent(biopClass), names.fromString("$$wrap"));
-                tree.falsepart = make.Apply(List.nil(), $$wrap, List.of(tree.falsepart));
+                final JCTree.JCExpression _falsepart = tree.falsepart;
+                tree.falsepart = make.Apply(List.nil(), $$wrap, List.of(_falsepart));
                 tree.truepart = condition;
                 super.visitConditional(tree);
+                final Type falsePartType = tree.falsepart.type;
+                if (falsePartType != null && !(falsePartType instanceof DeferredAttr.DeferredType)) {
+                    if (falsePartType == _falsepart.type) {
+                        tree.falsepart = _falsepart;
+                    } else {
+                        tree.falsepart = ((JCTree.JCMethodInvocation) tree.falsepart).args.head;
+                    }
+                }
                 return;
             }
         }

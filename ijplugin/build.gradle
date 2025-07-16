@@ -70,9 +70,9 @@ tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 
 
 tasks.withType(JavaCompile) {
+    it.options.compilerArgs << "-Xplugin:ZrOptionalChain"
     it.options.compilerArgs << "-Xplugin:ZrExMethod"
     it.options.compilerArgs << "-Xplugin:ZrString"
-    it.options.compilerArgs << "-Xplugin:ZrOptionalChain"
     it.options.fork = true
 }
 

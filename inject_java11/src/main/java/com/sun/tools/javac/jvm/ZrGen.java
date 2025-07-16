@@ -446,24 +446,9 @@ public class ZrGen extends Gen {
                             pop();
 
                             {
-                                //为非基本类型解包
-                                boolean useWrap = true;
-                                if (second instanceof JCTree.JCMethodInvocation && ((JCTree.JCMethodInvocation) second).meth instanceof JCTree.JCFieldAccess
-                                        && ((JCTree.JCFieldAccess) ((JCTree.JCMethodInvocation) second).meth).sym.name.contentEquals("$$wrap")) {
-                                    final JCTree.JCExpression arg = ((JCTree.JCMethodInvocation) second).getArguments().head;
-                                    if (!arg.type.isPrimitive()) {
-                                        code.statBegin(arg.pos);
-                                        result = genExpr(arg, arg.type).load().coerce(pt);
-                                        code.state.forceStackTop(pt);
-                                        useWrap = false;
-                                    }
-                                }
-
-                                if (useWrap) {
-                                    code.statBegin(second.pos);
-                                    result = genExpr(second, second.type).load().coerce(pt);
-                                    code.state.forceStackTop(pt);
-                                }
+                                code.statBegin(second.pos);
+                                result = genExpr(second, second.type).load().coerce(pt);
+                                code.state.forceStackTop(pt);
                             }
                             chainJoin(thenExit, tree.falsepart);
                         }
