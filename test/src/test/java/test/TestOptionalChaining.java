@@ -505,6 +505,22 @@ public class TestOptionalChaining {
                 , () -> {
                     classVar.setValueMix(new TestChildClass(), "String");
                 });
+        checkMethodInvokes(
+                () -> {
+                    return classVar.setValue(classNullVar?.valString = "Test");
+                }
+                , () -> {
+                    classVar.setValue("Test");
+                    return "Test";
+                });
+        checkMethodInvokes(
+                () -> {
+                    return classVar.setValue(classVar?.valString = "Test");
+                }
+                , () -> {
+                    classVar.setValue("Test");
+                    return classVar.valString;
+                });
         testEnd();
 
     }
@@ -526,6 +542,7 @@ public class TestOptionalChaining {
         static TestClass staticObj = new TestClass();
         static int staticInt = 0;
         int valInt = 0;
+        String valString = "";
         int valDouble = 0;
 
 
