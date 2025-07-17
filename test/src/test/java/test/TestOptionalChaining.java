@@ -176,8 +176,8 @@ public class TestOptionalChaining {
         assert TestChildClass.staticObj?.returnBoolean() : "123";
         if (TestChildClass.staticIgnoreAction().staticIgnoreAction()?.staticIgnoreAction() == null)
             throw new RuntimeException();
-        if (TestChildClass.staticIgnoreAction().nullStaticObj?.staticIgnoreAction() != null)
-            throw new RuntimeException();
+        assert TestChildClass.staticIgnoreAction().nullStaticObj?.staticIgnoreAction() == null;
+        assert TestChildClass.staticIgnoreAction().nullStaticObj.staticIgnoreAction() != null;
         if (TestChildClass.nullStaticObj.staticIgnoreAction()?.staticIgnoreAction() == null)
             throw new RuntimeException();
         checkMethodInvokes(

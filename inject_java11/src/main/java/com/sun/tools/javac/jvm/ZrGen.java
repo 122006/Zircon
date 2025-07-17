@@ -198,10 +198,10 @@ public class ZrGen extends Gen {
                 }
             }
             return super.genExpr(tree, pt);
-        } catch (Exception e) {
+        } catch (Error e) {
             CommonUtil.logError(log, tree, "genExpr fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage());
             e.printStackTrace();
-            throw (RuntimeException) (e);
+            throw e;
         }
     }
 
@@ -249,10 +249,10 @@ public class ZrGen extends Gen {
             if (isFirstDepth && applyDepth == 1) {
                 leaveCurrentApplyDepth();
             }
-        } catch (Exception e) {
+        } catch (Error e) {
             CommonUtil.logError(log, tree, "visitSelect fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage());
             e.printStackTrace();
-            throw (RuntimeException) (e);
+            throw e;
         }
     }
 
