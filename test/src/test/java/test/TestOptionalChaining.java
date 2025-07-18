@@ -180,6 +180,10 @@ public class TestOptionalChaining {
         assert TestChildClass.staticIgnoreAction().nullStaticObj.staticIgnoreAction() != null;
         if (TestChildClass.nullStaticObj.staticIgnoreAction()?.staticIgnoreAction() == null)
             throw new RuntimeException();
+        assert classVar.returnThis().obj.nullOr(classVar)?.valString != null;
+        assert (Math.random() > -1 ? classVar : classVar?.obj) != null;
+        assert (Math.random() > -1 ? classVar : classVar?.returnThis()) != null;
+
         checkMethodInvokes(
                 () -> (TestChildClass.staticObj?.nullStaticObj ?: "567" + null) ?: (TestChildClass.staticObj?.getTestImplClass() ?: "456" + null)
                 , () -> "567null");

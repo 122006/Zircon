@@ -141,6 +141,7 @@ public class ZrGen extends Gen {
 
         intoNewApplyDepthAndNoAcceptNull();
 
+        final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
         final ZrGenApplyDepthInfo zrGenApplyDepthInfo = new ZrGenApplyDepthInfo(applyDepth, code.state);
 
         applyChains.put(applyDepth, zrGenApplyDepthInfo);
@@ -209,6 +210,7 @@ public class ZrGen extends Gen {
         }
     }
 
+
     @Override
     public void visitSelect(JCTree.JCFieldAccess tree) {
         try {
@@ -218,7 +220,8 @@ public class ZrGen extends Gen {
             ZrGenApplyDepthInfo nowChains = applyChains.get(currentApplyDepth);
             boolean isFirstDepth = nowChains == null;
             if (isFirstDepth) {
-                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             super.visitSelect(tree);
 
@@ -269,7 +272,8 @@ public class ZrGen extends Gen {
             ZrGenApplyDepthInfo currentChains = applyChains.get(currentApplyDepth);
             boolean isFirstDepth = currentChains == null;
             if (isFirstDepth) {
-                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             _setTypeAnnotationPositions(tree.pos);
 
@@ -287,7 +291,7 @@ public class ZrGen extends Gen {
                 code.emitop0(ByteCodes.dup);
                 Code.Chain nonnull = chainCreate(if_acmp_nonnull);
                 //应该剩下一个调用链本身的object
-                while (code.state.stacksize - currentChains.backState.stacksize  > 0) {
+                while (code.state.stacksize - currentChains.backState.stacksize > 0) {
                     pop();
                 }
                 code.emitop0(ByteCodes.aconst_null);
@@ -425,7 +429,8 @@ public class ZrGen extends Gen {
                         final int currentApplyDepth = applyDepth + 1;
                         applyDepth = currentApplyDepth;
                         if (applyChains.get(currentApplyDepth) == null) {
-                            applyChains.put(currentApplyDepth, new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                            final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                            applyChains.put(currentApplyDepth, new ZrGenApplyDepthInfo(currentApplyDepth, backState));
                         }
 
                         final JCTree.JCExpression second = tree.getFalseExpression();
@@ -472,7 +477,7 @@ public class ZrGen extends Gen {
     }
 
     private void throwNullPointerException(String str) {
-        final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.java_base, names.fromString(NullPointerException.class.getName()));
+        final Symbol.ClassSymbol classSymbol = syms.enterClass(syms.java_base, names.fromString(NullPointerException.class .getName()));
         Code code = getCode();
         code.emitop2(new_, classSymbol.type, PoolWriter::putClass);
         code.emitop0(dup);

@@ -82,8 +82,8 @@ public class ZrGen extends ZrGenEx {
         final Code code = getCode();
 
         intoNewApplyDepthAndNoAcceptNull();
-
-        final ZrGenApplyDepthInfo zrGenApplyDepthInfo = new ZrGenApplyDepthInfo(applyDepth, code.state);
+        final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+        final ZrGenApplyDepthInfo zrGenApplyDepthInfo = new ZrGenApplyDepthInfo(applyDepth, backState);
 
         applyChains.put(applyDepth, zrGenApplyDepthInfo);
 
@@ -160,7 +160,8 @@ public class ZrGen extends ZrGenEx {
             ZrGenApplyDepthInfo nowChains = applyChains.get(currentApplyDepth);
             boolean isFirstDepth = nowChains == null;
             if (isFirstDepth) {
-                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             super.visitSelect(tree);
 
@@ -211,7 +212,8 @@ public class ZrGen extends ZrGenEx {
             ZrGenApplyDepthInfo currentChains = applyChains.get(currentApplyDepth);
             boolean isFirstDepth = currentChains == null;
             if (isFirstDepth) {
-                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             _setTypeAnnotationPositions(tree.pos);
 
@@ -348,7 +350,8 @@ public class ZrGen extends ZrGenEx {
                         final int currentApplyDepth = applyDepth + 1;
                         applyDepth = currentApplyDepth;
                         if (applyChains.get(currentApplyDepth) == null) {
-                            applyChains.put(currentApplyDepth, new ZrGenApplyDepthInfo(currentApplyDepth, code.state));
+                            final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
+                            applyChains.put(currentApplyDepth, new ZrGenApplyDepthInfo(currentApplyDepth, backState));
                         }
 
                         final JCTree.JCExpression second = tree.getFalseExpression();
