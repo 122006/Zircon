@@ -157,18 +157,19 @@ public class ZrGen extends ZrGenEx {
             final Code code = getCode();
             if (applyDepth == 0) applyDepth++;
             final int currentApplyDepth = applyDepth;
-            ZrGenApplyDepthInfo nowChains = applyChains.get(currentApplyDepth);
-            boolean isFirstDepth = nowChains == null;
+            ZrGenApplyDepthInfo currentChains = applyChains.get(currentApplyDepth);
+            boolean isFirstDepth = currentChains == null;
             if (isFirstDepth) {
                 final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
-                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
+                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             super.visitSelect(tree);
 
-            if (isFirstDepth && nowChains.nullChain != null) {
-                //单链第一个方法引用，需要承接跳转
+            if (isFirstDepth && currentChains.nullChain != null) {
+                //单链第一个select，需要承接跳转
+                result.coerce(pt).load();
                 Code.Chain thenExit = chainCreate(goto_);
-                final Code.Chain nullChain = nowChains.nullChain;
+                final Code.Chain nullChain = currentChains.nullChain;
                 chainJoin(nullChain, tree);
 
                 pop();
@@ -184,12 +185,13 @@ public class ZrGen extends ZrGenEx {
                             );
                         } else {
                             code.emitop0(ByteCodes.aconst_null);
-                            result = getItems().makeStackItem(syms.botType).coerce(pt).load();
                         }
                     }
+                    result = getItems().makeStackItem(pt);
+                } else {
+                    code.emitop0(ByteCodes.aconst_null);
+                    result = getItems().makeStackItem(tree.type).coerce(pt);
                 }
-
-
                 chainJoin(thenExit, tree);
 
             }

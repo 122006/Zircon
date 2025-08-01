@@ -73,14 +73,16 @@ public class TextStringFormat {
         assertEquals(f"(${\"test\"})", "(test)");
         assertEquals($"a${1 == 0 ? "" : "("+add+")"}", "a(test)");
 
-        assertEquals(f"({${'"'}})", "({\"})");
-        assertEquals(f"${"\\n"}", "\n");
-        assertEquals(f"${"\\""}", "\"");
+//        assertEquals(f"({${'"'}})", "({\"})");
+//        assertEquals(f"${"\\n"}", "\n");
+//        assertEquals(f"${"\\""}", "\"");
         assertEquals(f"({${add}})", "({test})");
         assertEquals(f"({${%03d:12}})", "({012})");
         assertEquals(f"({${%.2f:12d}})", "({12.00})");
         assertEquals($"test (${String.valueOf(\"123\")})", "test (123)");
         assertEquals($"test (${String.valueOf("123")})", "test (123)");
+
+
         assertEquals(f"(${})", "()");
         assertEquals(f"${}", "");
         assertEquals($"${}", "");

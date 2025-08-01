@@ -221,7 +221,8 @@ public class ZrGen extends Gen {
             super.visitSelect(tree);
 
             if (isFirstDepth && nowChains.nullChain != null) {
-                //单链第一个方法引用，需要承接跳转
+                //单链第一个select，需要承接跳转
+                result.coerce(pt).load();
                 Code.Chain thenExit = chainCreate(goto_);
                 final Code.Chain nullChain = nowChains.nullChain;
                 chainJoin(nullChain, tree);
@@ -239,12 +240,13 @@ public class ZrGen extends Gen {
                             );
                         } else {
                             code.emitop0(ByteCodes.aconst_null);
-                            result = getItems().makeStackItem(syms.botType).coerce(pt).load();
                         }
                     }
+                    result = getItems().makeStackItem(pt);
+                } else {
+                    code.emitop0(ByteCodes.aconst_null);
+                    result = getItems().makeStackItem(tree.type).coerce(pt);
                 }
-
-
                 chainJoin(thenExit, tree);
 
             }

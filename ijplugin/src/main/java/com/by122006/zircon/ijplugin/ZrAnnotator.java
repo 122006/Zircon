@@ -63,7 +63,7 @@ import java.util.stream.Collectors;
 
 
 public class ZrAnnotator implements Annotator {
-    private static final Logger LOG = Logger.getInstance(ZrAnnotator.class .getName());
+    private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
@@ -138,7 +138,7 @@ public class ZrAnnotator implements Annotator {
 
                 } else {
                     if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText("void") ?: false) && !(method?.getReturnType().equalsToText("null") ?: false)) {
-                        holder.newAnnotation(HighlightSeverity.WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
+                        holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
                                         ", it may lead to a null pointer exception" +
                                         ". Use the Elvis operator `?:` to append a default value to avoid this issue.")
                                 .range(fElement)
@@ -169,7 +169,11 @@ public class ZrAnnotator implements Annotator {
                                         }
                                         @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, fElement);
                                         fElement.replace(codeBlockFromText);
-                                        CodeStyleManager.getInstance(project).reformat(fElement);
+                                        try {
+                                            CodeStyleManager.getInstance(project).reformat(fElement);
+                                        } catch (IncorrectOperationException e) {
+                                            e.printStackTrace();
+                                        }
                                     }
 
                                     @Override
@@ -513,7 +517,7 @@ public class ZrAnnotator implements Annotator {
         if (!method.isValid()) return;
         final PsiAnnotation[] annotations = method.getAnnotations();
         final List<PsiAnnotation> collect = Arrays.stream(annotations)
-                .filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class .getName()))
+                .filter(a -> Objects.equals(a.getQualifiedName(), ExMethod.class.getName()))
                 .collect(Collectors.toList());
         if (collect.isEmpty()) return;
         if (collect.size() > 1) {
@@ -820,7 +824,7 @@ public class ZrAnnotator implements Annotator {
     }
 
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
-        final Constructor<?> constructor = TextAttributesKey.class .getDeclaredConstructors().list()
+        final Constructor<?> constructor = TextAttributesKey.class.getDeclaredConstructors().list()
                 .filter(a -> a.getParameterCount() == 3).head()
                 .orElseThrow(() -> new RuntimeException("不支持的idea版本"));
         constructor.setAccessible(true);

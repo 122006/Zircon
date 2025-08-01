@@ -45,6 +45,24 @@ repositories {
     mavenCentral()
 
 }
+
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.models.ProductRelease
+
+intellijPlatform {
+    pluginVerification {
+        ides {
+            ide IntelliJPlatformType.IntellijIdeaCommunity, "2024.1"
+            recommended()
+            select {
+                it.types = [IntelliJPlatformType.IntellijIdeaCommunity]
+                it.channels = [ProductRelease.Channel.RELEASE]
+                it.sinceBuild = '212'
+                it.untilBuild = '251.*'
+            }
+        }
+    }
+}
 patchPluginXml {
     sinceBuild = "212.*"
     untilBuild = "251.*"

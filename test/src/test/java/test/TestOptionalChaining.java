@@ -379,7 +379,7 @@ public class TestOptionalChaining {
         checkMethodInvokes(
                 () -> {
                     TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
-                    return array[new int[]{0, 1, 2, 3} ?.copy()[0]].getClass();
+                    return array[new int[]{0, 1, 2, 3}?.copy()[0]].getClass();
                 }
                 , () -> TestChildClass.class);
         checkMethodInvokes(
@@ -524,6 +524,16 @@ public class TestOptionalChaining {
                 , () -> {
                     classVar.setValue("Test");
                     return classVar.valString;
+                });
+        checkMethodInvokes(
+                () -> {
+                    List<TestExMethodImpl.Pair<String, String>> pairList = new ArrayList<>();
+                    pairList.add(new TestExMethodImpl.Pair<>("1", "2"));
+                    final String first = pairList.head()?.first;
+                    return first;
+                }
+                , () -> {
+                    return "1";
                 });
         testEnd();
 

@@ -402,7 +402,12 @@ public final class ZrJavaLexer extends LexerBase {
     }
 
     private char charAt(int position) {
-        return myBufferArray != null ? myBufferArray[position] : myBuffer.charAt(position);
+        try {
+            return myBufferArray != null ? myBufferArray[position] : myBuffer.charAt(position);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ' ';
+        }
     }
 
     @NotNull

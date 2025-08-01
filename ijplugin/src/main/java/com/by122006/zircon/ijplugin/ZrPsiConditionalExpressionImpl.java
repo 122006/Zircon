@@ -30,7 +30,7 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
             return elementFactory.createExpressionFromText("null", getParent());
         }
         return CachedValuesManager.getCachedValue(this, () -> {
-            final String s = getThenExpression().getText() + "!=null";
+            final String s = "java.util.Objects.nonNull("+getThenExpression().getText() + ")";
             final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
             if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
                 ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);

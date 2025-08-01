@@ -43,7 +43,7 @@ public class ZrClassLoaderHelper {
         final ClassLoader classLoader = ZrClassLoaderHelper.class.getClassLoader();
         try {
             return classLoader.loadClass(clazzName);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException ignored) {
         }
         String path = "/clazz/" + tag + "/" + clazzName.replace('.', '/') + ".clazz";
         try (InputStream is = ZrClassLoaderHelper.class.getResourceAsStream(path)) {
