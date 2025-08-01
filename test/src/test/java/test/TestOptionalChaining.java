@@ -532,9 +532,14 @@ public class TestOptionalChaining {
                     final String first = pairList.head()?.first;
                     return first;
                 }
-                , () -> {
-                    return "1";
-                });
+                , () -> "1");
+        checkMethodInvokes(
+                () -> {
+                    List<TestExMethodImpl.Pair<String, String>> pairList = new ArrayList<>();
+                    final String first = pairList.head()?.first;
+                    return first;
+                }
+                , () -> null);
         testEnd();
 
     }

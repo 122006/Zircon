@@ -212,22 +212,20 @@ public class ZrGen extends Gen {
             final Code code = getCode();
             if (applyDepth == 0) applyDepth++;
             final int currentApplyDepth = applyDepth;
-            ZrGenApplyDepthInfo nowChains = applyChains.get(currentApplyDepth);
-            boolean isFirstDepth = nowChains == null;
+            ZrGenApplyDepthInfo currentChains = applyChains.get(currentApplyDepth);
+            boolean isFirstDepth = currentChains == null;
             if (isFirstDepth) {
                 final Code.State backState = code.pendingJumps != null ? code.pendingJumps.state : code.state;
-                applyChains.put(currentApplyDepth, nowChains = new ZrGenApplyDepthInfo(currentApplyDepth,backState));
+                applyChains.put(currentApplyDepth, currentChains = new ZrGenApplyDepthInfo(currentApplyDepth, backState));
             }
             super.visitSelect(tree);
 
-            if (isFirstDepth && nowChains.nullChain != null) {
+            if (isFirstDepth && currentChains.nullChain != null) {
                 //单链第一个select，需要承接跳转
                 result.coerce(pt).load();
                 Code.Chain thenExit = chainCreate(goto_);
-                final Code.Chain nullChain = nowChains.nullChain;
+                final Code.Chain nullChain = currentChains.nullChain;
                 chainJoin(nullChain, tree);
-
-                pop();
 
                 applyChains.remove(currentApplyDepth);
                 if (!(result instanceof Items.StaticItem)) {
@@ -238,15 +236,10 @@ public class ZrGen extends Gen {
                                     ", the final field in the optional chain cannot also return a primitive type (" + pt + ")." +
                                     " Consider providing a default value through an Elvis expression instead."
                             );
-                        } else {
-                            code.emitop0(ByteCodes.aconst_null);
                         }
                     }
-                    result = getItems().makeStackItem(pt);
-                } else {
-                    code.emitop0(ByteCodes.aconst_null);
-                    result = getItems().makeStackItem(tree.type).coerce(pt);
                 }
+                result = getItems().makeStackItem(tree.type);
                 chainJoin(thenExit, tree);
 
             }
@@ -287,6 +280,7 @@ public class ZrGen extends Gen {
 
                 code.emitop0(ByteCodes.dup);
                 Code.Chain nonnull = chainCreate(if_acmp_nonnull);
+                //应该剩下一个调用链本身的object
                 while (code.state.stacksize - currentChains.backState.stacksize > 0) {
                     pop();
                 }
@@ -342,7 +336,6 @@ public class ZrGen extends Gen {
                 Code.Chain thenExit = chainCreate(goto_);
                 final Code.Chain nullChain = currentChains.nullChain;
                 chainJoin(nullChain, tree);
-                pop();
                 applyChains.remove(currentApplyDepth);
                 final boolean resultIsPrimitive = result.typecode < 8;
                 if (pt != null && pt != syms.voidType) {
@@ -350,17 +343,15 @@ public class ZrGen extends Gen {
                         throwNullPointerException("When the expected result value is a primitive type (" + result + ")" +
                                 ", the final method in the optional chain cannot also return a primitive type (" + pt + ")." +
                                 " Consider providing a default value through an Elvis expression instead.");
-                    } else {
-                        code.emitop0(ByteCodes.aconst_null);
-                        getItems().makeStackItem(syms.botType).coerce(pt);
                     }
+                } else {
+                    pop();
                 }
                 chainJoin(thenExit, tree);
             }
             if (isFirstDepth && applyDepth == 1) {
                 leaveCurrentApplyDepth();
             }
-            result = getItems().makeStackItem(pt);
         } catch (Error e) {
             CommonUtil.logError(log, tree, "genApply fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
                     + "\ncode.stack[" + code.state.stacksize + "]:" + Arrays.toString(code.state.stack));

@@ -172,8 +172,6 @@ public class ZrGen extends ZrGenEx {
                 final Code.Chain nullChain = currentChains.nullChain;
                 chainJoin(nullChain, tree);
 
-                pop();
-
                 applyChains.remove(currentApplyDepth);
                 if (!(result instanceof Items.StaticItem)) {
                     final boolean resultIsPrimitive = result.typecode < 8;
@@ -183,15 +181,10 @@ public class ZrGen extends ZrGenEx {
                                     ", the final field in the optional chain cannot also return a primitive type (" + pt + ")." +
                                     " Consider providing a default value through an Elvis expression instead."
                             );
-                        } else {
-                            code.emitop0(ByteCodes.aconst_null);
                         }
                     }
-                    result = getItems().makeStackItem(pt);
-                } else {
-                    code.emitop0(ByteCodes.aconst_null);
-                    result = getItems().makeStackItem(tree.type).coerce(pt);
                 }
+                result = getItems().makeStackItem(tree.type);
                 chainJoin(thenExit, tree);
 
             }
@@ -288,7 +281,6 @@ public class ZrGen extends ZrGenEx {
                 Code.Chain thenExit = chainCreate(goto_);
                 final Code.Chain nullChain = currentChains.nullChain;
                 chainJoin(nullChain, tree);
-                pop();
                 applyChains.remove(currentApplyDepth);
                 final boolean resultIsPrimitive = result.typecode < 8;
                 if (pt != null && pt != syms.voidType) {
@@ -296,19 +288,17 @@ public class ZrGen extends ZrGenEx {
                         throwNullPointerException("When the expected result value is a primitive type (" + result + ")" +
                                 ", the final method in the optional chain cannot also return a primitive type (" + pt + ")." +
                                 " Consider providing a default value through an Elvis expression instead.");
-                    } else {
-                        code.emitop0(ByteCodes.aconst_null);
-                        getItems().makeStackItem(syms.botType).coerce(pt);
                     }
+                } else {
+                    pop();
                 }
                 chainJoin(thenExit, tree);
             }
             if (isFirstDepth && applyDepth == 1) {
                 leaveCurrentApplyDepth();
             }
-            result = getItems().makeStackItem(pt);
         } catch (Error e) {
-            CommonUtil.logError(log, tree.pos(), "genApply fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
+            CommonUtil.logError(log, tree, "genApply fail:[" + e.getClass().getSimpleName() + "]" + e.getMessage()
                     + "\ncode.stack[" + code.state.stacksize + "]:" + Arrays.toString(code.state.stack));
             e.printStackTrace();
             throw e;
