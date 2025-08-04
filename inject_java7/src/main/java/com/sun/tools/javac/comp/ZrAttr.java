@@ -81,6 +81,8 @@ public class ZrAttr extends Attr {
         that.meth = make.Select(make.QualIdent(biopClass), names.fromString("$$NullSafe"));
         that.args = List.of(selected);
         visitApply(that);
+        that.type = selected.type;
+        result = that.type;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

@@ -111,6 +111,29 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                 return true;
             }
         }
+        if (highlightInfo.getDescription() != null) {
+            final String matchString = JavaAnalysisBundle.message("dataflow.message.unboxing", ".*", ".*")
+                    .trim()
+                    .replaceAll("<.*?>.*?</.*?>", "'.*'")
+                    .replaceAll("#[a-zA-Z0-9]* ", "")
+                    .trim();
+            if (highlightInfo.getDescription().matches(matchString) || highlightInfo.getDescription().contains("Unreachable code")) {
+                final int startOffset = highlightInfo.getStartOffset();
+                if (startOffset <= 0) {
+                    return false;
+                }
+                final PsiElement elementAt = file.findElementAt(startOffset);
+                if (elementAt == null) return true;
+                final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
+                if (expr == null) return true;
+                if (highlightInfo.getStartOffset() == expr.getStartOffset()) return false;
+                if (highlightInfo.getStartOffset() == expr.getStartOffset() + (expr.getElseExpression()?.getStartOffsetInParent() ?: 0)) {
+                    return false;
+                }
+//                if (expr.getElseExpression() == highlightInfo.getStartOffset()) return false;
+                return true;
+            }
+        }
         return true;
     }
 }

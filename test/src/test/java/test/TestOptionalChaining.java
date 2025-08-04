@@ -379,7 +379,7 @@ public class TestOptionalChaining {
         checkMethodInvokes(
                 () -> {
                     TestChildClass[] array = new TestChildClass[]{new TestChildClass()};
-                    return array[new int[]{0, 1, 2, 3}?.copy()[0]].getClass();
+                    return array[new int[]{0, 1, 2, 3} ?.copy()[0]].getClass();
                 }
                 , () -> TestChildClass.class);
         checkMethodInvokes(
@@ -399,6 +399,12 @@ public class TestOptionalChaining {
                 , () -> {
                     return new TestClass().returnBoolean();
                 });
+        {
+            Integer IntegerValue_1 = null;
+            if ((IntegerValue_1 ?: 0) > 0) {
+
+            }
+        }
         String emptyString = null;
         if (emptyString?.isEmpty() ?: false) {
             throw new RuntimeException();
@@ -407,6 +413,7 @@ public class TestOptionalChaining {
         } else {
             throw new RuntimeException();
         }
+
         checkMethodInvokes(
                 () -> {
                     Integer integer = null;
@@ -540,6 +547,10 @@ public class TestOptionalChaining {
                     return first;
                 }
                 , () -> null);
+
+        checkMethodInvokes(() -> {
+            return classVar.getTestChildClass()?.return_Integer1();
+        }, () -> classVar.getTestChildClass().return_Integer1());
         testEnd();
 
     }
@@ -555,6 +566,10 @@ public class TestOptionalChaining {
             return () -> {
                 return (T) new TestChildClass();
             };
+        }
+
+        public <T extends TestClass> T getTestChildClass() {
+            return (T) new TestChildClass();
         }
 
         static TestClass nullStaticObj = null;

@@ -171,7 +171,7 @@ public class ZrAnnotator implements Annotator {
                                         fElement.replace(codeBlockFromText);
                                         try {
                                             CodeStyleManager.getInstance(project).reformat(fElement);
-                                        } catch (IncorrectOperationException e) {
+                                        } catch (Exception e) {
                                             e.printStackTrace();
                                         }
                                     }

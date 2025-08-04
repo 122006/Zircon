@@ -214,7 +214,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 Tokens.TokenKind tk1 = fac.tokens.lookupKind(name1);
                 Tokens.NamedToken token1 = new Tokens.NamedToken(tk1, pos, pos, name1, null);
                 Name name2 = fac.names.fromString("$$elvisExpr");
-                Tokens.TokenKind tk2 = fac.tokens.lookupKind(name1);
+                Tokens.TokenKind tk2 = fac.tokens.lookupKind(name2);
                 Tokens.NamedToken token2 = new Tokens.NamedToken(tk2, pos, pos, name2, null);
                 appendTokens = new Tokens.Token[]{
                         token0, new Tokens.Token(Tokens.TokenKind.DOT, pos, pos, null),
