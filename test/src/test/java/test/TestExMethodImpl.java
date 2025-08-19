@@ -11,7 +11,6 @@ import zircon.ExMethod;
 import zircon.ExMethodIDE;
 import zircon.data.ThrowConsumer;
 import zircon.data.ThrowPredicate;
-import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;
@@ -679,8 +678,10 @@ public class TestExMethodImpl {
         assertThrows(RuntimeException.class, () -> {
             String a = Optional.ofNullable(nullStr).orElseThrow(RuntimeException::new);
         });
-
-        String b = Optional.ofNullable(nullStr).orElse(null);
+        {
+            String a = Optional.ofNullable("123").orElseThrow(RuntimeException::new);
+            String b = Optional.ofNullable(nullStr).orElse(null);
+        }
 
         checkMethodInvokes(
                 () -> {
@@ -808,6 +809,14 @@ public class TestExMethodImpl {
                 }
         );
         Object.testClassExMethodWArg2(1, "123");
+        checkMethodInvokes(
+                () -> {
+                    new TestExMethod().testOverrideMethod(true);
+                }, () -> {
+                    TestExMethod.testOverrideMethod(new TestExMethod(), true);
+                }
+        );
+
         testEnd();
 
     }

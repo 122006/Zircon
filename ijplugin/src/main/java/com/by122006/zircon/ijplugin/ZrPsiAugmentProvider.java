@@ -228,7 +228,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         return extensionMethod.targetType.stream().anyMatch(a -> a.isValid() && TypeConversionUtil.isAssignable(a, ownType));
                     };
                 } else {
-                    System.out.println("未知调用方类型" + (resolve ?.getClass().getName()));
+                    System.out.println("未知调用方类型" + (resolve?.getClass().getName()));
                     ownType = null;
                     predicate = a -> true;
                 }
@@ -332,27 +332,31 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                         final PsiMethodCallExpression psiMethodCallExpression = (PsiMethodCallExpression) context;
                         final PsiExpressionList argumentList = psiMethodCallExpression.getArgumentList();
                         boolean any = true;
+                        PsiSubstitutor s=PsiSubstitutor.EMPTY;
+                        for (PsiTypeParameter typeParameter : om.getTypeParameters()) {
+                            s=s.put(typeParameter,javaLangObject);
+                        }
                         if (argumentList.getExpressions().length == oParameters.length) {
                             for (int i = 0, oParametersLength = oParameters.length; i < oParametersLength; i++) {
                                 PsiParameter oParameter = oParameters[i];
                                 final PsiExpression expression = argumentList.getExpressions()[i];
                                 if (expression.getType() == null) continue;
-                                final boolean assignableFrom = expression.getType().isConvertibleFrom(oParameter.getType());
+                                final PsiType substitute = PsiSubstitutor.EMPTY.substitute(expression.getType());
+                                final PsiType substitute1 = s.substitute(oParameter.getType());
+                                final boolean assignableFrom = substitute1.isAssignableFrom(substitute);
                                 if (!assignableFrom) {
-                                    any = false;
-                                    break;
+                                    return false;
                                 }
                             }
                         }
-                        if (any) return true;
                     }
-                    for (int i = 0, oParametersLength = oParameters.length; i < oParametersLength; i++) {
-                        PsiParameter oParameter = oParameters[i];
-                        PsiParameter parameter = parameters[i];
-                        if (!Objects.equals(PsiTypesUtil.getPsiClass(oParameter.getType()), PsiTypesUtil.getPsiClass(parameter.getType()))) {
-                            return false;
-                        }
-                    }
+//                    for (int i = 0, oParametersLength = oParameters.length; i < oParametersLength; i++) {
+//                        PsiParameter oParameter = oParameters[i];
+//                        PsiParameter parameter = parameters[i];
+//                        if (!Objects.equals(PsiTypesUtil.getPsiClass(oParameter.getType()), PsiTypesUtil.getPsiClass(parameter.getType()))) {
+//                            return false;
+//                        }
+//                    }
                     return true;
                 });
             }).collect(Collectors.toList());

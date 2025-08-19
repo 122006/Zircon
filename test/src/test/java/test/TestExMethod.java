@@ -444,7 +444,7 @@ public class TestExMethod {
     @ExMethod
     public static <E, C extends E> List<? extends C> filter(List<E> collection, Class<C> clazz) {
         if (collection == null) return null;
-        return ExCollection.findAll(collection, a -> a.isInstanceOf(clazz)) .map(a -> (C) a);
+        return ExCollection.findAll(collection, a -> a.isInstanceOf(clazz)).map(a -> (C) a);
     }
 
 
@@ -571,4 +571,15 @@ public class TestExMethod {
         methodNames.add("testClassExMethodConsumer(1" + clazz.toString());
         return clazz;
     }
+
+    public void testOverrideMethod(int a) {
+        methodNames.add("testMethod(i");
+    }
+
+    @ExMethod
+    public static void testOverrideMethod(TestExMethod method, boolean a) {
+        methodNames.add("testMethod(m,boolean");
+    }
+
 }
+
