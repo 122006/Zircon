@@ -551,6 +551,14 @@ public class TestOptionalChaining {
         checkMethodInvokes(() -> {
             return classVar.getTestChildClass()?.return_Integer1();
         }, () -> classVar.getTestChildClass().return_Integer1());
+
+        {
+            List<String> stringList = null;
+            if (!(stringList?.isEmpty() ?: true)) {
+                throw new RuntimeException("List is not empty");
+            }
+        }
+
         testEnd();
 
     }

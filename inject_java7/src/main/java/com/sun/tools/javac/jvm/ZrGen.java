@@ -309,8 +309,8 @@ public class ZrGen extends ZrGenEx {
 
     @Override
     public Items.CondItem genCond(JCTree _tree, boolean markBranches) {
-        if (_tree instanceof JCTree.JCConditional) {
-            final JCTree.JCConditional tree = (JCTree.JCConditional) _tree;
+        if (TreeInfo.skipParens(_tree) instanceof JCTree.JCConditional) {
+            final JCTree.JCConditional tree = (JCTree.JCConditional) TreeInfo.skipParens(_tree);
             if (tree.cond instanceof JCTree.JCMethodInvocation) {
                 final JCTree.JCMethodInvocation cond = (JCTree.JCMethodInvocation) tree.cond;
                 final Symbol.MethodSymbol sym = (Symbol.MethodSymbol) TreeInfo.symbol(cond.meth);
