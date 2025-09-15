@@ -160,13 +160,13 @@ public class TestExMethodImpl {
                 () -> new TestExMethod.ChildClass().fatherMExtendRT(12),
                 () -> TestExMethod.fatherMExtendRT(childClass, 12));
         checkMethodInvokes(
-                () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendRT(childClass),
+                () -> new TestExMethod.FatherClass[]{childClass} .fatherTArrayExtendRT(childClass),
                 () -> TestExMethod.fatherTArrayExtendRT(new TestExMethod.FatherClass[]{childClass}, childClass));
         checkMethodInvokes(
-                () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendArrayRT(childClass, childClass, childClass, childClass),
+                () -> new TestExMethod.FatherClass[]{childClass} .fatherTArrayExtendArrayRT(childClass, childClass, childClass, childClass),
                 () -> TestExMethod.fatherTArrayExtendArrayRT(new TestExMethod.FatherClass[]{childClass}, childClass, childClass, childClass, childClass));
         checkMethodInvokes(
-                () -> new TestExMethod.FatherClass[]{childClass}.fatherTArrayExtendArrayRT("123"),
+                () -> new TestExMethod.FatherClass[]{childClass} .fatherTArrayExtendArrayRT("123"),
                 () -> TestExMethod.fatherTArrayExtendArrayRT(new TestExMethod.FatherClass[]{childClass}, "123"));
         checkMethodInvokes(
                 () -> {
@@ -174,7 +174,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) fatherTRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> TestExMethod.fatherTRT(childClass, 123));
         checkMethodInvokes(
                 () -> {
@@ -182,7 +182,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) fatherMExtendRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> TestExMethod.fatherMExtendRT(childClass, 123)
         );
         checkMethodInvokes(
@@ -194,9 +194,9 @@ public class TestExMethodImpl {
                                 public Integer get() {
                                     return childClass.fatherMExtendRT(123);
                                 }
-                            }.get();
+                            } .get();
                         }
-                    }.test();
+                    } .test();
                 }, () -> TestExMethod.fatherMExtendRT(childClass, 123)
         );
         checkMethodInvokes(
@@ -205,7 +205,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) staticFatherMExtendRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> TestExMethod.staticFatherMExtendRT(123)
         );
         checkMethodInvokes(
@@ -214,7 +214,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) createNew().fatherTRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> {
                     TestExMethod.createNew();
                     return TestExMethod.fatherTRT(childClass, 123);
@@ -225,7 +225,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) createNew().fatherMExtendRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> {
                     TestExMethod.createNew();
                     return TestExMethod.fatherMExtendRT(childClass, 123);
@@ -237,7 +237,7 @@ public class TestExMethodImpl {
                         <T> T test() {
                             return (T) createNew().staticFatherMExtendRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> {
                     TestExMethod.createNew();
                     return TestExMethod.staticFatherMExtendRT(123);
@@ -251,7 +251,7 @@ public class TestExMethodImpl {
                             createNew().fatherMExtendRT(123);
                             createNew().staticFatherMExtendRT(123);
                         }
-                    }.test();
+                    } .test();
                 }, () -> {
                     TestExMethod.createNew();
                     TestExMethod.fatherTRT(childClass, 123);
@@ -270,7 +270,7 @@ public class TestExMethodImpl {
                             createNew().fatherMExtendRT(123);
                             createNew().fatherMExtendRT(123, "456");
                         }
-                    }.test();
+                    } .test();
                 }, () -> {
                     TestExMethod.createNew();
                     TestExMethod.staticFatherMExtendRV(123);
@@ -702,14 +702,14 @@ public class TestExMethodImpl {
                 () -> {
                     return TestExMethod.ChildClass.testClassExMethod();
                 }, () -> {
-                    return TestExMethod.ChildClass.class.testClassExMethod();
+                    return TestExMethod.ChildClass.class .testClassExMethod();
                 }
         );
         checkMethodInvokes(
                 () -> {
                     return "".testClassExMethodString();
                 }, () -> {
-                    return String.class.testClassExMethodString();
+                    return String.class .testClassExMethodString();
                 }
         );
         checkMethodInvokes(
@@ -754,14 +754,14 @@ public class TestExMethodImpl {
                         }
                 );
             }
-        }.invoke();
+        } .invoke();
 
         testClassExMethod_TestExMethodImpl();
         checkMethodInvokes(
                 () -> {
                     return TestExMethod.ChildClass.testClassExMethodArg2(1, "test");
                 }, () -> {
-                    return TestExMethod.ChildClass.class.testClassExMethodArg2(1, "test");
+                    return TestExMethod.ChildClass.class .testClassExMethodArg2(1, "test");
                 }
         );
         checkMethodInvokes(
@@ -803,7 +803,7 @@ public class TestExMethodImpl {
         );
         checkMethodInvokes(
                 () -> {
-                    return TestExMethod.ChildClass.class.testClassExMethodConsumer(c -> c.childrenMethod());
+                    return TestExMethod.ChildClass.class .testClassExMethodConsumer(c -> c.childrenMethod());
                 }, () -> {
                     return TestExMethod.ChildClass.testClassExMethodConsumer(c -> c.childrenMethod());
                 }
@@ -816,7 +816,42 @@ public class TestExMethodImpl {
                     TestExMethod.testOverrideMethod(new TestExMethod(), true);
                 }
         );
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.ChildClass.class .testClassExMethodObject(childClass);
+                },
+                () -> {
+                    return TestExMethod.ChildClass.testClassExMethodObject(childClass);
+                }
+        );
 
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.ChildClass.class .testClassExMethodObject(List.create(childClass));
+                },
+                () -> {
+                    return TestExMethod.testClassExMethodObject(TestExMethod.ChildClass.class, List.create(childClass));
+                }
+        );
+        checkMethodInvokes(
+                () -> {
+                    return TestExMethod.testClassExMethodObject(TestExMethod.ChildClass.class, List.create(childClass));
+                },
+                () -> {
+                    return TestExMethod.ChildClass.testClassExMethodObject(List.create(childClass));
+                }
+        );
+
+        checkMethodInvokes(
+                () -> {
+                    Runnable a = TestExMethod.ChildClass.class::testClassExMethodObjectMR;
+                    a.run();
+                },
+                () -> {
+                    Runnable a = TestExMethod.ChildClass::testClassExMethodObjectMR;
+                    a.run();
+                }
+        );
         testEnd();
 
     }

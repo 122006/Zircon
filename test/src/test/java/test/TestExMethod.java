@@ -572,6 +572,23 @@ public class TestExMethod {
         return clazz;
     }
 
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodObject(Class<T> clazz, T obj) {
+        methodNames.add("testClassExMethodObject");
+        return clazz;
+    }
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodObjectMR(Class<T> clazz) {
+        methodNames.add("testClassExMethodObjectMR");
+        return clazz;
+    }
+
+    @ExMethod
+    public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodObject(Class<T> clazz, List<T> objs) {
+        methodNames.add("testClassExMethodObject,list");
+        return clazz;
+    }
+
     public void testOverrideMethod(int a) {
         methodNames.add("testMethod(i");
     }

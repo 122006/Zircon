@@ -330,19 +330,16 @@ public class ZrResolve extends Resolve {
         }).collect(Collectors.toList());
         exInfo:
         for (ExMethodInfo methodInfo : sortList) {
-            if (methodInfo.siteCopyByClassHeadArgMethod) {
+            if (methodInfo.siteCopyByClassHeadArgMethod && site.tsym != syms.classType.tsym) {
                 for (Type.ClassType type : methodInfo.targetClass) {
                     final boolean sameType = type.equalsIgnoreMetadata(site);
-                    final Symbol.VarSymbol head = methodInfo.methodSymbol.getParameters().head;
-                    final List<Type> typeArguments = head.type.getTypeArguments();
-                    final Type firstTypeArgument = typeArguments.isEmpty() ? syms.objectType : types.erasure(typeArguments.head);
-                    final Type.MethodType oldType = methodInfo.methodSymbol.type.asMethodType();
-                    if (sameType || types.isAssignable(site, firstTypeArgument)) {
-                        Type.MethodType newType = new Type.MethodType(oldType.argtypes.diff(List.of(oldType.argtypes.head)), oldType.restype, oldType.thrown, oldType.tsym);
-                        Symbol.MethodSymbol clone = new Symbol.MethodSymbol(methodInfo.methodSymbol.flags_field, methodInfo.methodSymbol.name, newType, type.tsym);
-                        clone.code = methodInfo.methodSymbol.code;
-                        final Symbol best = selectBest(env, site, argtypes, typeargtypes, clone, methodNotFound, allowBoxing, useVarargs);
-                        if (best == clone && best instanceof Symbol.MethodSymbol) {
+                    if (sameType || types.isAssignable(site, type)) {
+                        List<Type> newArgTypes = List.from(argtypes);
+                        final Type.ClassType classType = new Type.ClassType(Type.noType, List.of(site), syms.classType.tsym);
+                        if (!memberReference)
+                            newArgTypes = newArgTypes.prepend(classType);
+                        final Symbol best = selectBest(env, classType, newArgTypes, typeargtypes, methodInfo.methodSymbol, methodNotFound, allowBoxing, useVarargs);
+                        if (best == methodInfo.methodSymbol && best instanceof Symbol.MethodSymbol) {
                             lastMethodSymbol = Pair.of(methodInfo.methodSymbol, methodInfo);
                             newResult.add(List.of(type, methodInfo));
                             continue;
