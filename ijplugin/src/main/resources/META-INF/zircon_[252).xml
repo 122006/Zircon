@@ -1,0 +1,7 @@
+<idea-plugin>
+    <idea-version since-build="252" until-build="252.*"/>
+    <extensions defaultExtensionNs="com.intellij">
+        <syntax.syntaxDefinition language="JAVA"
+                                 implementationClass="com.by122006.zircon.ijplugin.v252.ZrJavaSyntaxDefinitionExtension"/>
+    </extensions>
+</idea-plugin>

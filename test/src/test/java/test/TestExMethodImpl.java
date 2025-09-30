@@ -449,9 +449,9 @@ public class TestExMethodImpl {
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456),
                 () -> TestExMethod.asList(123, 456));
-//        checkMethodInvokes(
-//                () -> Arrays.asList(123, 456).sort(),
-//                () -> TestExMethod.asList(123, 456).sort());
+        checkMethodInvokes(
+                () -> Arrays.asList(123, 456).sort(),
+                () -> TestExMethod.asList(123, 456).sort());
         checkMethodInvokes(
                 () -> Arrays.asList(123, 456).sort(Comparator.comparing(a -> a)),
                 () -> TestExMethod.asList(123, 456).sort(Comparator.comparing(a -> a)));

@@ -1,43 +1,39 @@
-package com.by122006.zircon.ijplugin;
+package com.by122006.zircon.ijplugin.v252;
 
-import com.intellij.lang.java.lexer.JavaLexer;
-import com.intellij.lexer.LexerBase;
+import com.intellij.java.syntax.element.JavaDocSyntaxElementType;
+import com.intellij.java.syntax.element.JavaSyntaxTokenType;
+import com.intellij.java.syntax.lexer.JavaLexer;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.util.Pair;
+import com.intellij.platform.syntax.SyntaxElementType;
+import com.intellij.platform.syntax.element.SyntaxTokenTypes;
+import com.intellij.platform.syntax.lexer.Lexer;
+import com.intellij.platform.syntax.lexer.LexerPosition;
 import com.intellij.pom.java.LanguageLevel;
-import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.TokenType;
-import com.intellij.psi.formatter.java.JavaSpacePropertyProcessor;
-import com.intellij.psi.impl.source.tree.JavaDocElementType;
-import com.intellij.psi.tree.IElementType;
 import com.intellij.util.text.CharArrayUtil;
 import com.sun.tools.javac.parser.Formatter;
+import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.example.ExReflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Map;
 
+public class ZrJavaLexer252 implements Lexer {
+//    static {
+//        try {
+//            //强制设置)和.之间不含空格
+//            Map<Pair<JavaSyntaxTokenType, JavaSyntaxTokenType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
+//            ourTokenStickingMatrix.put(Pair.pair(JavaSyntaxTokenType.RPARENTH, JavaSyntaxTokenType.DOT), true);
+//
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 
-@SuppressWarnings({"unchecked", "rawtypes"})
-public final class ZrJavaLexer extends LexerBase {
-    private static final Logger LOG = Logger.getInstance(ZrJavaLexer.class .getName());
-
-    static {
-        try {
-            //强制设置)和.之间不含空格
-            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
-            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+    private static final Logger LOG = Logger.getInstance(ZrJavaLexer252.class.getName());
 
 
     private Object myFlexLexer;
@@ -47,9 +43,9 @@ public final class ZrJavaLexer extends LexerBase {
     private int myBufferIndex;
     private int myBufferEndOffset;
     private int myTokenEndOffset;  // positioned after the last symbol of the current token
-    private IElementType myTokenType;
+    private SyntaxElementType myTokenType;
 
-    public ZrJavaLexer(@NotNull LanguageLevel level) {
+    public ZrJavaLexer252(@NotNull LanguageLevel level) {
 
         try {
             Constructor<?> constructor = getFlexClazz().getConstructor(LanguageLevel.class);
@@ -64,16 +60,16 @@ public final class ZrJavaLexer extends LexerBase {
 
     private Class getFlexClazz() {
         try {
-            return Class.forName("com.intellij.lang.java.lexer._JavaLexer");
+            return Class.forName("com.intellij.java.syntax.lexer._JavaLexer");
         } catch (ClassNotFoundException e) {
             LOG.error(e);
             throw new RuntimeException();
         }
     }
 
-    public ZrJavaLexer(JavaLexer lexer) {
+    public ZrJavaLexer252(com.intellij.lang.java.lexer.JavaLexer lexer) {
         super();
-        myFlexLexer = com.sun.tools.javac.parser.ReflectionUtil.getDeclaredField(lexer, JavaLexer.class, "myFlexLexer");
+        myFlexLexer = ReflectionUtil.getDeclaredField(lexer, JavaLexer.class, "myFlexLexer");
     }
 
     @Override
@@ -103,7 +99,7 @@ public final class ZrJavaLexer extends LexerBase {
     }
 
     @Override
-    public IElementType getTokenType() {
+    public SyntaxElementType getTokenType() {
         locateToken();
         return myTokenType;
     }
@@ -127,15 +123,18 @@ public final class ZrJavaLexer extends LexerBase {
 
     ElementTypesInfo[] infos = null;
 
+
     public static class ElementTypesInfo {
-        IElementType iElementType = null;
+        SyntaxElementType iElementType = null;
         int endTokenEndOffset = -1;
 
-        public ElementTypesInfo(IElementType iElementType, int endTokenEndOffset) {
+        public ElementTypesInfo(SyntaxElementType iElementType, int endTokenEndOffset) {
             this.iElementType = iElementType;
             this.endTokenEndOffset = endTokenEndOffset;
         }
     }
+
+    static SyntaxElementType WHITE_SPACE = ReflectionUtil.getDeclaredField(null, SyntaxTokenTypes.class, "WHITE_SPACE");
 
     private void locateToken() {
         if (myTokenType != null) return;
@@ -166,28 +165,28 @@ public final class ZrJavaLexer extends LexerBase {
             case '\n':
             case '\r':
             case '\f':
-                myTokenType = TokenType.WHITE_SPACE;
+                myTokenType = WHITE_SPACE;
                 myTokenEndOffset = getWhitespaces(myBufferIndex + 1);
                 break;
 
             case '/':
                 if (myBufferIndex + 1 >= myBufferEndOffset) {
-                    myTokenType = JavaTokenType.DIV;
+                    myTokenType = JavaSyntaxTokenType.DIV;
                     myTokenEndOffset = myBufferEndOffset;
                 } else {
                     char nextChar = charAt(myBufferIndex + 1);
                     if (nextChar == '/') {
-                        myTokenType = JavaTokenType.END_OF_LINE_COMMENT;
+                        myTokenType = JavaSyntaxTokenType.END_OF_LINE_COMMENT;
                         myTokenEndOffset = getLineTerminator(myBufferIndex + 2);
                     } else if (nextChar == '*') {
                         if (myBufferIndex + 2 >= myBufferEndOffset ||
                                 (charAt(myBufferIndex + 2)) != '*' ||
                                 (myBufferIndex + 3 < myBufferEndOffset &&
                                         (charAt(myBufferIndex + 3)) == '/')) {
-                            myTokenType = JavaTokenType.C_STYLE_COMMENT;
+                            myTokenType = JavaSyntaxTokenType.C_STYLE_COMMENT;
                             myTokenEndOffset = getClosingComment(myBufferIndex + 2);
                         } else {
-                            myTokenType = JavaDocElementType.DOC_COMMENT;
+                            myTokenType = JavaDocSyntaxElementType.DOC_COMMENT;
                             myTokenEndOffset = getClosingComment(myBufferIndex + 3);
                         }
                     } else {
@@ -198,42 +197,42 @@ public final class ZrJavaLexer extends LexerBase {
 
             case '#':
                 if (myBufferIndex == 0 && myBufferIndex + 1 < myBufferEndOffset && charAt(myBufferIndex + 1) == '!') {
-                    myTokenType = JavaTokenType.END_OF_LINE_COMMENT;
+                    myTokenType = JavaSyntaxTokenType.END_OF_LINE_COMMENT;
                     myTokenEndOffset = getLineTerminator(myBufferIndex + 2);
                 } else {
                     flexLocateToken();
                 }
                 break;
-            case '?':
-                if (charAt(myBufferIndex + 1) == '.' && myBufferIndex + 1 < myBufferEndOffset && ((charAt(myBufferIndex + 2) < '0') || (charAt(myBufferIndex + 2) > '9'))) {
-                    myTokenType = JavaTokenType.DOT;
-                    myTokenEndOffset = myBufferIndex + 2;
+//            case '?':
+//                if (charAt(myBufferIndex + 1) == '.' && myBufferIndex + 1 < myBufferEndOffset && ((charAt(myBufferIndex + 2) < '0') || (charAt(myBufferIndex + 2) > '9'))) {
+//                    myTokenType = JavaSyntaxTokenType.DOT;
+//                    myTokenEndOffset = myBufferIndex + 2;
+////                    flexLocateToken();
+//                } else if (charAt(myBufferIndex + 1) == ':') {
+////                    infos = new ElementTypesInfo[]{new ElementTypesInfo(JavaSyntaxTokenType.EQEQ, myTokenEndOffset),
+////                            new ElementTypesInfo(JavaSyntaxTokenType.EQEQ, myTokenEndOffset),
+////                            new ElementTypesInfo(JavaSyntaxTokenType.NULL_KEYWORD, myTokenEndOffset),
+////                            new ElementTypesInfo(JavaSyntaxTokenType.COLON, myTokenEndOffset + 1)};
+////                    myTokenType = JavaSyntaxTokenType.QUEST;
+////                    myTokenEndOffset = myBufferIndex;
+//                    myTokenType = ZrJavaSyntaxTokenType.ELVIS;
+//                    myTokenEndOffset = myBufferIndex + 2;
+////                    flexLocateToken();
+//                } else {
 //                    flexLocateToken();
-                } else if (charAt(myBufferIndex + 1) == ':') {
-//                    infos = new ElementTypesInfo[]{new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.NULL_KEYWORD, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.COLON, myTokenEndOffset + 1)};
-//                    myTokenType = JavaTokenType.QUEST;
-//                    myTokenEndOffset = myBufferIndex;
-                    myTokenType = ZrJavaTokenType.ELVIS;
-                    myTokenEndOffset = myBufferIndex + 2;
-//                    flexLocateToken();
-                } else {
-                    flexLocateToken();
-                }
-                break;
+//                }
+//                break;
             case '\'':
-                myTokenType = JavaTokenType.CHARACTER_LITERAL;
+                myTokenType = JavaSyntaxTokenType.CHARACTER_LITERAL;
                 myTokenEndOffset = getClosingQuote0(myBufferIndex + 1, c);
                 break;
 
             case '"':
                 if (myBufferIndex + 2 < myBufferEndOffset && charAt(myBufferIndex + 2) == '"' && charAt(myBufferIndex + 1) == '"') {
-                    myTokenType = JavaTokenType.TEXT_BLOCK_LITERAL;
+                    myTokenType = JavaSyntaxTokenType.TEXT_BLOCK_LITERAL;
                     myTokenEndOffset = getTextBlockEnd(myBufferIndex + 2);
                 } else {
-                    myTokenType = JavaTokenType.STRING_LITERAL;
+                    myTokenType = JavaSyntaxTokenType.STRING_LITERAL;
                     myTokenEndOffset = getClosingQuote0(myBufferIndex + 1, c);
                 }
                 break;
@@ -251,7 +250,7 @@ public final class ZrJavaLexer extends LexerBase {
                 }).findFirst().orElse(null);
                 if (formatter != null) {
 //                    LOG.info("myBufferEndOffset: " + myBufferEndOffset);
-                    myTokenType = JavaTokenType.STRING_LITERAL;
+                    myTokenType = JavaSyntaxTokenType.STRING_LITERAL;
                     myTokenEndOffset = getClosingQuote(formatter, myBufferIndex, '"');
                 } else {
                     flexLocateToken();
@@ -296,7 +295,7 @@ public final class ZrJavaLexer extends LexerBase {
                 advance = getFlexClazz().getMethod("advance");
                 advance.setAccessible(true);
             }
-            myTokenType = (IElementType) advance.invoke(myFlexLexer);
+            myTokenType = (SyntaxElementType) advance.invoke(myFlexLexer);
             if (getTokenEnd == null) {
                 getTokenEnd = getFlexClazz().getMethod("getTokenEnd");
                 getTokenEnd.setAccessible(true);
@@ -420,4 +419,53 @@ public final class ZrJavaLexer extends LexerBase {
     public int getBufferEnd() {
         return myBufferEndOffset;
     }
+
+
+    @Override
+    public void start(@NotNull CharSequence buf, int start, int end) {
+        start(buf, start, end, STATE_DEFAULT);
+    }
+
+
+    @Override
+    public void start(@NotNull CharSequence buf) {
+        start(buf, 0, buf.length());
+
+    }
+
+    @Override
+    public @NotNull LexerPosition getCurrentPosition() {
+        int offset = getTokenStart();
+        int intState = getState();
+        return new LexerPositionImpl(offset, intState);
+    }
+
+    @Override
+    public void restore(@NotNull LexerPosition position) {
+        start(getBufferSequence(), position.getOffset(), getBufferEnd(), position.getState());
+    }
+
+    private int STATE_DEFAULT = 0;
+
+
+    private class LexerPositionImpl implements LexerPosition {
+        private final int offset;
+        private final int state;
+
+        public LexerPositionImpl(int offset, int state) {
+            this.offset = offset;
+            this.state = state;
+        }
+
+        @Override
+        public int getOffset() {
+            return offset;
+        }
+
+        @Override
+        public int getState() {
+            return state;
+        }
+    }
+
 }

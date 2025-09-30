@@ -5,7 +5,7 @@ buildscript {
         }
         maven { url 'https://jitpack.io' }
     }
-    dependencies{
+    dependencies {
         classpath 'com.github.122006.Zircon:gradle:master-SNAPSHOT'
     }
 }
@@ -51,14 +51,16 @@ patchPluginXml {
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2022.3'
-//        intellijIdeaCommunity '251.21418.62'
+        intellijIdeaCommunity '2024.1'
+//        intellijIdeaCommunity '2025.3.1'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation('com.github.122006:ExMethodUtil:1.1.8')
     implementation project(":ijplugin")
+    implementation('com.github.122006:ExMethodUtil:1.1.8')
 }
+
+
 
 tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"

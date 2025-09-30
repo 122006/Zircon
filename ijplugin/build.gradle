@@ -52,26 +52,27 @@ import org.jetbrains.intellij.platform.gradle.models.ProductRelease
 intellijPlatform {
     pluginVerification {
         ides {
-            ide IntelliJPlatformType.IntellijIdeaCommunity, "2024.1"
+            ide IntelliJPlatformType.IntellijIdeaCommunity, "2025.2"
             recommended()
             select {
                 it.types = [IntelliJPlatformType.IntellijIdeaCommunity]
                 it.channels = [ProductRelease.Channel.RELEASE]
                 it.sinceBuild = '212'
-                it.untilBuild = '251.*'
+                it.untilBuild = '252.*'
             }
         }
     }
 }
 patchPluginXml {
     sinceBuild = "212.*"
-    untilBuild = "251.*"
+    untilBuild = "252.*"
 }
 dependencies {
     intellijPlatform {
 //        intellijIdeaCommunity '2022.3'
+//        intellijIdeaCommunity '2025.2'
         intellijIdeaCommunity '2024.1'
-//        intellijIdeaCommunity '251.21418.62'
+//        intellijIdeaCommunity '2025.3.1'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }

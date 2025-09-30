@@ -47,7 +47,7 @@ repositories {
 }
 patchPluginXml {
     sinceBuild = "212.*"
-    untilBuild = "251.*"
+    untilBuild = "252.*"
 }
 dependencies {
     intellijPlatform {
