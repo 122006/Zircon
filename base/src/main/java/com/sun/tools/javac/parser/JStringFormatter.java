@@ -161,7 +161,7 @@ public class JStringFormatter implements Formatter {
                             if (chars[i] == '"') break;
                             i++;
                         }
-                        ranges.add(StringRange.of(0, start, i ));
+                        ranges.add(StringRange.of(0, start, i));
                         break outer;
                     }
                     break;
@@ -248,6 +248,8 @@ public class JStringFormatter implements Formatter {
             if (stringRange.stringVal == null) {
                 stringRange.stringVal = jsonStr.substring(stringRange.startIndex, stringRange.endIndex);
             }
+            if (stringRange.codeStyle == 2) stringRange.codeStyle = 0;
+            else if (stringRange.codeStyle == 0) stringRange.codeStyle = 2;
         }
         return ranges.toArray(new StringRange[0]);
 //        List<StringRange> stringRanges = new ArrayList<>();
