@@ -89,7 +89,7 @@
         <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
         <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"
                               order="first"/>
-        <highlightVisitor implementation="com.by122006.zircon.ijplugin.ZrHighlightVisitor" order="first"/>
+        <highlightVisitor implementation="com.by122006.zircon.ijplugin.v252.ZrHighlightVisitorNew" order="first"/>
         <projectService serviceInterface="com.intellij.psi.codeStyle.JavaCodeStyleManager"
                         serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
                         overrides="true"/>
@@ -119,11 +119,18 @@
                         overrides="true"/>
         <syntax.syntaxDefinition language="JAVA"
                                  implementationClass="com.by122006.zircon.ijplugin.v252.ZrJavaSyntaxDefinitionExtension"/>
-        <projectService serviceInterface="com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory"
-                        serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiSyntaxBuilderFactory"
-                        overrides="true"
+        <applicationService serviceInterface="com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory"
+                            serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiSyntaxBuilderFactory"
+                            overrides="true"
         />
         <lang.parserDefinition language="JAVA"
                                implementationClass="com.by122006.zircon.ijplugin.v252.ZrParserDefinition"/>
+<!--        <projectService serviceInterface="com.intellij.psi.JavaPsiFacade"-->
+<!--                        serviceImplementation="com.by122006.zircon.ijplugin.v252.ZrJavaPsiFacadeImpl"-->
+<!--                        overrides="true"/>-->
+        <projectService serviceInterface="com.intellij.psi.PsiElementFactory"
+                        serviceImplementation="com.by122006.zircon.ijplugin.v252.ZrPsiElementFactory"
+                        overrides="true"/>
+
     </extensions>
 </idea-plugin>

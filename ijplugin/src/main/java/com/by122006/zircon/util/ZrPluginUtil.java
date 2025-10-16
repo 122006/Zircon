@@ -17,7 +17,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 import zircon.example.ExArray;
-import zircon.example.ExObject;
 
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -63,7 +62,7 @@ public class ZrPluginUtil {
             }
         } finally {
             if (System.currentTimeMillis() - start > 100)
-                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start));
+                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start)+" ms");
 
         }
     }

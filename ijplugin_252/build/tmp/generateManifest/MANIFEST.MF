@@ -1,12 +1,12 @@
 Created-By: Gradle 8.7
 Version: 4.3
-Build-JVM: 17.0.12 (Amazon.com Inc. 17.0.12+7-LTS)
+Build-JVM: 17.0.14 (Eclipse Adoptium 17.0.14+7)
 Build-OS: Windows 11 10.0 amd64
 Build-Plugin: IntelliJ Platform Gradle Plugin
 Build-Plugin-Version: 2.6.0
-Platform-Type: IC
-Platform-Version: 2025.2.1
-Platform-Build: 252.25557.77
+Platform-Type: IU
+Platform-Version: 2025.3
+Platform-Build: 253.25908.13
 Kotlin-Available: false
 Kotlin-Stdlib-Bundled: false
 Kotlin-Version: null

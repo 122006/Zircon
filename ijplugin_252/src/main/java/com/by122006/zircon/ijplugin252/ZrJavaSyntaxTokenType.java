@@ -11,6 +11,6 @@ import com.intellij.psi.JavaTokenType;
  */
 public interface ZrJavaSyntaxTokenType extends JavaTokenType {
 
-    SyntaxElementType ELVIS = new SyntaxElementType("ELVIS", null, null);
+    SyntaxElementType ELVIS = new SyntaxElementType("ELVIS", null, null, true,null);
 
 }

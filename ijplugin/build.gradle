@@ -26,7 +26,7 @@ compileJava {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 buildPlugin {
@@ -52,26 +52,26 @@ import org.jetbrains.intellij.platform.gradle.models.ProductRelease
 intellijPlatform {
     pluginVerification {
         ides {
-            ide IntelliJPlatformType.IntellijIdeaCommunity, "2025.2"
+            ide IntelliJPlatformType.IntellijIdeaCommunity, '2022.3'
             recommended()
             select {
                 it.types = [IntelliJPlatformType.IntellijIdeaCommunity]
                 it.channels = [ProductRelease.Channel.RELEASE]
                 it.sinceBuild = '212'
-                it.untilBuild = '252.*'
+                it.untilBuild = '253.*'
             }
         }
     }
 }
 patchPluginXml {
     sinceBuild = "212.*"
-    untilBuild = "252.*"
+    untilBuild = "253.*"
 }
 dependencies {
     intellijPlatform {
-//        intellijIdeaCommunity '2022.3'
+        intellijIdeaCommunity '2022.3'
 //        intellijIdeaCommunity '2025.2'
-        intellijIdeaCommunity '2024.1'
+//        intellijIdeaUltimate '253.25908.13'
 //        intellijIdeaCommunity '2025.3.1'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
@@ -79,8 +79,8 @@ dependencies {
     annotationProcessor project(":javac")
     implementation project(":zircon")
     implementation project(":base")
-    annotationProcessor "org.projectlombok:lombok:1.18.20"
-    compileOnly 'org.projectlombok:lombok:1.18.20'
+    annotationProcessor "org.projectlombok:lombok:1.18.42"
+    compileOnly 'org.projectlombok:lombok:1.18.42'
     implementation('com.github.122006:ExMethodUtil:1.1.8')
     testAnnotationProcessor project(":javac")
 }

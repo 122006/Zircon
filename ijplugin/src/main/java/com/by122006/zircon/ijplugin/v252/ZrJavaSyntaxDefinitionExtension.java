@@ -5,6 +5,7 @@ import com.intellij.platform.syntax.LanguageSyntaxDefinition;
 import com.intellij.platform.syntax.SyntaxElementTypeSet;
 import com.intellij.platform.syntax.lexer.Lexer;
 import com.intellij.platform.syntax.parser.OpaqueElementPolicy;
+import com.intellij.platform.syntax.parser.SyntaxTreeBuilder;
 import com.intellij.platform.syntax.parser.WhitespaceOrCommentBindingPolicy;
 import com.intellij.pom.java.LanguageLevel;
 import org.jetbrains.annotations.NotNull;
@@ -20,20 +21,6 @@ public class ZrJavaSyntaxDefinitionExtension implements LanguageSyntaxDefinition
     public static final ZrJavaLexer252 JAVA_LEXER = new ZrJavaLexer252(LanguageLevel.HIGHEST);
     JavaSyntaxDefinitionExtension javaSyntaxDefinitionExtension = new JavaSyntaxDefinitionExtension();
 
-    @Override
-    public @NotNull Lexer getLexer() {
-        return JAVA_LEXER;
-    }
-
-    @Override
-    public @NotNull SyntaxElementTypeSet getWhitespaceTokens() {
-        return javaSyntaxDefinitionExtension.getWhitespaceTokens();
-    }
-
-    @Override
-    public @NotNull SyntaxElementTypeSet getCommentTokens() {
-        return javaSyntaxDefinitionExtension.getCommentTokens();
-    }
 
     @Override
     public @Nullable WhitespaceOrCommentBindingPolicy getWhitespaceOrCommentBindingPolicy() {
@@ -43,5 +30,20 @@ public class ZrJavaSyntaxDefinitionExtension implements LanguageSyntaxDefinition
     @Override
     public @Nullable OpaqueElementPolicy getOpaqueElementPolicy() {
         return javaSyntaxDefinitionExtension.getOpaqueElementPolicy();
+    }
+
+    @Override
+    public @NotNull SyntaxElementTypeSet getComments() {
+        return javaSyntaxDefinitionExtension.getComments();
+    }
+
+    @Override
+    public void parse(@NotNull SyntaxTreeBuilder syntaxTreeBuilder) {
+        javaSyntaxDefinitionExtension.parse(syntaxTreeBuilder);
+    }
+
+    @Override
+    public @NotNull Lexer createLexer() {
+        return JAVA_LEXER;
     }
 }

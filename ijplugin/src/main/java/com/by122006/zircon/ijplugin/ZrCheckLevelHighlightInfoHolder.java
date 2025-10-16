@@ -16,19 +16,24 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-
 public class ZrCheckLevelHighlightInfoHolder extends HighlightInfoHolder {
     private static final Logger LOG = Logger.getInstance(ZrCheckLevelHighlightInfoHolder.class.getName());
+    @Getter @Setter
     HighlightInfoHolder holder;
     int startIndex;
 
     public ZrCheckLevelHighlightInfoHolder(@NotNull PsiFile file, @NotNull HighlightInfoHolder holder, int startIndex) {
         super(file);
         this.holder = holder;
+        this.startIndex = startIndex;
+    }
+
+    public void updateStartIndex(int startIndex) {
         this.startIndex = startIndex;
     }
 

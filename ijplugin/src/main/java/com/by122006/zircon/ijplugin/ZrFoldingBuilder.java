@@ -19,7 +19,6 @@ import com.sun.tools.javac.parser.StringRange;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.example.ExCollection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +27,7 @@ import java.util.stream.Collectors;
 
 public class ZrFoldingBuilder extends FoldingBuilderEx {
     ZirconSettings settings = ZirconSettings.getInstance();
+
     @NotNull
     @Override
     public FoldingDescriptor[] buildFoldRegions(@NotNull PsiElement root, @NotNull Document document, boolean quick) {
@@ -41,6 +41,7 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
             @Override
             public void visitLiteralExpression(PsiLiteralExpression expression) {
                 if (expression instanceof PsiLiteralExpressionImpl
+                        && expression.getNode().getFirstChildNode() != null
                         && ((PsiLiteralExpressionImpl) expression).getLiteralElementType() == JavaTokenType.STRING_LITERAL) {
                     if (expression.getText().startsWith("\"")) return;
                     String text = expression.getText();

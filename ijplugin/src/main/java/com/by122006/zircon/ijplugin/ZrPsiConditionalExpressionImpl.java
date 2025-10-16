@@ -3,6 +3,7 @@ package com.by122006.zircon.ijplugin;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.JavaPsiFacade;
+import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiElementFactory;
 import com.intellij.psi.PsiExpression;
 import com.intellij.psi.impl.source.tree.ChildRole;
@@ -25,19 +26,32 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
 
     @Override
     public @NotNull PsiExpression getCondition() {
-        final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(this.getManager().getProject());
-        if (getThenExpression() == null) {
-            return elementFactory.createExpressionFromText("null", getParent());
+        if (isElvisExpressionLower253()) {
+            final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(this.getManager().getProject());
+            return CachedValuesManager.getCachedValue(this, () -> {
+                final String s = "java.util.Objects.nonNull(" + super.getThenExpression().getText() + ")";
+                final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
+                if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
+                    ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                }
+                return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
+            });
         }
-        return CachedValuesManager.getCachedValue(this, () -> {
-            final String s = "java.util.Objects.nonNull("+getThenExpression().getText() + ")";
-            final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
-            if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
-                ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+        if (isElvisExpressionUpper253()) {
+            final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(this.getManager().getProject());
+            if (super.getFirstChild().getText().contains("?:")) {
+                return elementFactory.createExpressionFromText("null", getParent());
             }
-            return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
-        });
-//        return super.getThenExpression();
+            return CachedValuesManager.getCachedValue(this, () -> {
+                final String s = "java.util.Objects.nonNull(" + super.getFirstChild().getText() + ")";
+                final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
+                if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
+                    ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                }
+                return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
+            });
+        }
+        return super.getCondition();
     }
 
     @Override
@@ -51,25 +65,59 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
     }
 
     public ASTNode findChildByRole(int role) {
-        LOG.assertTrue(ChildRole.isUnique(role));
-        switch (role) {
-            case 32:
-                return null;
-            case 87:
-                return this.findChildByType(ZrJavaTokenType.ELVIS);
-            case 112:
-                return ElementType.EXPRESSION_BIT_SET.contains(this.getFirstChildNode().getElementType()) ? this.getFirstChildNode() : null;
-            case 113:
-                ASTNode colon = this.findChildByType(ZrJavaTokenType.ELVIS);
-                if (colon == null) {
+        if (isElvisExpressionLower253()) {
+            LOG.assertTrue(ChildRole.isUnique(role));
+            switch (role) {
+                case ChildRole.CONDITION:
                     return null;
-                }
-                return ElementType.EXPRESSION_BIT_SET.contains(this.getLastChildNode().getElementType()) ? this.getLastChildNode() : null;
-            case 114:
-                return this.findChildByType(ZrJavaTokenType.ELVIS);
-            default:
-                return null;
-        }
+                case ChildRole.COLON:
+                    return this.findChildByType(ZrJavaTokenType.ELVIS);
+                case ChildRole.THEN_EXPRESSION:
+                    return ElementType.EXPRESSION_BIT_SET.contains(this.getFirstChildNode().getElementType()) ? this.getFirstChildNode() : null;
+                case ChildRole.ELSE_EXPRESSION:
+                    ASTNode colon = this.findChildByType(ZrJavaTokenType.ELVIS);
+                    if (colon == null) {
+                        return null;
+                    }
+                    return ElementType.EXPRESSION_BIT_SET.contains(this.getLastChildNode().getElementType()) ? this.getLastChildNode() : null;
+                case ChildRole.QUEST:
+                    return this.findChildByType(ZrJavaTokenType.ELVIS);
+                default:
+                    return null;
+            }
+        } else if (isElvisExpressionUpper253()) {
+            switch (role) {
+                case ChildRole.CONDITION:
+                    return getCondition().getNode();
+
+                case ChildRole.QUEST:
+                    return findChildByType(JavaTokenType.QUEST);
+
+                case ChildRole.THEN_EXPRESSION:
+                    return getFirstChildNode();
+
+                case ChildRole.COLON:
+                    return findChildByType(JavaTokenType.QUEST);
+
+                case ChildRole.ELSE_EXPRESSION:
+                    ASTNode colon = super.findChildByRole(ChildRole.QUEST);
+                    if (colon == null) return null;
+                    return ElementType.EXPRESSION_BIT_SET.contains(getLastChildNode().getElementType()) ? getLastChildNode() : null;
+
+                default:
+                    return null;
+            }
+        } else return super.findChildByRole(role);
+
+    }
+
+    private boolean isElvisExpressionLower253() {
+        return super.findChildByType(ZrJavaTokenType.ELVIS) != null;
+    }
+
+    private boolean isElvisExpressionUpper253() {
+        return super.findChildByType(JavaTokenType.QUEST) != null
+                && super.findChildByType(JavaTokenType.QUEST).getText().equals("?:");
     }
 
     public int getChildRole(@NotNull ASTNode child) {

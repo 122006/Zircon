@@ -8,32 +8,23 @@ import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.progress.util.ProgressIndicatorBase;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
-import com.intellij.psi.search.LocalSearchScope;
-import com.intellij.psi.search.searches.ReferencesSearch;
-import com.intellij.psi.util.CachedValueProvider;
-import com.intellij.psi.util.CachedValuesManager;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.PsiUtil;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ZrStringModel;
-
 import org.jetbrains.annotations.NotNull;
 import zircon.example.ExCollection;
-import zircon.example.ExStream;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
@@ -63,6 +54,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
             }
         }
     }
+
 
     private void highlightZrLiteralExpression(@NotNull PsiElement psiElement, @NotNull PsiLiteralExpression expression, String text, Formatter formatter) {
         final ZrStringModel model = formatter.build(text);

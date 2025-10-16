@@ -3,6 +3,7 @@ package com.sun.tools.javac.parser;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
@@ -17,6 +18,13 @@ public class ReflectionUtil {
             }
             Field declaredField = tClazz.getDeclaredField(fieldName);
             declaredField.setAccessible(true);
+//            if (Modifier.isFinal(declaredField.getModifiers())) {
+//                // 移除 final 修饰符
+//                Field modifiersField = Field.class.getDeclaredField("modifiers");
+//                modifiersField.setAccessible(true);
+//                modifiersField.setInt(declaredField,
+//                        declaredField.getModifiers() & ~Modifier.FINAL);
+//            }
             fieldCache.put(key, declaredField);
             declaredField.set(t, object);
         } catch (Exception e) {
@@ -122,6 +130,8 @@ public class ReflectionUtil {
             method.setAccessible(true);
             methodCache.put(key, method);
             return (R) method.invoke(instance, args);
+        } catch (InvocationTargetException e) {
+            throw (RuntimeException) e.getCause();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
