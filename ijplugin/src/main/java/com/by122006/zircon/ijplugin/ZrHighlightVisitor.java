@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.codeInsight.daemon.impl.HighlightVisitor;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;

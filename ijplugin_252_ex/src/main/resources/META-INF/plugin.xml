@@ -1,0 +1,50 @@
+<idea-plugin>
+    <id>com.by122006.zircon.ijplugin</id>
+    <vendor email="1109108466@qq.com" url="https://github.com/122006/Zircon">122006</vendor>
+    <description><![CDATA[
+        <strong>Zircon / Magic Syntax in Java</strong>
+        <p>Allows you to use the <b>'template string' & 'extension method' & 'optional chaining' & 'elvis expression'</b> syntax in the Java language.</p>
+        <p>The plugin provides IDEA to parse template strings in Java, including highlighting keywords, providing code
+            completion, automatic fix, and other effects.</p>
+        <p>like the same features in other languages with Java enhancements.</p>
+        <ol>
+            <li><p>Support android, Java and other projects using Javac</p></li>
+            <li><p>Code content support IDEA completion prompt (need to install IDEA plug-in)</p></li>
+            <li><p>More syntax sugar support</p></li>
+        </ol>
+        <p>After installing this idea plugin, if you are building your project using Maven or Gradle, you will need to
+            install the build plugin.</p>
+        </p>
+        <p>Step 1. In your root project &#39;build.gradle&#39; file, do the following</p>
+        <code>
+            <p>buildscript {</p>
+            <p> repositories {</p>
+            <p> maven { url &#39;https://jitpack.io&#39; }</p>
+            <p> }</p>
+            <p> dependencies {</p>
+            <p> classpath &#39;com.github.122006.Zircon:gradle:+&#39;</p>
+            <p> }</p>
+            <p>} </p>
+        </code>
+        <p>Step 2. In the &#39;build.gradle&#39; file of the module where you want to use the plug-in, do the
+            following</p>
+        <ol>
+            <li>Introduce the plug-in in the first line</li>
+        </ol>
+        <p><code>apply plugin: &#39;zircon&#39;</code></p>
+        </p>
+        </p>
+        <p>Maven is also supported, See more: <a href="https://github.com/122006/Zircon">https://github.com/122006/Zircon</a>
+        </p>
+        ]]></description>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+    <name>Zircon</name>
+    <change-notes><![CDATA[
+        <p>Add 2 features. Allows you to use the <b>'optional chaining' & 'elvis expression'</b> syntax in the Java language.</p>
+        ]]></change-notes>
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+
+</idea-plugin>

@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.google.common.base.Predicates;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.ImportFilter;
@@ -48,8 +48,6 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.example.ExObject;
-import zircon.example.ExString;
 
 import java.util.*;
 import java.util.function.Predicate;

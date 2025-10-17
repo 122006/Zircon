@@ -1,7 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.codeInsight.FileModificationService;
 import com.intellij.codeInsight.folding.impl.FoldingUtil;
 import com.intellij.codeInsight.intention.IntentionAction;
@@ -48,7 +48,6 @@ import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
-import zircon.example.ExString;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -62,6 +61,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
+@SuppressWarnings("removal")
 public class ZrAnnotator implements Annotator {
     private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
 

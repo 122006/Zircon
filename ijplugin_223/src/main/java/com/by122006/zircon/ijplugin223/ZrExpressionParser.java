@@ -28,8 +28,7 @@ public class ZrExpressionParser extends ExpressionParser {
                 return new ZrPsiConditionalExpressionImpl();
             });
             final JavaElementType.JavaCompositeElementType binaryExpression = (JavaElementType.JavaCompositeElementType) JavaElementType.BINARY_EXPRESSION;
-            Field myConstructor;
-            myConstructor = JavaElementType.JavaCompositeElementType.class.getDeclaredField("myConstructor");
+            Field myConstructor = JavaElementType.JavaCompositeElementType.class.getDeclaredField("myConstructor");
             myConstructor.setAccessible(true);
             myConstructor.set(binaryExpression, (Supplier<? extends ASTNode>) () -> {
                 return new ZrPsiBinaryExpressionImpl();

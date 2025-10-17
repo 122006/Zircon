@@ -1,0 +1,72 @@
+buildscript {
+    repositories {
+        maven {
+            url uri('../../repo')
+        }
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'com.github.122006.Zircon:gradle:master-SNAPSHOT'
+    }
+}
+
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij.platform' version '2.6.0'
+}
+apply plugin: 'zircon'
+
+group 'com.by122006.zircon'
+version '4.3'
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+buildPlugin {
+    buildSearchableOptions.enabled = false
+}
+
+repositories {
+    maven {
+        url uri('../../repo')
+    }
+    intellijPlatform {
+        defaultRepositories()
+    }
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+
+}
+patchPluginXml {
+    sinceBuild = "212.*"
+    untilBuild = "252.*"
+}
+dependencies {
+    intellijPlatform {
+        intellijIdeaUltimate '253.25908.13'
+//        intellijIdeaCommunity '2025.3.1'
+        bundledPlugin 'com.intellij.java'
+        instrumentationTools()
+    }
+    implementation('com.github.122006:ExMethodUtil:1.1.8')
+    annotationProcessor "org.projectlombok:lombok:1.18.42"
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    implementation project(":ijplugin_mix")
+
+}
+
+
+tasks.withType(JavaCompile) {
+    it.options.compilerArgs << "-Xplugin:ZrExMethod"
+    it.options.compilerArgs << "-Xplugin:ZrString"
+    it.options.fork = true
+}
+

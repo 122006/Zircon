@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
 import com.intellij.codeInsight.daemon.impl.HighlightInfo;
 import com.intellij.codeInsight.daemon.impl.HighlightInfoFilter;
 import com.intellij.java.analysis.JavaAnalysisBundle;

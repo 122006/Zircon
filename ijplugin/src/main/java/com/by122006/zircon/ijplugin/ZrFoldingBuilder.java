@@ -1,7 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.folding.FoldingBuilderEx;
 import com.intellij.lang.folding.FoldingDescriptor;

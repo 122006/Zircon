@@ -1,7 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Comparing;

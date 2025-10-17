@@ -58,6 +58,7 @@ dependencies {
     }
     implementation project(":ijplugin")
     implementation('com.github.122006:ExMethodUtil:1.1.8')
+    implementation project(":ijplugin_mix")
 }
 
 

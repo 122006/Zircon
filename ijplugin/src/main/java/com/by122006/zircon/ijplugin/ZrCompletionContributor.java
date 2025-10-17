@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
@@ -20,7 +20,6 @@ import com.intellij.psi.util.*;
 import com.intellij.util.containers.JBIterable;
 import com.siyeh.ig.psiutils.ImportUtils;
 import org.jetbrains.annotations.NotNull;
-import zircon.example.ExObject;
 import zircon.example.ExReflection;
 
 import java.util.ArrayList;

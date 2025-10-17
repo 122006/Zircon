@@ -1,6 +1,8 @@
 package com.by122006.zircon.ijplugin;
 
+import com.intellij.core.JavaPsiBundle;
 import com.intellij.lang.ASTNode;
+import com.intellij.lang.java.parser.JavaParserUtil;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.JavaPsiFacade;
 import com.intellij.psi.JavaTokenType;
@@ -11,7 +13,9 @@ import com.intellij.psi.impl.source.tree.ElementType;
 import com.intellij.psi.impl.source.tree.java.PsiConditionalExpressionImpl;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
+import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExObject;
 
 import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
 
@@ -30,9 +34,15 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
             final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(this.getManager().getProject());
             return CachedValuesManager.getCachedValue(this, () -> {
                 final String s = "java.util.Objects.nonNull(" + super.getThenExpression().getText() + ")";
-                final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
-                if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
-                    ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                PsiExpression expressionFromText;
+                try {
+                    expressionFromText = elementFactory.createExpressionFromText(s, getParent());
+                    if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
+                        ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                    }
+                } catch (IncorrectOperationException e) {
+                    LOG.error(e);
+                    expressionFromText=null;
                 }
                 return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
             });
@@ -44,9 +54,15 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
             }
             return CachedValuesManager.getCachedValue(this, () -> {
                 final String s = "java.util.Objects.nonNull(" + super.getFirstChild().getText() + ")";
-                final PsiExpression expressionFromText = elementFactory.createExpressionFromText(s, getParent());
-                if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
-                    ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                PsiExpression expressionFromText;
+                try {
+                    expressionFromText = elementFactory.createExpressionFromText(s, getParent());
+                    if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
+                        ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
+                    }
+                } catch (IncorrectOperationException e) {
+                    LOG.error(e);
+                    expressionFromText=null;
                 }
                 return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
             });

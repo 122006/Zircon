@@ -1,18 +1,13 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
-import com.by122006.zircon.util.ZrUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.application.options.CodeStyle;
 import com.intellij.codeInsight.editorActions.EnterHandler;
 import com.intellij.codeInsight.editorActions.JavaLikeQuoteHandler;
-import com.intellij.codeInsight.editorActions.QuoteHandler;
-import com.intellij.codeInsight.editorActions.TypedHandler;
-import com.intellij.codeInsight.editorActions.enter.EnterHandlerDelegate;
-import com.intellij.codeInsight.editorActions.enter.EnterHandlerDelegateAdapter;
 import com.intellij.codeInsight.editorActions.enter.EnterInStringLiteralHandler;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
-import com.intellij.lexer.StringLiteralLexer;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
@@ -21,18 +16,14 @@ import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.highlighter.EditorHighlighter;
 import com.intellij.openapi.editor.highlighter.HighlighterIterator;
 import com.intellij.openapi.util.Ref;
-import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.StringEscapesTokenTypes;
 import com.intellij.psi.tree.IElementType;
 import com.sun.tools.javac.parser.Formatter;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Objects;
 
 public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
     public ZrEnterInStringLiteralHandler() {

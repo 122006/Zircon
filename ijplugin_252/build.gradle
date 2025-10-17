@@ -58,8 +58,11 @@ dependencies {
     }
     implementation project(":ijplugin")
     implementation('com.github.122006:ExMethodUtil:1.1.8')
-}
+    annotationProcessor "org.projectlombok:lombok:1.18.42"
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    implementation project(":ijplugin_mix")
 
+}
 
 
 tasks.withType(JavaCompile) {

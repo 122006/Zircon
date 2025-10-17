@@ -5,7 +5,7 @@ buildscript {
         }
         maven { url 'https://jitpack.io' }
     }
-    dependencies{
+    dependencies {
         classpath 'com.github.122006.Zircon:gradle:master-SNAPSHOT'
     }
 }
@@ -69,9 +69,10 @@ patchPluginXml {
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2022.3'
-//        intellijIdeaCommunity '2025.2'
-//        intellijIdeaUltimate '253.25908.13'
+//        intellijIdeaCommunity '2022.3'
+//        intellijIdeaCommunity '2025.1'
+        intellijIdeaUltimate '253.25908.13'
+//        intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '2025.3.1'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
@@ -83,6 +84,9 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.42'
     implementation('com.github.122006:ExMethodUtil:1.1.8')
     testAnnotationProcessor project(":javac")
+    implementation project(":ijplugin_252_ex")
+    implementation project(":ijplugin_mix")
+
 }
 tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')
 ////IU-202.7319.50

@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
 import com.intellij.codeInsight.daemon.ImplicitUsageProvider;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.progress.ProgressManager;
@@ -12,7 +12,6 @@ import com.intellij.psi.search.searches.ReferencesSearch;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import org.jetbrains.annotations.NotNull;
-import zircon.example.ExObject;
 
 public class ZrStringLiteralTemplateUsageProvider implements ImplicitUsageProvider {
     @Override

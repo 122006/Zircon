@@ -1,6 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.util.ZrPluginUtil;
+import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
 import com.intellij.lang.injection.InjectedLanguageManager;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.diagnostic.Logger;
@@ -11,7 +11,6 @@ import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
-import zircon.example.ExObject;
 
 import java.util.List;
 

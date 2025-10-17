@@ -15,12 +15,13 @@ if (System.getProperty("user.name", "") == "jitpack") {
     include ':ijplugin_223'
     include ':ijplugin_241'
     include ':ijplugin_252'
+    include ':ijplugin_252_ex'
+    include ':ijplugin_mix'
     include ':test'
     include ':inject_java7'
     include ':inject_java11'
     include ':inject_java16'
 }
-
 
 
 toolchainManagement {
