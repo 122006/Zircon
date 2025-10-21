@@ -39,37 +39,4 @@ public class ZrPsiBinaryExpressionImpl extends PsiBinaryExpressionImpl {
     public boolean isPhysical() {
         return forcePhysical != null ? forcePhysical : super.isPhysical();
     }
-//
-//    @Override
-//    public @NotNull PsiJavaToken getOperationSign() {
-//        if (getText().endsWith("?:")) {
-//            return new PsiKeywordImpl(JavaTokenType.NE, "!=") {
-//                @Override
-//                public PsiElement getPrevSibling() {
-//                    return ZrPsiBinaryExpressionImpl.super.getLOperand();
-//                }
-//
-//                @Override
-//                public PsiElement getNextSibling() {
-//                    return ZrPsiBinaryExpressionImpl.super.getROperand();
-//                }
-//            };
-//        }
-//        return super.getOperationSign();
-//    }
-//
-//    @Override
-//    public PsiExpression getROperand() {
-//        if (getText().endsWith("?:")) {
-//            final PsiLiteralExpressionImpl psiLiteralExpression = new PsiLiteralExpressionImpl(super.getROperand().getNode()) {
-//                @Override
-//                public IElementType getLiteralElementType() {
-//                    return JavaTokenType.NULL_KEYWORD;
-//                }
-//            };
-//            return psiLiteralExpression;
-//        }
-//
-//        return super.getROperand();
-//    }
 }

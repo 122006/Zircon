@@ -42,10 +42,8 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
             @NotNull
             public PsiElement[] getSecondaryElements() {
                 try {
-                    final Optional<ZrPsiAugmentProvider.CacheMethodInfo> first = psiMethods.stream().filter(a -> a.method.isEquivalentTo(element) )
-                            .findFirst();
-                    if (first.isEmpty()) return PsiElement.EMPTY_ARRAY;
-                    final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = first.get();
+                    final ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo = psiMethods.find(a -> a.method.isEquivalentTo(element));
+                    if (cacheMethodInfo == null) return PsiElement.EMPTY_ARRAY;
                     final List<ZrPsiExtensionMethod> list = cacheMethodInfo.targetType.map(type -> {
                         PsiClass psiClass;
                         if (type instanceof PsiClassReferenceType) {
@@ -55,7 +53,6 @@ public class ZrFindUsagesHandlerFactory extends FindUsagesHandlerFactory {
                             psiClass = classes.length > 0 ? classes[0] : null;
                         } else {
                             psiClass = PsiTypesUtil.getPsiClass(type);
-
                         }
                         if (psiClass == null) return null;
                         return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));

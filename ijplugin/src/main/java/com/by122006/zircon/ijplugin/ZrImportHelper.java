@@ -48,6 +48,8 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExObject;
+import zircon.example.ExString;
 
 import java.util.*;
 import java.util.function.Predicate;

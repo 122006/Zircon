@@ -1,19 +1,15 @@
 package com.by122006.zircon.ijplugin;
 
-import com.intellij.core.JavaPsiBundle;
 import com.intellij.lang.ASTNode;
-import com.intellij.lang.java.parser.JavaParserUtil;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.JavaTokenType;
-import com.intellij.psi.PsiElementFactory;
-import com.intellij.psi.PsiExpression;
+import com.intellij.psi.*;
 import com.intellij.psi.impl.source.tree.ChildRole;
 import com.intellij.psi.impl.source.tree.ElementType;
 import com.intellij.psi.impl.source.tree.java.PsiConditionalExpressionImpl;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.util.IncorrectOperationException;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 import zircon.example.ExObject;
 
@@ -42,7 +38,7 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
                     }
                 } catch (IncorrectOperationException e) {
                     LOG.error(e);
-                    expressionFromText=null;
+                    expressionFromText = null;
                 }
                 return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
             });
@@ -62,7 +58,7 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
                     }
                 } catch (IncorrectOperationException e) {
                     LOG.error(e);
-                    expressionFromText=null;
+                    expressionFromText = null;
                 }
                 return new CachedValueProvider.Result<>(expressionFromText, MODIFICATION_COUNT);
             });
@@ -78,6 +74,16 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
     @Override
     public PsiExpression getElseExpression() {
         return super.getElseExpression();
+    }
+
+    @SneakyThrows
+    @Override
+    public void accept(@NotNull PsiElementVisitor visitor) {
+        if (visitor.getClass().getName().contains("SimplifiableConditionalExpressionVisitor")
+                && (isElvisExpressionLower253() || isElvisExpressionUpper253())) {
+            return;
+        }
+        super.accept(visitor);
     }
 
     public ASTNode findChildByRole(int role) {

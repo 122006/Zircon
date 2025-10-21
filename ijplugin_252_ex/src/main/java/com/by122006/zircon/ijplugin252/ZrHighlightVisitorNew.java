@@ -1,5 +1,6 @@
 package com.by122006.zircon.ijplugin252;
 
+import com.by122006.zircon.ijplugin.Keys;
 import com.by122006.zircon.ijplugin.ZrCheckLevelHighlightInfoHolder;
 import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
@@ -129,6 +130,7 @@ public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
             analyze = super.analyze(psiFile, b, holder, runnable);
         } finally {
             holder = null;
+            psiFile.putUserData(Keys.CACHE_IMPORT_EXMETHOD, null);
         }
         return analyze;
     }

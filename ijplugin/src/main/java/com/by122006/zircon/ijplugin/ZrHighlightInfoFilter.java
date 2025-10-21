@@ -7,17 +7,20 @@ import com.intellij.java.analysis.JavaAnalysisBundle;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.*;
+import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.siyeh.InspectionGadgetsBundle;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExCollection;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
 public class ZrHighlightInfoFilter implements HighlightInfoFilter {
-    public static final Key<Set<String>> CACHE_IMPORT_EXMETHOD = Key.create("ZrHighlightInfoFilter_CACHE_IMPORT_EXMETHOD");
+    public static final Key<Set<String>> CACHE_IMPORT_EXMETHOD = Keys.CACHE_IMPORT_EXMETHOD;
 
     @Override
     public boolean accept(@NotNull HighlightInfo highlightInfo, @Nullable PsiFile file) {
@@ -30,30 +33,46 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
             if (importStatement == null) return true;
             final String qualifiedName = importStatement.getQualifiedName();
             Set<String> cacheExMethodClasses;
-            if ((file.getUserData(CACHE_IMPORT_EXMETHOD)) == null) {
+            if ((file.getUserData(CACHE_IMPORT_EXMETHOD)) == null && file instanceof PsiJavaFile) {
                 cacheExMethodClasses = new HashSet<>();
                 file.putUserData(CACHE_IMPORT_EXMETHOD, cacheExMethodClasses);
+                final List<ZrPsiAugmentProvider.CacheMethodInfo> cacheMethodInfos = ZrPsiAugmentProvider.getCachedAllMethod(elementAt)
+                        .filter(a -> a.cover);
+                final List<String> methodNames = cacheMethodInfos.map(a -> a.name);
                 file.accept(new JavaRecursiveElementWalkingVisitor() {
-                    @Override
-                    public void visitMethodCallExpression(PsiMethodCallExpression expression) {
-                        super.visitMethodCallExpression(expression);
-                        final PsiElement resolve = expression.resolveMethod();
+
+                    void action(PsiElement expression, PsiElement resolve) {
                         if (resolve instanceof ZrPsiExtensionMethod) {
                             final PsiClass containingClass = ((ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
                             if (containingClass == null) return;
                             cacheExMethodClasses.add(containingClass.getQualifiedName());
+                        } else if (resolve instanceof PsiMethod) {
+                            final PsiMethod psiMethod = (PsiMethod) resolve;
+                            if (methodNames.contains(psiMethod.getName())) {
+                                final ZrPsiExtensionMethod zrPsiExtensionMethod = ZrAnnotator.resolveCoverZrMethod(expression, psiMethod);
+                                if (zrPsiExtensionMethod != null) {
+                                    final String qualifiedName = zrPsiExtensionMethod.targetMethod.getContainingClass().getQualifiedName();
+                                    if (!Objects.equals(qualifiedName, ClassUtil.extractPackageName(((PsiJavaFile) file).getPackageName()))) {
+                                        cacheExMethodClasses.add(qualifiedName);
+                                    }
+                                }
+
+                            }
                         }
+                    }
+
+                    @Override
+                    public void visitMethodCallExpression(PsiMethodCallExpression expression) {
+                        super.visitMethodCallExpression(expression);
+                        final PsiElement resolve = expression.resolveMethod();
+                        action(expression, resolve);
                     }
 
                     @Override
                     public void visitMethodReferenceExpression(PsiMethodReferenceExpression expression) {
                         super.visitMethodReferenceExpression(expression);
                         final PsiElement resolve = expression.resolve();
-                        if (resolve instanceof ZrPsiExtensionMethod) {
-                            final PsiClass containingClass = ((ZrPsiExtensionMethod) resolve).targetMethod.getContainingClass();
-                            if (containingClass == null) return;
-                            cacheExMethodClasses.add(containingClass.getQualifiedName());
-                        }
+                        action(expression, resolve);
                     }
                 });
             } else {
@@ -126,7 +145,7 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                 final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
                 if (expr == null) return true;
                 if (highlightInfo.getStartOffset() == expr.getStartOffset()) return false;
-                if (highlightInfo.getStartOffset() == expr.getStartOffset() + (expr.getElseExpression() ?.getStartOffsetInParent() ?:
+                if (highlightInfo.getStartOffset() == expr.getStartOffset() + (expr.getElseExpression()?.getStartOffsetInParent() ?:
                 0)){
                     return false;
                 }
