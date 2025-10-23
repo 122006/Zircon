@@ -54,7 +54,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
                         , "ijplugin_223");
                 if (clazz != null)
                     value = clazz.getDeclaredConstructors()[0].newInstance(JavaParser.INSTANCE);
-            } else if (baselineVersion < 250) {
+            } else if (baselineVersion < 253) {
                 final Class<?> clazz = ZrClassLoaderHelper.loadClass(
                         new String[]{"com.by122006.zircon.ijplugin241.ZrBasicOldExpressionParser"
                                 , "com.by122006.zircon.ijplugin241.ZrExpressionParser"}
@@ -67,8 +67,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
                         new String[]{"com.by122006.zircon.ijplugin252.ZrBasicOldExpressionParser"
                                 , "com.by122006.zircon.ijplugin252.ZrExpressionParser"
                                 , "com.by122006.zircon.ijplugin252.ZrExpressionParser$1"
-                                , "com.by122006.zircon.ijplugin252.ZrExpressionParser$2"
-                                , "com.by122006.zircon.ijplugin252.ZrExpressionParser$3"}
+                                , "com.by122006.zircon.ijplugin252.ZrExpressionParser$2"}
                         , "com.by122006.zircon.ijplugin252.ZrExpressionParser"
                         , "ijplugin_252");
                 if (clazz != null)

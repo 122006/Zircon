@@ -3,25 +3,18 @@ package com.by122006.zircon.ijplugin252;
 import com.by122006.zircon.ijplugin.ZrPsiBinaryExpressionImpl;
 import com.by122006.zircon.ijplugin.ZrPsiConditionalExpressionImpl;
 import com.intellij.lang.ASTNode;
-import com.intellij.lang.Language;
 import com.intellij.lang.java.parser.BasicExpressionParser;
-import com.intellij.lang.java.parser.BasicJavaParserUtil;
 import com.intellij.lang.java.parser.ExpressionParser;
 import com.intellij.lang.java.parser.JavaParser;
-import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiManager;
 import com.intellij.psi.impl.java.stubs.JavaStubElementTypes;
-import com.intellij.psi.impl.source.*;
+import com.intellij.psi.impl.source.BasicJavaElementType;
 import com.intellij.psi.impl.source.tree.CompositeElement;
 import com.intellij.psi.impl.source.tree.JavaElementType;
-import com.intellij.psi.impl.source.tree.TreeElement;
 import com.intellij.psi.impl.source.tree.java.PsiJavaTokenImpl;
 import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.util.PsiUtil;
-import com.intellij.util.CharTable;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -138,61 +131,6 @@ public class ZrExpressionParser extends ExpressionParser {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        final HolderFactory dummyHolderFactory = ReflectionUtil.getDeclaredField(null, DummyHolderFactory.class, "INSTANCE");
-        ReflectionUtil.setDeclaredField(null, DummyHolderFactory.class, "INSTANCE", new HolderFactory() {
-            @Override
-            @SuppressWarnings("UnstableApiUsage")
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @NotNull TreeElement treeElement, @Nullable PsiElement psiElement) {
-                if (treeElement instanceof JavaDummyElement) {
-                    final Object myParser = treeElement.reflectionFieldValue("myParser");
-                    final Supplier<CharSequence> myText = treeElement.reflectionFieldValue("myText");
-                    if (myParser == com.intellij.psi.impl.PsiJavaParserFacadeImpl.getStaticFieldValue("EXPRESSION")) {
-                        BasicJavaParserUtil.ParserWrapper parserWrapper = (builder, level) -> {
-                            new com.intellij.java.syntax.parser.JavaParser(level).getExpressionParser().parse(builder);
-                        };
-                        final LanguageLevel level = level(psiElement);
-                        return dummyHolderFactory.createHolder(psiManager, new JavaDummyElement(myText.get(), parserWrapper, level), psiElement);
-                    }
-                }
-                return dummyHolderFactory.createHolder(psiManager, treeElement, psiElement);
-            }
-
-            protected LanguageLevel level(@Nullable PsiElement context) {
-                return context != null && context.isValid() ? PsiUtil.getLanguageLevel(context) : LanguageLevel.HIGHEST;
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @Nullable CharTable charTable, boolean b) {
-                return dummyHolderFactory.createHolder(psiManager, charTable, b);
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @Nullable PsiElement psiElement) {
-                return dummyHolderFactory.createHolder(psiManager, psiElement);
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @NotNull Language language, @Nullable PsiElement psiElement) {
-                return dummyHolderFactory.createHolder(psiManager, language, psiElement);
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @Nullable TreeElement treeElement, @Nullable PsiElement psiElement, @Nullable CharTable charTable) {
-                return dummyHolderFactory.createHolder(psiManager, treeElement, psiElement, charTable);
-
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @Nullable PsiElement psiElement, @Nullable CharTable charTable) {
-                return dummyHolderFactory.createHolder(psiManager, psiElement, charTable);
-            }
-
-            @Override
-            public @NotNull DummyHolder createHolder(@NotNull PsiManager psiManager, @Nullable CharTable charTable, @NotNull Language language) {
-                return dummyHolderFactory.createHolder(psiManager, charTable, language);
-
-            }
-        });
     }
 
     public ZrExpressionParser(@NotNull JavaParser javaParser) {

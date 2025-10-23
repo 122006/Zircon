@@ -21,7 +21,6 @@ import java.util.function.Supplier;
  */
 public class TestOptionalChaining {
 
-
     @Test
     public void testBasic() {
         TestClass v = new TestClass();
@@ -183,7 +182,7 @@ public class TestOptionalChaining {
         assert classVar.returnThis().obj.nullOr(classVar)?.valString != null;
         assert (Math.random() > -1 ? classVar : classVar?.obj) != null;
         assert (Math.random() > -1 ? classVar : classVar?.returnThis()) != null;
-
+        
         checkMethodInvokes(
                 () -> (TestChildClass.staticObj?.nullStaticObj ?: "567" + null) ?: (TestChildClass.staticObj?.getTestImplClass() ?: "456" + null)
                 , () -> "567null");

@@ -22,6 +22,7 @@ import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
  * @Description:
  */
 public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl {
+
     private static final Logger LOG = Logger.getInstance(ZrPsiConditionalExpressionImpl.class);
 
     @Override
@@ -29,13 +30,11 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
         if (isElvisExpressionLower253()) {
             final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(this.getManager().getProject());
             return CachedValuesManager.getCachedValue(this, () -> {
-                final String s = "java.util.Objects.nonNull(" + super.getThenExpression().getText() + ")";
+                String text = super.getThenExpression().getText();
+                final String s = "java.util.Objects.nonNull(" + text + ")";
                 PsiExpression expressionFromText;
                 try {
                     expressionFromText = elementFactory.createExpressionFromText(s, getParent());
-                    if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
-                        ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
-                    }
                 } catch (IncorrectOperationException e) {
                     LOG.error(e);
                     expressionFromText = null;
@@ -53,9 +52,6 @@ public class ZrPsiConditionalExpressionImpl extends PsiConditionalExpressionImpl
                 PsiExpression expressionFromText;
                 try {
                     expressionFromText = elementFactory.createExpressionFromText(s, getParent());
-                    if (expressionFromText instanceof ZrPsiBinaryExpressionImpl) {
-                        ((ZrPsiBinaryExpressionImpl) expressionFromText).setForcePhysical(true);
-                    }
                 } catch (IncorrectOperationException e) {
                     LOG.error(e);
                     expressionFromText = null;

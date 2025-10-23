@@ -19,6 +19,9 @@ import org.jetbrains.annotations.NotNull;
  * @Description:
  */
 public class ZrBasicOldExpressionParser extends BasicOldExpressionParser {
+    static {
+        ZrExpressionParser.replaceJavaDummyElementType();
+    }
     final IElementType zrConditionalExpressionType = new JavaElementType.JavaCompositeElementType("ZR_CONDITIONAL_EXPRESSION", () -> {
         return new ZrPsiConditionalExpressionImpl();
     }, BasicJavaElementType.BASIC_CONDITIONAL_EXPRESSION);

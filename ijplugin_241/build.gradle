@@ -51,7 +51,7 @@ patchPluginXml {
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2024.1'
+        intellijIdeaCommunity '2025.1'
 //        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()

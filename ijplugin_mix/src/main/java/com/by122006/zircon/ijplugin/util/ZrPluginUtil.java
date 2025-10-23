@@ -1,11 +1,13 @@
 package com.by122006.zircon.ijplugin.util;
 
 import com.by122006.zircon.ijplugin.ZirconSettings;
+import com.intellij.openapi.application.ApplicationInfo;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.BuildNumber;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.search.GlobalSearchScope;
@@ -17,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.ExMethod;
 import zircon.example.ExArray;
-import zircon.example.ExReflection;
+import zircon.example.ExObject;
 
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -63,7 +65,7 @@ public class ZrPluginUtil {
             }
         } finally {
             if (System.currentTimeMillis() - start > 100)
-                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start)+" ms");
+                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start) + " ms");
 
         }
     }
@@ -189,6 +191,10 @@ public class ZrPluginUtil {
         return lineNumber + 1; // 行号从0开始，所以需要加1
     }
 
+    static BuildNumber build = ApplicationInfo.getInstance().getBuild();
+    public static int getBuildVersion() {
+        return build.getBaselineVersion();
+    }
 
     public static boolean hasOptionalChaining(PsiElement element) {
         if (element instanceof PsiMethodCallExpression || element instanceof PsiReferenceExpression) {
