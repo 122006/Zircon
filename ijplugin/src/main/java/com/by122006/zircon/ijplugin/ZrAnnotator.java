@@ -48,6 +48,7 @@ import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
+import zircon.example.ExString;
 
 import java.awt.*;
 import java.lang.reflect.Constructor;
@@ -61,7 +62,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
-@SuppressWarnings("removal")
+@SuppressWarnings( "removal")
 public class ZrAnnotator implements Annotator {
     private static final Logger LOG = Logger.getInstance(ZrAnnotator.class.getName());
 
@@ -131,13 +132,13 @@ public class ZrAnnotator implements Annotator {
                 }
                 break;
             }
-            final boolean anyMatch = elements.anyMatch(elem -> elem.getChildren().toList().anyMatch(a -> a instanceof PsiJavaToken && a.getText().equals("?.")));
+            final boolean anyMatch = elements.anyMatch(elem -> elem.getChildren().toList().anyMatch(a -> a instanceof PsiJavaToken && a.getText().equals( "?.")));
             if (anyMatch) {
                 final PsiExpression fElement = element.getParent() instanceof PsiMethodCallExpression ? (PsiMethodCallExpression) element.getParent() : element;
-                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "", "?:")) {
+                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "" , "?:")){
 
-                } else {
-                    if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText("void") ?: false) && !(method?.getReturnType().equalsToText("null") ?: false)) {
+                } else{
+                    if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText( "void") ?: false) &&!(method?.getReturnType().equalsToText( "null") ?: false)){
                         holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
                                         ", it may lead to a null pointer exception" +
                                         ". Use the Elvis operator `?:` to append a default value to avoid this issue.")
@@ -254,7 +255,7 @@ public class ZrAnnotator implements Annotator {
     private void registerZrMethodUsage(@NotNull PsiMethodCallExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder, HighlightSeverity errLevel) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
-                .collect(Collectors.joining(" , "));
+                .collect(Collectors.joining( " , "));
         final PsiClass containingClass = method.targetMethod.getContainingClass();
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element.getMethodExpression().getLastChild())
                 .withFix(new IntentionAction() {
@@ -288,7 +289,7 @@ public class ZrAnnotator implements Annotator {
                 }).create();
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element.getMethodExpression().getLastChild())
                 .textAttributes(ZrExMethodTargetSiteUsage)
-                .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
+                .tooltip( "extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
                 .withFix(new IntentionAction() {
                     @Override
                     public @IntentionName @NotNull String getText() {
@@ -311,7 +312,7 @@ public class ZrAnnotator implements Annotator {
                         String s;
                         if (containingClass == null) return;
                         final String collect = Arrays.stream(element.getArgumentList().getExpressions())
-                                .map(PsiElement::getText).collect(Collectors.joining(","));
+                                .map(PsiElement::getText).collect(Collectors.joining( ","));
                         if (method.isStatic) {
                             s = containingClass.getQualifiedName() + "." + method.getName() + "(" + collect + ")";
                         } else {
@@ -339,7 +340,7 @@ public class ZrAnnotator implements Annotator {
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
                 holder.newSilentAnnotation(errLevel).range(element.getMethodExpression().getLastChild())
-                        .textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName)
+                        .textAttributes(ZrExMethodNeedImport).tooltip( "extension method need import " + qualifiedName)
                         .withFix(new IntentionAction() {
                             @Override
                             public @IntentionName @NotNull String getText() {
@@ -385,7 +386,7 @@ public class ZrAnnotator implements Annotator {
     private void registerZrMethodUsage(@NotNull PsiMethodReferenceExpression element, ZrPsiExtensionMethod method, @NotNull AnnotationHolder holder) {
         final PsiParameter[] parameters = method.getParameterList().getParameters();
         final String collect = Arrays.stream(parameters).map(psiParameter -> psiParameter.getType().getCanonicalText())
-                .collect(Collectors.joining(" , "));
+                .collect(Collectors.joining( " , "));
         final PsiClass containingClass = method.targetMethod.getContainingClass();
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element)
                 .withFix(new IntentionAction() {
@@ -419,7 +420,7 @@ public class ZrAnnotator implements Annotator {
                 }).create();
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(element)
                 .textAttributes(ZrExMethodTargetSiteUsage)
-                .tooltip("extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
+                .tooltip( "extension method: " + method.targetClass.getName() + "." + method.getName() + "( " + collect + " )")
                 .create();
         if (containingClass != null) {
             final String qualifiedName = containingClass.getQualifiedName();
@@ -428,7 +429,7 @@ public class ZrAnnotator implements Annotator {
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
                 holder.newSilentAnnotation(HighlightSeverity.ERROR).range(element.getLastChild())
-                        .textAttributes(ZrExMethodNeedImport).tooltip("extension method need import " + qualifiedName)
+                        .textAttributes(ZrExMethodNeedImport).tooltip( "extension method need import " + qualifiedName)
                         .withFix(new IntentionAction() {
                             @Override
                             public @IntentionName @NotNull String getText() {
@@ -604,7 +605,7 @@ public class ZrAnnotator implements Annotator {
                     }
                 }).create();
         final PsiAnnotation annotation = collect.get(0);
-        PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue("ex");
+        PsiAnnotationMemberValue ex = annotation.findDeclaredAttributeValue( "ex");
         if (ex != null) {
             if (ex instanceof PsiClassObjectAccessExpression) {
                 registerSiteAnnotation(holder, ((PsiClassObjectAccessExpression) ex).getOperand(), null, null);
@@ -622,7 +623,7 @@ public class ZrAnnotator implements Annotator {
         if (ex == null) {
             final PsiParameterList parameterList = method.getParameterList();
             if (parameterList.isEmpty()) {
-                holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip("!非静态拓展方法需要设置首个入参作为代理类")
+                holder.newSilentAnnotation(HighlightSeverity.WARNING).range(method).tooltip( "!非静态拓展方法需要设置首个入参作为代理类")
                         .highlightType(ProblemHighlightType.WARNING).create();
             } else {
                 final PsiParameter parameter = parameterList.getParameter(0);
@@ -632,13 +633,13 @@ public class ZrAnnotator implements Annotator {
                         final PsiType type = parameter.getType();
                         if (type instanceof PsiArrayType) {
                             final PsiType deepComponentType = type.getDeepComponentType();
-                            registerSiteAnnotation(holder, typeElement, deepComponentType.getCanonicalText() + "[]", null);
+                            registerSiteAnnotation(holder, typeElement, deepComponentType.getCanonicalText() + "[]" , null);
                         } else if (type instanceof PsiPrimitiveType) {
                             final PsiClassType boxedType = ((PsiPrimitiveType) type).getBoxedType(parameter);
                             registerSiteAnnotation(holder, typeElement, boxedType == null ? "unknown" : boxedType.getClassName(), null);
                         } else if (parameter.isVarArgs()) {
                             holder.newSilentAnnotation(HighlightSeverity.ERROR).range(typeElement)
-                                    .tooltip("!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
+                                    .tooltip( "!请不要定义代理类为可变参数").highlightType(ProblemHighlightType.ERROR).create();
                         } else {
                             registerSiteAnnotation(holder, typeElement, null, null);
                         }
@@ -658,7 +659,7 @@ public class ZrAnnotator implements Annotator {
             final PsiType[] parameters = ((PsiClassType) element.getType()).getParameters();
             PsiType o = parameters.get(0);
             if (o == null) {
-                o = PsiClassType.getTypeByName("java.lang.Object", psiClass.getProject(), GlobalSearchScope.allScope(psiClass.getProject()));
+                o = PsiClassType.getTypeByName( "java.lang.Object" , psiClass.getProject(), GlobalSearchScope.allScope(psiClass.getProject()));
             }
             s += " and " + o + "(static)";
         }
@@ -670,11 +671,11 @@ public class ZrAnnotator implements Annotator {
 
     private void registerRemoveUnnecessaryEscapeIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         final String text = element.getText();
-        final int start = text.indexOf("\"");
-        final int end = text.lastIndexOf("\"");
-        if (start == -1 || start == end) return;
+        final int start = text.indexOf( "\"");
+        final int end = text.lastIndexOf( "\"");
+        if (start == -1 || start == end || start == 0) return;
         final String substring = text.substring(start + 1, end);
-        if (substring.contains("\\\"")) {
+        if (substring.contains( "\\\"")) {
             holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "Unnecessary escape quotation")
                     .range(element)
                     .highlightType(ProblemHighlightType.WEAK_WARNING)
@@ -698,7 +699,7 @@ public class ZrAnnotator implements Annotator {
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                             if (editor instanceof EditorEx) {
                                 PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String toText = text.replace("\\\"", "\"");
+                                final String toText = text.replace( "\\\"" , "\"");
                                 @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(toText, element);
                                 element.replace(codeBlockFromText);
                             }
@@ -714,7 +715,7 @@ public class ZrAnnotator implements Annotator {
 
     private void registerBackfStringIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         final String text = element.getText();
-        if (!text.startsWith("\"")) {
+        if (!text.startsWith( "\"")) {
             final Formatter formatter = registerChange2NormalIntentionAction(element, holder, text);
             if (formatter != null) {
                 final ZrStringModel model = formatter.build(text);
@@ -777,23 +778,23 @@ public class ZrAnnotator implements Annotator {
         }
     }
 
-    static @NotNull TextAttributesKey ZrExMethodSite = createTextAttributesKey("ZrExMethodSite", new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN), null);
-    static @NotNull TextAttributesKey ZrExMethodTargetSiteUsage = createTextAttributesKey("ZrExMethodTargetSiteUsage", new TextAttributes(null, null, null, null, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrExMethodNeedImport = createTextAttributesKey("ZrExMethodNeedImport", new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyleP1 = createTextAttributesKey("ZrStringTextCodeStyleP1", new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit = createTextAttributesKey("ZrStringTextCodeStyleSplit", new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyle2 = createTextAttributesKey("ZrStringTextCodeStyle2", new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyle1 = createTextAttributesKey("ZrStringTextCodeStyle1", new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
+    static @NotNull TextAttributesKey ZrExMethodSite = createTextAttributesKey( "ZrExMethodSite" , new TextAttributes(null, null, new JBColor(0x98C1CB, 0xBBEBF6), EffectType.BOLD_LINE_UNDERSCORE, Font.PLAIN), null);
+    static @NotNull TextAttributesKey ZrExMethodTargetSiteUsage = createTextAttributesKey( "ZrExMethodTargetSiteUsage" , new TextAttributes(null, null, null, null, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrExMethodNeedImport = createTextAttributesKey( "ZrExMethodNeedImport" , new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleP1 = createTextAttributesKey( "ZrStringTextCodeStyleP1" , new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit = createTextAttributesKey( "ZrStringTextCodeStyleSplit" , new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle2 = createTextAttributesKey( "ZrStringTextCodeStyle2" , new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
+    static @NotNull TextAttributesKey ZrStringTextCodeStyle1 = createTextAttributesKey( "ZrStringTextCodeStyle1" , new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
 
     private void boldSpecialChar(PsiElement element, AnnotationHolder holder, Formatter formatter, ZrStringModel model) {
         String text = model.getOriginalString();
         {
-            final TextRange textRange = TextRange.create(0, text.indexOf("\"")).shiftRight(element.getTextOffset());
+            final TextRange textRange = TextRange.create(0, text.indexOf( "\"")).shiftRight(element.getTextOffset());
             holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                     .highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyleP1).create();
         }
         {
-            int lastItemEndIndex = text.indexOf("\"") + 1;
+            int lastItemEndIndex = text.indexOf( "\"") + 1;
             final List<StringRange> list = new ArrayList<>(model.getList());
             list.add(StringRange.of(0, model.getEndQuoteIndex(), model.getEndQuoteIndex()));
             for (StringRange stringRange : list) {
@@ -801,7 +802,7 @@ public class ZrAnnotator implements Annotator {
                 {
                     final TextRange textRange = TextRange.create(lastItemEndIndex, stringRange.startIndex)
                             .shiftRight(element.getTextOffset());
-                    if (formatter instanceof FStringFormatter & sub.equals(":")) {
+                    if (formatter instanceof FStringFormatter & sub.equals( ":")) {
                         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                                 .highlightType(ProblemHighlightType.INFORMATION)
                                 .textAttributes(ZrStringTextCodeStyleSplit).create();
@@ -826,7 +827,7 @@ public class ZrAnnotator implements Annotator {
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
         final Constructor<?> constructor = TextAttributesKey.class.getDeclaredConstructors().list()
                 .filter(a -> a.getParameterCount() == 3).head()
-                .orElseThrow(() -> new RuntimeException("不支持的idea版本"));
+                .orElseThrow(() -> new RuntimeException( "不支持的idea版本"));
         constructor.setAccessible(true);
         try {
             return (TextAttributesKey) constructor.newInstance(externalName, defaultAttributes, fallbackAttributeKey);
@@ -834,12 +835,12 @@ public class ZrAnnotator implements Annotator {
             throw e;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException(new RuntimeException("不支持的idea版本"));
+            throw new RuntimeException(new RuntimeException( "不支持的idea版本"));
         }
     }
 
     private void checkNeedChange2SString(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
-        if (text.matches(".*\\$\\{.*")) {
+        if (text.matches( ".*\\$\\{.*")) {
             holder.newAnnotation(HighlightSeverity.INFORMATION, "[ZrString]:replace with '$-string'").range(element)
                     .highlightType(ProblemHighlightType.INFORMATION).withFix(new IntentionAction() {
                         @Override
@@ -919,15 +920,15 @@ public class ZrAnnotator implements Annotator {
         if (method_FormatDecode_decode == null) {
             Class<?> aClass;
             try {
-                aClass = Class.forName("com.siyeh.ig.bugs.FormatDecode");
+                aClass = Class.forName( "com.siyeh.ig.bugs.FormatDecode");
             } catch (ClassNotFoundException e) {
                 try {
-                    aClass = Class.forName("com.siyeh.ig.FormatDecode");
+                    aClass = Class.forName( "com.siyeh.ig.FormatDecode");
                 } catch (ClassNotFoundException ex) {
-                    aClass = Class.forName("com.siyeh.ig.format.FormatDecode");
+                    aClass = Class.forName( "com.siyeh.ig.format.FormatDecode");
                 }
             }
-            final Method decode = aClass.getMethod("decode", String.class, int.class);
+            final Method decode = aClass.getMethod( "decode" , String.class, int.class);
             decode.setAccessible(true);
             return method_FormatDecode_decode = decode;
         }
@@ -1012,7 +1013,7 @@ public class ZrAnnotator implements Annotator {
             }
             BiPredicate<Object, PsiType> valid = (o, psiType) -> {
                 try {
-                    final Method method = o.getClass().getMethod("valid", PsiType.class);
+                    final Method method = o.getClass().getMethod( "valid" , PsiType.class);
                     method.setAccessible(true);
                     return (boolean) method.invoke(o, psiType);
                 } catch (Exception e) {
@@ -1057,8 +1058,8 @@ public class ZrAnnotator implements Annotator {
 
         String text = "f" + collect.get(0).getText();
         collect.remove(0);
-        text = text.replace("%n", "\\n").replace("$", "\\$");
-        Matcher m = Pattern.compile("%(\\d+\\$)?([-#+ 0,(<]*)?(\\d+)?(\\.\\d*)?([tT])?([a-zA-Z%])").matcher(text);
+        text = text.replace( "%n" , "\\n").replace( "$" , "\\$");
+        Matcher m = Pattern.compile( "%(\\d+\\$)?([-#+ 0,(<]*)?(\\d+)?(\\.\\d*)?([tT])?([a-zA-Z%])").matcher(text);
         final Iterator<PsiElement> iterator = collect.iterator();
         StringBuilder stringBuilder = new StringBuilder();
         int lastIndex = 0;
@@ -1068,19 +1069,19 @@ public class ZrAnnotator implements Annotator {
             String group = m.group(0);
             final String s;
             if (iterator.hasNext()) {
-                if ("%%".equals(group)) {
+                if ( "%%".equals(group)) {
                     s = "%";
-                } else if ("%n".equals(group)) {
+                } else if ( "%n".equals(group)) {
                     s = "\n";
-                } else if ("%s".equals(group) || "%d".equals(group)) {
+                } else if ( "%s".equals(group) || "%d".equals(group)) {
                     final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1")
+                            .replace( "\n" , "");
                     s = "${" + replace + "}";
                 } else {
                     final String replace = iterator.next().getText()
-                            .replaceAll("\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*", "$1")
-                            .replace("\n", "");
+                            .replaceAll( "\\s*([^\"\\s](?:\".*?\")|(?:[^\"\\s])[^\"\\s]*?)\\s*" , "$1")
+                            .replace( "\n" , "");
                     s = "${" + group + ":" + replace + "}";
                 }
             } else {
@@ -1099,8 +1100,8 @@ public class ZrAnnotator implements Annotator {
     @Nullable
     private Formatter registerChange2NormalIntentionAction(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String _text) {
         List<Formatter> allFormatters = Formatter.getAllFormatters();
-        String text = _text.replace("\\", "");
-        int endIndex = text.indexOf("\"");
+        String text = _text.replace( "\\" , "");
+        int endIndex = text.indexOf( "\"");
         if (endIndex == -1) {
             LOG.info(element + "字符串前缀无法识别: " + text);
             return null;
@@ -1108,11 +1109,11 @@ public class ZrAnnotator implements Annotator {
         if (endIndex == 0) {
             return null;
         }
-        String prefix = text.substring(0, endIndex).replace("\\", "");
-        if (prefix.contains("\\")) return null;
+        String prefix = text.substring(0, endIndex).replace( "\\" , "");
+        if (prefix.contains( "\\")) return null;
         Formatter formatter = allFormatters.find(a -> a.prefix().equals(prefix));
         if (formatter == null) {
-            LOG.info("未识别的字符串前缀: " + text);
+            LOG.info( "未识别的字符串前缀: " + text);
             return null;
         }
         return formatter;
@@ -1130,7 +1131,7 @@ public class ZrAnnotator implements Annotator {
         List<StringRange> build = model.getList();
         String printOut = formatter.printOut(build, text);
         if (element.getParent() instanceof PsiExpressionList) {
-            if (printOut.startsWith("(") && printOut.endsWith(")")) {
+            if (printOut.startsWith( "(") && printOut.endsWith( ")")) {
                 printOut = printOut.substring(1, printOut.length() - 1);
             }
         }
@@ -1143,7 +1144,7 @@ public class ZrAnnotator implements Annotator {
     private void registerChange2SStringIntentionAction(@NotNull PsiPolyadicExpression element, @NotNull AnnotationHolder holder) {
         ProblemHighlightType information = ProblemHighlightType.INFORMATION;
         HighlightSeverity severity = HighlightSeverity.INFORMATION;
-        StringBuilder printOut = new StringBuilder("$\"");
+        StringBuilder printOut = new StringBuilder( "$\"");
         List<PsiElement> collect = Arrays.stream(element.getChildren())
                 .filter(a -> !(a instanceof PsiWhiteSpace || (a instanceof PsiJavaToken && ((PsiJavaToken) a).getTokenType() == JavaTokenType.PLUS) || (Objects.equals(a.getText(), "\"\""))))
                 .collect(Collectors.toList());
@@ -1157,27 +1158,27 @@ public class ZrAnnotator implements Annotator {
             }
         }
         if (!firstCollect.isEmpty()) {
-            printOut.append("${");
-            printOut.append(firstCollect.stream().map(PsiElement::getText).collect(Collectors.joining("+")));
-            printOut.append("}");
+            printOut.append( "${");
+            printOut.append(firstCollect.stream().map(PsiElement::getText).collect(Collectors.joining( "+")));
+            printOut.append( "}");
         }
         List<PsiElement> collect1 = collect.stream().skip(firstCollect.size()).collect(Collectors.toList());
         for (int i = 0; i < collect1.size(); i++) {
             PsiElement item = collect1.get(i);
             String itemText = item.getText();
             if (ZrUtil.isJavaStringLiteral(item)) {
-                if (itemText.startsWith("\"")) {
+                if (itemText.startsWith( "\"")) {
                     printOut.append(itemText, 1, itemText.length() - 1);
                 } else {
-                    printOut.append(itemText, itemText.indexOf("\"") + 1, itemText.length() - 1);
+                    printOut.append(itemText, itemText.indexOf( "\"") + 1, itemText.length() - 1);
                 }
             } else {
                 int appendType = 0;
-                if (itemText.matches("[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+")) {
+                if (itemText.matches( "[A-Za-z_\\u4e00-\\u9fa5$]{1}[0-9A-Za-z_\\u4e00-\\u9fa5$().]+")) {
                     if (i + 1 < collect1.size()) {
                         PsiElement nextItem = collect1.get(i + 1);
                         if (ZrUtil.isJavaStringLiteral(nextItem)) {
-                            if (nextItem.getText().matches("\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
+                            if (nextItem.getText().matches( "\"[0-9A-Za-z_\\u4e00-\\u9fa5$.]+.*")) {
                                 appendType = 1;
                             } else {
                                 appendType = 0;
@@ -1195,19 +1196,19 @@ public class ZrAnnotator implements Annotator {
                     if (itemText.length() <= 2) continue;
                     itemText = itemText.substring(1, itemText.length() - 1).trim();
                 }
-                final String replace = itemText.replaceAll("([^\\\\])'", "$1\\'").replace("\n", "").replace("\r", "");
-                if (replace.endsWith("))")) appendType = 1;
+                final String replace = itemText.replaceAll( "([^\\\\])'" , "$1\\'").replace( "\n" , "").replace( "\r" , "");
+                if (replace.endsWith( "))")) appendType = 1;
                 if (appendType == 1) {
-                    printOut.append("${");
+                    printOut.append( "${");
                     printOut.append(replace);
-                    printOut.append("}");
+                    printOut.append( "}");
                 } else {
-                    printOut.append("$");
+                    printOut.append( "$");
                     printOut.append(replace);
                 }
             }
         }
-        printOut.append("\"");
+        printOut.append( "\"");
 //            if( collect.stream().filter(a->(!ZrElementUtil.isJavaStringLiteral(a))).allMatch(a->a.getText().length()<10)){
 //                information=ProblemHighlightType.INFORMATION;
 //                severity=HighlightSeverity.INFORMATION;

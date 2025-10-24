@@ -11,6 +11,8 @@ import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExCollection;
+import zircon.example.ExObject;
 
 import java.util.List;
 
@@ -34,8 +36,7 @@ public class ZrStringLiteralInjector implements LanguageInjector {
             return;
         }
         String prefix = text.substring(0, endIndex);
-        Formatter formatter = allFormatters.stream()
-                .filter(a -> a.prefix().equals(prefix)).findFirst().orElse(null);
+        Formatter formatter = allFormatters.find(a -> a.prefix().equals(prefix));
         if (formatter == null) {
             LOG.error("未识别的字符串前缀");
             return;

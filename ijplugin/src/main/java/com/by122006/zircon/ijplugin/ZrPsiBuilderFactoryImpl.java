@@ -1,7 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
 import com.by122006.zircon.ijplugin.util.ZrClassLoaderHelper;
-import com.esotericsoftware.kryo.kryo5.minlog.Log;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
 import com.intellij.lang.ParserDefinition;
@@ -12,6 +11,7 @@ import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lang.java.parser.JavaParser;
 import com.intellij.lexer.Lexer;
 import com.intellij.openapi.application.ApplicationInfo;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.LanguageLevelProjectExtension;
@@ -29,11 +29,13 @@ import java.lang.reflect.Field;
 import java.util.Map;
 
 public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
+    private static final Logger LOG = Logger.getInstance(ZrPsiBuilderFactoryImpl.class);
+
 
     static {
         try {
             //强制设置)和.之间不含空格
-            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
+            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue( "ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -44,7 +46,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
         BuildNumber build = ApplicationInfo.getInstance().getBuild();
         final int baselineVersion = build.getBaselineVersion();
         try {
-            final Field instance = JavaParser.class.getDeclaredField("myExpressionParser");
+            final Field instance = JavaParser.class.getDeclaredField( "myExpressionParser");
             instance.setAccessible(true);
             Object value = null;
             if (baselineVersion < 240) {
@@ -76,13 +78,13 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
             instance.set(JavaParser.INSTANCE, value);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.error($"Zircon不支持该idea版本($baselineVersion)：", e);
+            LOG.error( $"Zircon不支持该idea版本($baselineVersion)：" , e);
         }
     }
 
     @NotNull
     public PsiBuilder createBuilder(@NotNull Project project, @NotNull ASTNode chameleon, @Nullable Lexer lexer, @NotNull Language lang, @NotNull CharSequence seq) {
-        ParserDefinition parserDefinition = reflectionInvokeMethod("getParserDefinition", lang, chameleon.getElementType());
+        ParserDefinition parserDefinition = reflectionInvokeMethod( "getParserDefinition" , lang, chameleon.getElementType());
         if (lexer instanceof JavaLexer) {
             LanguageLevel level = LanguageLevelProjectExtension.getInstance(project).getLanguageLevel();
             lexer = new ZrJavaLexer(level);
@@ -93,7 +95,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
                 throw e;
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new RuntimeException("createLexer error:" + e.getMessage());
+                throw new RuntimeException( "createLexer error:" + e.getMessage());
             }
         }
 

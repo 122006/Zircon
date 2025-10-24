@@ -71,9 +71,9 @@ dependencies {
     intellijPlatform {
         bundledPlugin 'com.intellij.java'
 //        intellijIdeaCommunity '2022.3'
-//        intellijIdeaCommunity '2024.1'
+        intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '2025.1'
-        intellijIdeaUltimate '253.25908.13'
+//        intellijIdeaUltimate '253.25908.13'
         instrumentationTools()
     }
     annotationProcessor project(":javac")
