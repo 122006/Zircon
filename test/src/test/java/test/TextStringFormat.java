@@ -217,6 +217,12 @@ public class TextStringFormat {
         assertEquals($"as${""}", "as");
 
 
+        String localvar="123localvar";
+        String av="241av";
+//        System.out.println(j"{a:{a1:\"a1value\",a2:true,a3:localvar,a4:[1,\"\",localvar,{aa:av}]},b:\"bvalue\",c:1} ");
+        System.out.println(j"{a:{a1:"a1value",a2:true,a3:localvar,a4:[1,"",localvar,{aa:av}]},b:"bvalue",c:1} ");
+
+
 //        assertEquals($"${throwException()}", "testThrowException");
 
 
