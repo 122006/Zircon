@@ -30,6 +30,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleManager;
+import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -135,10 +136,10 @@ public class ZrAnnotator implements Annotator {
             final boolean anyMatch = elements.anyMatch(elem -> elem.getChildren().toList().anyMatch(a -> a instanceof PsiJavaToken && a.getText().equals( "?.")));
             if (anyMatch) {
                 final PsiExpression fElement = element.getParent() instanceof PsiMethodCallExpression ? (PsiMethodCallExpression) element.getParent() : element;
-                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "" , "?:")){
+                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "" , "?:")) {
 
-                } else{
-                    if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText( "void") ?: false) &&!(method?.getReturnType().equalsToText( "null") ?: false)){
+                } else {
+                    if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText( "void") ?: false) && !(method?.getReturnType().equalsToText( "null") ?: false)) {
                         holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
                                         ", it may lead to a null pointer exception" +
                                         ". Use the Elvis operator `?:` to append a default value to avoid this issue.")
@@ -425,6 +426,9 @@ public class ZrAnnotator implements Annotator {
         if (containingClass != null) {
             final String qualifiedName = containingClass.getQualifiedName();
             final PsiFile originalFile = element.getContainingFile().getOriginalFile();
+            if (!originalFile.isPhysical() || originalFile instanceof ClsFileImpl) {
+                return;
+            }
             if (qualifiedName == null) return;
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {

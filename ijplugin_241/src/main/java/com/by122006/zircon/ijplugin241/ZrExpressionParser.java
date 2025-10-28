@@ -34,20 +34,20 @@ import java.util.function.Supplier;
 public class ZrExpressionParser extends ExpressionParser {
     private static final Logger LOG = Logger.getInstance(ZrExpressionParser.class);
 
-    private static final boolean useNewImplementation = Registry.is( "pratt.java.expression.parser" , true);
+    private static final boolean useNewImplementation = Registry.is("pratt.java.expression.parser", true);
 
     {
         if (!useNewImplementation) {
             ZrExpressionParser.replaceJavaDummyElementType();
         }
         if (useNewImplementation) {
-            LOG.warn( "Zircon does not support pratt.java.expression.parser. " +
+            LOG.warn("Zircon does not support pratt.java.expression.parser. " +
                     "If you are using IntelliJ IDEA version 2024 or below, please modify the IDE registry (search for 'Registry' in IDEA) and keep the corresponding item disabled (disabled by default); " +
                     "if you are using versions 2025.2, some features may not be available, please update to 2025.3.");
         }
         try {
             final JavaElementType.JavaCompositeElementType binaryExpression = (JavaElementType.JavaCompositeElementType) JavaElementType.BINARY_EXPRESSION;
-            Field myConstructor = BasicJavaElementType.JavaCompositeElementType.class.getDeclaredField( "myConstructor");
+            Field myConstructor = BasicJavaElementType.JavaCompositeElementType.class.getDeclaredField("myConstructor");
             myConstructor.setAccessible(true);
             myConstructor.set(binaryExpression, (Supplier<? extends ASTNode>) () -> {
                 return new ZrPsiBinaryExpressionImpl();
@@ -57,7 +57,7 @@ public class ZrExpressionParser extends ExpressionParser {
         }
         try {
             final JavaElementType.JavaCompositeElementType expression = (JavaElementType.JavaCompositeElementType) JavaElementType.CONDITIONAL_EXPRESSION;
-            Field myConstructor = BasicJavaElementType.JavaCompositeElementType.class.getDeclaredField( "myConstructor");
+            Field myConstructor = BasicJavaElementType.JavaCompositeElementType.class.getDeclaredField("myConstructor");
             myConstructor.setAccessible(true);
             myConstructor.set(expression, (Supplier<? extends ASTNode>) () -> {
                 return new ZrPsiConditionalExpressionImpl();
@@ -78,19 +78,19 @@ public class ZrExpressionParser extends ExpressionParser {
             return;
         }
         try {
-            Field javaLexerField = BasicJavaElementType.JavaDummyElementType.class.getDeclaredField( "javaLexer");
+            Field javaLexerField = BasicJavaElementType.JavaDummyElementType.class.getDeclaredField("javaLexer");
             javaLexerField.setAccessible(true);
             final BasicJavaElementType.JavaDummyElementType expression = (BasicJavaElementType.JavaDummyElementType) JavaElementType.DUMMY_ELEMENT;
             final Function<LanguageLevel, ? extends Lexer> oFunction = (Function<LanguageLevel, ? extends Lexer>) javaLexerField.get(expression);
-            if (oFunction.getClass().getSimpleName().startsWith( "Zr")) {
+            if (oFunction.getClass().getSimpleName().startsWith("Zr")) {
                 return;
             }
             javaLexerField.set(expression, (Function<LanguageLevel, ? extends Lexer>) (level) -> {
                 try {
-                    final Class<?> aClass = Class.forName( "com.intellij.lang.java.lexer.JavaTypeEscapeLexer");
+                    final Class<?> aClass = Class.forName("com.intellij.lang.java.lexer.JavaTypeEscapeLexer");
                     final Constructor<?> constructor = aClass.getConstructor(BasicJavaLexer.class);
                     Object javaTypeEscapeLexer = constructor.newInstance(new JavaLexer(level));
-                    final Field myDelegate = DelegateLexer.class.getDeclaredField( "myDelegate");
+                    final Field myDelegate = DelegateLexer.class.getDeclaredField("myDelegate");
                     myDelegate.setAccessible(true);
                     myDelegate.set(javaTypeEscapeLexer, new ZrJavaLexer(level));
                     return (Lexer) javaTypeEscapeLexer;
@@ -109,7 +109,7 @@ public class ZrExpressionParser extends ExpressionParser {
 
     public ZrExpressionParser(@NotNull JavaParser javaParser) {
         super(javaParser);
-        ReflectionUtil.setDeclaredField(this, BasicExpressionParser.class, "myOldExpressionParser" , new ZrBasicOldExpressionParser(javaParser));
+        ReflectionUtil.setDeclaredField(this, BasicExpressionParser.class, "myOldExpressionParser", new ZrBasicOldExpressionParser(javaParser));
     }
 
 }

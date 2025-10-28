@@ -35,7 +35,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
     static {
         try {
             //强制设置)和.之间不含空格
-            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue( "ourTokenStickingMatrix");
+            Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue("ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.LPARENTH, JavaTokenType.STRING_LITERAL), true);
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.RPARENTH), true);
@@ -50,7 +50,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
         BuildNumber build = ApplicationInfo.getInstance().getBuild();
         final int baselineVersion = build.getBaselineVersion();
         try {
-            final Field instance = JavaParser.class.getDeclaredField( "myExpressionParser");
+            final Field instance = JavaParser.class.getDeclaredField("myExpressionParser");
             instance.setAccessible(true);
             Object value = null;
             if (baselineVersion < 240) {
@@ -82,13 +82,13 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
             instance.set(JavaParser.INSTANCE, value);
         } catch (Exception e) {
             e.printStackTrace();
-            LOG.error( $"Zircon不支持该idea版本($baselineVersion)：" , e);
+            LOG.error($"Zircon不支持该idea版本($baselineVersion)：", e);
         }
     }
 
     @NotNull
     public PsiBuilder createBuilder(@NotNull Project project, @NotNull ASTNode chameleon, @Nullable Lexer lexer, @NotNull Language lang, @NotNull CharSequence seq) {
-        ParserDefinition parserDefinition = reflectionInvokeMethod( "getParserDefinition" , lang, chameleon.getElementType());
+        ParserDefinition parserDefinition = reflectionInvokeMethod("getParserDefinition", lang, chameleon.getElementType());
         if (lexer instanceof JavaLexer) {
             LanguageLevel level = LanguageLevelProjectExtension.getInstance(project).getLanguageLevel();
             lexer = new ZrJavaLexer(level);
@@ -99,7 +99,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
                 throw e;
             } catch (Exception e) {
                 e.printStackTrace();
-                throw new RuntimeException( "createLexer error:" + e.getMessage());
+                throw new RuntimeException("createLexer error:" + e.getMessage());
             }
         }
 
