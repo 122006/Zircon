@@ -37,6 +37,10 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
             //强制设置)和.之间不含空格
             Map<Pair<IElementType, IElementType>, Boolean> ourTokenStickingMatrix = JavaSpacePropertyProcessor.class.getStaticFieldValue( "ourTokenStickingMatrix");
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.RPARENTH, JavaTokenType.DOT), true);
+            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.LPARENTH, JavaTokenType.STRING_LITERAL), true);
+            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.RPARENTH), true);
+            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.COMMA), true);
+
         } catch (Exception e) {
             e.printStackTrace();
         }

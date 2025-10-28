@@ -8,6 +8,14 @@ public class StringRange {
         stringRange.startIndex = startIndex;
         return stringRange;
     }
+    public static StringRange of(int codeStyle,String stringVal, int startIndex, int endIndex) {
+        StringRange stringRange = new StringRange();
+        stringRange.endIndex = endIndex;
+        stringRange.codeStyle = codeStyle;
+        stringRange.stringVal = stringVal;
+        stringRange.startIndex = startIndex;
+        return stringRange;
+    }
 
     public static StringRange code(Formatter formatter, String text, int startIndex, int endIndex) {
         StringRange stringRange = new StringRange();

@@ -3,7 +3,6 @@ package com.sun.tools.javac.parser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class JStringFormatter implements Formatter {
 
@@ -16,29 +15,33 @@ public class JStringFormatter implements Formatter {
     public String printOut(List<StringRange> build, String text) {
         StringBuilder stringBuilder = new StringBuilder();
         if (build.size() > 0) {
-            stringBuilder.append("(");
+            stringBuilder.append( "(");
             for (int i = 0; i < build.size(); i++) {
                 StringRange stringRange = build.get(i);
                 if (stringRange.codeStyle == 1) {
                     if (i == 0) {
-                        stringBuilder.append("String.valueOf");
+                        stringBuilder.append( "String.valueOf");
                     } else {
-                        stringBuilder.append("+");
+                        stringBuilder.append( "+");
                     }
-                    stringBuilder.append("(");
+                    stringBuilder.append( "(");
                     stringBuilder.append(stringRange.stringVal);
-                    stringBuilder.append(")");
+                    stringBuilder.append( ")");
                 } else if (stringRange.codeStyle == 0) {
                     if (i > 0)
-                        stringBuilder.append("+");
-                    stringBuilder.append("\"");
+                        stringBuilder.append( "+");
+                    stringBuilder.append( "\"");
                     stringBuilder.append(stringRange.stringVal);
-                    stringBuilder.append("\"");
+                    stringBuilder.append( "\"");
                 } else {
-                    System.err.println("[error(使用了" + prefix() + "字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
+//                    if (i > 0)
+//                        stringBuilder.append( "+");
+//                    stringBuilder.append( "\"");
+//                    stringBuilder.append(stringRange.stringVal);
+//                    stringBuilder.append( "\"");
                 }
             }
-            stringBuilder.append(")");
+            stringBuilder.append( ")");
         }
         return stringBuilder.toString();
     }
@@ -100,7 +103,6 @@ public class JStringFormatter implements Formatter {
             }
         }
         items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length(), text.length()));
-        System.err.println("=============\n" + Item.output(text.toCharArray(), items));
         return items;
     }
 
@@ -108,11 +110,8 @@ public class JStringFormatter implements Formatter {
     public ZrStringModel build(String text) {
         ZrStringModel model = new ZrStringModel();
         model.setFormatter(this);
-        System.err.println("from:" + text);
         final StringRange[] elements = parseJson(this, text);
         Collections.addAll(model.getList(), elements);
-        System.err.println("to:" + model.getList().stream().map(a -> a.stringVal).collect(Collectors.joining("")));
-        System.err.println("to:" + model.getList().stream().map(a -> a.stringVal).collect(Collectors.joining("|")));
         model.setOriginalString(text);
         model.setEndQuoteIndex(elements[elements.length - 1].endIndex);
         return model;
@@ -121,7 +120,7 @@ public class JStringFormatter implements Formatter {
 
     @Override
     public String stringTransfer(String str) {
-        return str.replace("%", "%%").replace("\\$", "$");
+        return str.replace( "%" , "%%").replace( "\\$" , "$");
     }
 
 
@@ -137,11 +136,10 @@ public class JStringFormatter implements Formatter {
         }
 
         List<StringRange> ranges = new ArrayList<>();
-        int len = jsonStr.lastIndexOf("\"");
+        int len = jsonStr.lastIndexOf( "\"");
         int i = 2;
         char[] chars = jsonStr.toCharArray();
         java.util.Stack<Character> structureStack = new java.util.Stack<>();
-        System.err.println("parseJson: " + jsonStr);
         outer:
         while (i < len) {
             char c = chars[i];
@@ -250,27 +248,12 @@ public class JStringFormatter implements Formatter {
             }
             if (stringRange.codeStyle == 2) stringRange.codeStyle = 0;
             else if (stringRange.codeStyle == 0) stringRange.codeStyle = 2;
+            else if (stringRange.codeStyle == 1) {
+                if (stringRange.stringVal.matches( "^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
+                    stringRange.codeStyle = 0;
+                }
+            }
         }
         return ranges.toArray(new StringRange[0]);
-//        List<StringRange> stringRanges = new ArrayList<>();
-//        for (int i1 = 0; i1 < ranges.size(); i1++) {
-//            StringRange a = ranges.get(i1);
-//            if (stringRanges.isEmpty() || a.codeStyle == 1) stringRanges.add(a);
-//            final StringRange last = stringRanges.get(stringRanges.size() - 1);
-//            if (a.codeStyle == last.codeStyle) {
-//                last.endIndex = a.endIndex;
-//                last.stringVal = jsonStr.substring(last.startIndex, last.endIndex);
-//            } else {
-//                stringRanges.add(a);
-//            }
-//        }
-//        for (StringRange stringRange : stringRanges) {
-//            if (stringRange.stringVal == null) {
-//                stringRange.stringVal = jsonStr.substring(stringRange.startIndex, stringRange.endIndex);
-//            }
-//        }
-//
-//
-//        return stringRanges.toArray(new StringRange[0]);
     }
 }

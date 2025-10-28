@@ -61,7 +61,6 @@ public class ZrReplaceAllAction extends AnAction {
                     String s = expressions.get(0).getText() + "." + zrMethod.method.getName() + "(" + skip1 + ")";
                     @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(s, element);
                     element.replace(codeBlockFromText);
-//                LOG.warn("will replace " + element.getText() + " to " + codeBlockFromText);
 
                 }
             }
