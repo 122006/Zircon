@@ -8,11 +8,21 @@ public class StringRange {
         stringRange.startIndex = startIndex;
         return stringRange;
     }
-    public static StringRange of(int codeStyle,String stringVal, int startIndex, int endIndex) {
+
+    public static StringRange of(int codeStyle, String stringVal, int startIndex, int endIndex) {
         StringRange stringRange = new StringRange();
         stringRange.endIndex = endIndex;
         stringRange.codeStyle = codeStyle;
         stringRange.stringVal = stringVal;
+        stringRange.startIndex = startIndex;
+        return stringRange;
+    }
+
+    public static StringRange of(int codeStyle, Formatter formatter, String text, int startIndex, int endIndex) {
+        StringRange stringRange = new StringRange();
+        stringRange.endIndex = endIndex;
+        stringRange.codeStyle = codeStyle;
+        stringRange.stringVal = formatter.codeTransfer(text.substring(startIndex, endIndex));
         stringRange.startIndex = startIndex;
         return stringRange;
     }
@@ -44,8 +54,20 @@ public class StringRange {
     public int codeStyle = -1;
     public int startIndex;
     public int endIndex;
+    public int highlight = 0;
 
     public String stringVal = null;
+
+
+    public StringRange copy() {
+        StringRange stringRange = new StringRange();
+        stringRange.endIndex = endIndex;
+        stringRange.codeStyle = codeStyle;
+        stringRange.stringVal = stringVal;
+        stringRange.startIndex = startIndex;
+        stringRange.highlight = highlight;
+        return stringRange;
+    }
 
 
 }

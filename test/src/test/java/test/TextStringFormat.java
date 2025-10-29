@@ -1,7 +1,7 @@
 package test;
 
 
-import zircon.example.ExString;
+import org.junit.jupiter.api.Test;
 
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -9,16 +9,16 @@ import java.util.function.Consumer;
 
 public class TextStringFormat {
 
-    static String test = "532";
-    public static String test2 = "532";
-    public static String test3 = "532";
+    static String test = "532" ;
+    public static String test2 = "532" ;
+    public static String test3 = "532" ;
 
-
-    public static void main(String[] str) {
+    @Test
+    public void test() {
         System.out.println($"java.version=${System.getProperty("java.version")}");
         {
-            String test = f"tes";
-            String will = "tes";
+            String test = f"tes" ;
+            String will = "tes" ;
             assertEquals(test, will);
         }
         {
@@ -27,39 +27,39 @@ public class TextStringFormat {
 //            assertEquals(test, will);
         }
         {
-            String add = "test";
-            String test = f"fwe ${add}";
-            String will = "fwe test";
+            String add = "test" ;
+            String test = f"fwe ${add}" ;
+            String will = "fwe test" ;
             assertEquals(test, will);
         }
         {
-            String test = f"gr ${System.currentTimeMillis()/10}";
+            String test = f"gr ${System.currentTimeMillis()/10}" ;
             String will = "gr " + System.currentTimeMillis() / 10;
             assertEquals(test, will);
         }
         {
-            String test = f"测试 [${1+2}]";
-            String will = f"测试 [3]";
+            String test = f"测试 [${1+2}]" ;
+            String will = f"测试 [3]" ;
             assertEquals(test, will);
         }
 
         {
-            String add = "test2";
-            String test = $"test $add test3";
-            String will = "test test2 test3";
+            String add = "test2" ;
+            String test = $"test $add test3" ;
+            String will = "test test2 test3" ;
             assertEquals(test, will);
         }
         {
-            String test = f"test ${1+2}${2+3}";
-            String will = "test 35";
+            String test = f"test ${1+2}${2+3}" ;
+            String will = "test 35" ;
             assertEquals(test, will);
         }
         {
-            String will = "test inStr";
-            String test = f"test ${\"inStr\"}";
+            String will = "test inStr" ;
+            String test = f"test ${\"inStr\"}" ;
             assertEquals(test, will);
         }
-        String add = "test";
+        String add = "test" ;
         assertEquals(f"do ($add)", "do (test)");
         assertEquals(f"do ($add)", "do (test)");
         assertEquals(f"do ($TextStringFormat.test2)", "do (" + TextStringFormat.test + ")");
@@ -217,10 +217,14 @@ public class TextStringFormat {
         assertEquals($"as${""}", "as");
 
 
-        String localvar="123localvar";
-        String av="241av";
-//        System.out.println(j"{a:{a1:\"a1value\",a2:true,a3:localvar,a4:[1,\"\",localvar,{aa:av}]},b:\"bvalue\",c:1} ");
-        System.out.println(j"{a:{a1:"a1value",a2:true,a3:localvar,a4:[1,"",localvar,{aa:av}]},b:"bvalue",c:1} ");
+        String localvar = "123localvar" ;
+        String av = "241av" ;
+        {
+            String jsonString = j"{a:{a1:"a1value",a2:true,a3:localvar,a4:[1,"",localvar,{"aa":av}]},"b":"bvalue","c":1} " ;
+            String jsonString2 = ("{\"a\":{\"a1\":\"a1value\",\"a2\":true,\"a3\":" + (localvar) + ",\"a4\":[1,\"\"," + (localvar) + ",{\"aa\":" + (av) + "}]},\"b\":\"bvalue\",\"c\":1} ");
+            assertEquals(jsonString, jsonString2);
+
+        }
 
 
 //        assertEquals($"${throwException()}", "testThrowException");
@@ -228,23 +232,23 @@ public class TextStringFormat {
 
 //        assertEquals($"${Stream}", "");
 
-        String text = f" this is F-$String.class.getSimpleName() ";
+        String text = f" this is F-$String.class.getSimpleName() " ;
 
         assert Objects.equals($"Zircon: [ ${text.trim()} ]", "Zircon: [ " + (text.trim()) + " ]");
 
 
-        String text2 = $" this is F-$String.class.getSimpleName() ";
+        String text2 = $" this is F-$String.class.getSimpleName() " ;
 
-        text = text + $"232 $text2 12321";
-        text = text + $"232 ${text2.substring(12)} 12321";
+        text = text + $"232 $text2 12321" ;
+        text = text + $"232 ${text2.substring(12)} 12321" ;
         Object obj = (Consumer) (f) -> {
-            String a = $"$text2";
+            String a = $"$text2" ;
         };
 
 
         String asdss = text;
 
-        String testUrl = "dddd http://www.baidu.com";
+        String testUrl = "dddd http://www.baidu.com" ;
 
 
         String a = String.format("%2s  %-2S ", "123", "vvv"
@@ -261,17 +265,16 @@ public class TextStringFormat {
 
     private static void assertEquals(String test, String will) {
         if (Objects.equals(test, will)) {
-            System.out.println(f"测试通过: [${will}]");
             return;
         }
         System.err.println("测试未通过：");
         System.err.println(f"test: [${test}]");
         System.err.println(f"will: [${will}]");
-        new RuntimeException("测试未通过").printStackTrace();
+        throw new RuntimeException("测试未通过");
     }
 
     public static String $12() {
-        return "12";
+        return "12" ;
     }
 
 
@@ -279,15 +282,15 @@ public class TextStringFormat {
 
         System.out.println(f"[${%-7s:12} \n${%-5s:"null"}]");
 
-        String string = "world";
+        String string = "world" ;
 
-        String will = f"hello ${string}";
+        String will = f"hello ${string}" ;
 
         assert Objects.equals(will, "hello world");
     }
 
     public static String throwException() throws IllegalAccessException {
-        return "testThrowException";
+        return "testThrowException" ;
     }
 
 }

@@ -3,6 +3,7 @@ package com.sun.tools.javac.parser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class JStringFormatter implements Formatter {
 
@@ -14,34 +15,52 @@ public class JStringFormatter implements Formatter {
     @Override
     public String printOut(List<StringRange> build, String text) {
         StringBuilder stringBuilder = new StringBuilder();
+        List<StringRange> stringRanges = new ArrayList<>();
+        for (StringRange a : build) {
+            if (stringRanges.isEmpty() || a.codeStyle == 1) {
+                stringRanges.add(a.copy());
+                continue;
+            }
+            final StringRange last = stringRanges.get(stringRanges.size() - 1);
+            if (last.codeStyle != 1) {
+                last.endIndex = a.endIndex;
+                if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
+                } else if (a.codeStyle == 0 && a.highlight == 1) {
+                    last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
+                } else {
+                    last.stringVal = last.stringVal + a.stringVal;
+                }
+                last.codeStyle = 0;
+            } else {
+                stringRanges.add(a.copy());
+            }
+        }
+        build = stringRanges;
         if (build.size() > 0) {
-            stringBuilder.append( "(");
+            stringBuilder.append("(");
             for (int i = 0; i < build.size(); i++) {
                 StringRange stringRange = build.get(i);
                 if (stringRange.codeStyle == 1) {
                     if (i == 0) {
-                        stringBuilder.append( "String.valueOf");
+                        stringBuilder.append("String.valueOf");
                     } else {
-                        stringBuilder.append( "+");
+                        stringBuilder.append("+");
                     }
-                    stringBuilder.append( "(");
+                    stringBuilder.append("(");
                     stringBuilder.append(stringRange.stringVal);
-                    stringBuilder.append( ")");
+                    stringBuilder.append(")");
                 } else if (stringRange.codeStyle == 0) {
                     if (i > 0)
-                        stringBuilder.append( "+");
-                    stringBuilder.append( "\"");
+                        stringBuilder.append("+");
+                    stringBuilder.append("\"");
                     stringBuilder.append(stringRange.stringVal);
-                    stringBuilder.append( "\"");
-                } else {
-//                    if (i > 0)
-//                        stringBuilder.append( "+");
-//                    stringBuilder.append( "\"");
-//                    stringBuilder.append(stringRange.stringVal);
-//                    stringBuilder.append( "\"");
+                    stringBuilder.append("\"");
                 }
             }
-            stringBuilder.append( ")");
+            stringBuilder.append(")");
         }
         return stringBuilder.toString();
     }
@@ -59,16 +78,24 @@ public class JStringFormatter implements Formatter {
         List<StringRange> stringRanges = new ArrayList<>();
         for (StringRange a : build) {
             if (stringRanges.isEmpty() || a.codeStyle == 1) {
-                stringRanges.add(a);
+                stringRanges.add(a.copy());
                 continue;
             }
             final StringRange last = stringRanges.get(stringRanges.size() - 1);
             if (last.codeStyle != 1) {
-                last.codeStyle = 0;
                 last.endIndex = a.endIndex;
-                last.stringVal = text.substring(last.startIndex, last.endIndex);
+                if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
+                } else if (a.codeStyle == 0 && a.highlight == 1) {
+                    last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
+                } else {
+                    last.stringVal = last.stringVal + a.stringVal;
+                }
+                last.codeStyle = 0;
             } else {
-                stringRanges.add(a);
+                stringRanges.add(a.copy());
             }
         }
         build = stringRanges;
@@ -94,11 +121,6 @@ public class JStringFormatter implements Formatter {
                         items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
                     }
                     items.add(Item.loadStringToken(startIndex, startIndex, stringRange.stringVal));
-                } else {
-                    if (i > 0) {
-                        items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
-                    }
-                    items.add(Item.loadStringToken(startIndex, startIndex, stringRange.stringVal));
                 }
             }
         }
@@ -120,7 +142,7 @@ public class JStringFormatter implements Formatter {
 
     @Override
     public String stringTransfer(String str) {
-        return str.replace( "%" , "%%").replace( "\\$" , "$");
+        return str.replace("%", "%%").replace("\\$", "$");
     }
 
 
@@ -136,7 +158,7 @@ public class JStringFormatter implements Formatter {
         }
 
         List<StringRange> ranges = new ArrayList<>();
-        int len = jsonStr.lastIndexOf( "\"");
+        int len = jsonStr.lastIndexOf("\"");
         int i = 2;
         char[] chars = jsonStr.toCharArray();
         java.util.Stack<Character> structureStack = new java.util.Stack<>();
@@ -144,14 +166,20 @@ public class JStringFormatter implements Formatter {
         while (i < len) {
             char c = chars[i];
             switch (c) {
+                case ' ':
+                case '\t':
+                case '\n':
+                case '\r':
+                case '\f':
+                    break;
                 case '{':
                 case '[':
-                    ranges.add(StringRange.of(2, i, i + 1));
+                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
                     structureStack.push(c);
                     break;
                 case ']':
                 case '}':
-                    ranges.add(StringRange.of(2, i, i + 1));
+                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
                     structureStack.pop();
                     if (structureStack.isEmpty()) {
                         int start = i;
@@ -159,28 +187,40 @@ public class JStringFormatter implements Formatter {
                             if (chars[i] == '"') break;
                             i++;
                         }
-                        ranges.add(StringRange.of(0, start, i));
+                        ranges.add(StringRange.of(-1, formatter, jsonStr, start + 1, i));
                         break outer;
                     }
                     break;
                 case ',':
-                    ranges.add(StringRange.of(2, i, i + 1));
+                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
                     break;
                 case ':':
-                    ranges.add(StringRange.of(2, i, i + 1));
+                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
                     break;
                 default:
                     int start = i;
                     boolean scanCode = false;
                     if (structureStack.peek() == '{') {
-                        if (chars[i - 1] == ':') {
+                        if (Objects.equals(ranges.get(ranges.size() - 1).stringVal, ":")) {
                             scanCode = true;
                         } else {
+                            in:
                             while (i < len) {
-                                if (chars[i] == ':' || chars[i] == ',') break;
+                                switch (chars[i]) {
+                                    case ' ':
+                                    case '\t':
+                                    case '\n':
+                                    case '\r':
+                                    case '\f':
+                                    case ':':
+                                    case ',':
+                                        break in;
+                                }
                                 i++;
                             }
-                            ranges.add(StringRange.string(formatter, jsonStr, start, i));
+                            final StringRange e = StringRange.of(0, formatter, jsonStr, start, i);
+                            e.highlight = 2;
+                            ranges.add(e);
                             i--;
                             break;
                         }
@@ -234,7 +274,7 @@ public class JStringFormatter implements Formatter {
                             }
                             i++;
                         }
-                        ranges.add(StringRange.code(formatter, jsonStr, start, i));
+                        ranges.add(StringRange.of(1, formatter, jsonStr, start, i));
                         i--;
                     }
                     break;
@@ -243,14 +283,10 @@ public class JStringFormatter implements Formatter {
             i++;
         }
         for (StringRange stringRange : ranges) {
-            if (stringRange.stringVal == null) {
-                stringRange.stringVal = jsonStr.substring(stringRange.startIndex, stringRange.endIndex);
-            }
-            if (stringRange.codeStyle == 2) stringRange.codeStyle = 0;
-            else if (stringRange.codeStyle == 0) stringRange.codeStyle = 2;
-            else if (stringRange.codeStyle == 1) {
-                if (stringRange.stringVal.matches( "^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
+            if (stringRange.codeStyle == 1) {
+                if (stringRange.stringVal.matches("^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
                     stringRange.codeStyle = 0;
+                    stringRange.highlight = 1;
                 }
             }
         }
