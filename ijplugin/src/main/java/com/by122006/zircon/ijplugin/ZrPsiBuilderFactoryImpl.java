@@ -40,6 +40,7 @@ public class ZrPsiBuilderFactoryImpl extends PsiBuilderFactoryImpl {
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.LPARENTH, JavaTokenType.STRING_LITERAL), true);
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.RPARENTH), true);
             ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.COMMA), true);
+            ourTokenStickingMatrix.put(Pair.pair(JavaTokenType.STRING_LITERAL, JavaTokenType.SEMICOLON), true);
 
         } catch (Exception e) {
             e.printStackTrace();

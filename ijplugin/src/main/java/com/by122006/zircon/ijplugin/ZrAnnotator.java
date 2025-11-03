@@ -70,8 +70,11 @@ public class ZrAnnotator implements Annotator {
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
         try {
-            if (!ZrPluginUtil.hasZrPlugin(element)) return;
+            if (element.getContainingFile() == null || !element.getContainingFile().isWritable()) {
+                return;
+            }
             if (element.getLanguage() != JavaLanguage.INSTANCE) return;
+            if (!ZrPluginUtil.hasZrPlugin(element)) return;
             if (element instanceof PsiMethodReferenceExpression) {
                 registerLimitMemberReference((PsiMethodReferenceExpression) element, holder);
                 return;
@@ -136,11 +139,11 @@ public class ZrAnnotator implements Annotator {
             final boolean anyMatch = elements.anyMatch(elem -> elem.getChildren().toList().anyMatch(a -> a instanceof PsiJavaToken && a.getText().equals("?.")));
             if (anyMatch) {
                 final PsiExpression fElement = element.getParent() instanceof PsiMethodCallExpression ? (PsiMethodCallExpression) element.getParent() : element;
-                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "", "?:")){
+                if (Objects.equals(PsiTreeUtil.nextVisibleLeaf(fElement)?.getText() ?: "", "?:")) {
 
-                } else{
+                } else {
                     if (method?.getReturnType() instanceof PsiPrimitiveType && !(method?.getReturnType().equalsToText("void") ?:
-                    false) &&!(method?.getReturnType().equalsToText("null") ?: false)){
+                            false) && !(method?.getReturnType().equalsToText("null") ?: false)) {
                         holder.newAnnotation(HighlightSeverity.WEAK_WARNING, "If the optional chaining operator `?.` is used and the final value of the call chain is a primitive type" +
                                         ", it may lead to a null pointer exception" +
                                         ". Use the Elvis operator `?:` to append a default value to avoid this issue.")
@@ -727,11 +730,12 @@ public class ZrAnnotator implements Annotator {
                 String printOut = replace2NormalString(element, holder, text, formatter, model);
                 foldCode(element, holder, printOut);
                 boldSpecialChar(element, holder, formatter, model);
+                final TextAttributesKey stringRangeHighlightKey = ZirconSettings.getInstance().getStringRangeHighlightKey(0);
                 model.getList().stream().filter(a -> a.codeStyle == 1).forEach(a -> {
                     final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
                             .shiftRight(element.getTextOffset());
                     holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                            .highlightType(ProblemHighlightType.INFORMATION).textAttributes(ZrStringTextCodeStyle1)
+                            .highlightType(ProblemHighlightType.INFORMATION).textAttributes(stringRangeHighlightKey)
                             .create();
                 });
                 final String previewString = model.getList().map(a -> {
@@ -787,9 +791,9 @@ public class ZrAnnotator implements Annotator {
     static @NotNull TextAttributesKey ZrExMethodTargetSiteUsage = createTextAttributesKey("ZrExMethodTargetSiteUsage", new TextAttributes(null, null, null, null, Font.ITALIC), null);
     static @NotNull TextAttributesKey ZrExMethodNeedImport = createTextAttributesKey("ZrExMethodNeedImport", new TextAttributes(new JBColor(0xEAFF4538, 0xEAFF4538), null, new JBColor(0xEAFF4538, 0xEAFF4538), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
     static @NotNull TextAttributesKey ZrStringTextCodeStyleP1 = createTextAttributesKey("ZrStringTextCodeStyleP1", new TextAttributes(new JBColor(0x999999, 0x696969), null, null, null, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit = createTextAttributesKey("ZrStringTextCodeStyleSplit", new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyle2 = createTextAttributesKey("ZrStringTextCodeStyle2", new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
-    static @NotNull TextAttributesKey ZrStringTextCodeStyle1 = createTextAttributesKey("ZrStringTextCodeStyle1", new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
+//    static @NotNull TextAttributesKey ZrStringTextCodeStyleSplit = createTextAttributesKey("ZrStringTextCodeStyleSplit", new TextAttributes(new JBColor(0xbbbbbb, 0x696969), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
+//    static @NotNull TextAttributesKey ZrStringTextCodeStyle2 = createTextAttributesKey("ZrStringTextCodeStyle2", new TextAttributes(new JBColor(0x00627A, 0x78BDB0), null, new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.ITALIC), null);
+//    static @NotNull TextAttributesKey ZrStringTextCodeStyle1 = createTextAttributesKey("ZrStringTextCodeStyle1", new TextAttributes(null, new JBColor(new Color(255, 255, 255, 0), new Color(0, 0, 0, 0)), new JBColor(0x999999, 0x696969), EffectType.LINE_UNDERSCORE, Font.PLAIN), null);
 
     private void boldSpecialChar(PsiElement element, AnnotationHolder holder, Formatter formatter, ZrStringModel model) {
         String text = model.getOriginalString();
@@ -802,6 +806,8 @@ public class ZrAnnotator implements Annotator {
             int lastItemEndIndex = text.indexOf("\"") + 1;
             final List<StringRange> list = new ArrayList<>(model.getList());
             list.add(StringRange.of(0, model.getEndQuoteIndex(), model.getEndQuoteIndex()));
+            final TextAttributesKey stringRangeHighlightKey2 = ZirconSettings.getInstance().getStringRangeHighlightKey(2);
+            final TextAttributesKey stringRangeHighlightKey1 = ZirconSettings.getInstance().getStringRangeHighlightKey(1);
             for (StringRange stringRange : list) {
                 try {
                     String sub = text.substring(lastItemEndIndex, stringRange.startIndex).trim();
@@ -811,24 +817,24 @@ public class ZrAnnotator implements Annotator {
                         if (formatter instanceof FStringFormatter & sub.equals(":")) {
                             holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                                     .highlightType(ProblemHighlightType.INFORMATION)
-                                    .textAttributes(ZrStringTextCodeStyleSplit).create();
+                                    .textAttributes(stringRangeHighlightKey2).create();
                         } else if (sub.length() > 0) {
                             holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                                     .highlightType(ProblemHighlightType.INFORMATION)
-                                    .textAttributes(ZrStringTextCodeStyleSplit).create();
+                                    .textAttributes(stringRangeHighlightKey2).create();
                         }
                     }
                     if (stringRange.codeStyle == 2) {
                         final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
                                 .shiftRight(element.getTextOffset());
                         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                                .textAttributes(ZrStringTextCodeStyle2).create();
+                                .textAttributes(stringRangeHighlightKey1).create();
                     }
-                    if (stringRange.highlight == 2) {
+                    if (stringRange.highlight > 0) {
                         final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
                                 .shiftRight(element.getTextOffset());
                         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                                .textAttributes(ZrStringTextCodeStyle2).create();
+                                .textAttributes(ZirconSettings.getInstance().getStringRangeHighlightKey(stringRange.highlight + 2)).create();
                     }
                     lastItemEndIndex = stringRange.endIndex;
                 } catch (Exception e) {
