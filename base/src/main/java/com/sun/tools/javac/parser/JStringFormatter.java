@@ -9,7 +9,7 @@ public class JStringFormatter implements Formatter {
 
     @Override
     public String prefix() {
-        return "j";
+        return "j" ;
     }
 
     @Override
@@ -25,7 +25,7 @@ public class JStringFormatter implements Formatter {
             if (last.codeStyle != 1) {
                 last.endIndex = a.endIndex;
                 if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
-                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"" ;
                 } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
                 } else if (a.codeStyle == 0 && a.highlight == 1) {
@@ -85,7 +85,7 @@ public class JStringFormatter implements Formatter {
             if (last.codeStyle != 1) {
                 last.endIndex = a.endIndex;
                 if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
-                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"" ;
                 } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
                 } else if (a.codeStyle == 0 && a.highlight == 1) {
@@ -219,7 +219,7 @@ public class JStringFormatter implements Formatter {
                                 i++;
                             }
                             final StringRange e = StringRange.of(0, formatter, jsonStr, start, i);
-                            e.highlight = 2;
+                            e.highlight = 1;
                             ranges.add(e);
                             i--;
                             break;
@@ -274,7 +274,26 @@ public class JStringFormatter implements Formatter {
                             }
                             i++;
                         }
-                        ranges.add(StringRange.of(1, formatter, jsonStr, start, i));
+                        int iSpace = i - 1;
+                        in2:
+                        while (iSpace > 0) {
+                            switch (chars[iSpace]) {
+                                case ' ':
+                                case '\t':
+                                case '\n':
+                                case '\r':
+                                case '\f':
+                                case ':':
+                                case ',':
+                                    iSpace--;
+                                default:
+                                    break in2;
+                            }
+                        }
+                        final StringRange e = StringRange.of(1, formatter, jsonStr, start, iSpace + 1);
+                        e.highlight = 2;
+                        ranges.add(e);
+                        ranges.add(StringRange.of(-1, "", iSpace + 1, i));
                         i--;
                     }
                     break;
@@ -284,9 +303,8 @@ public class JStringFormatter implements Formatter {
         }
         for (StringRange stringRange : ranges) {
             if (stringRange.codeStyle == 1) {
-                if (stringRange.stringVal.matches("^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
+                if (stringRange.stringVal.trim().matches("^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
                     stringRange.codeStyle = 0;
-                    stringRange.highlight = 1;
                 }
             }
         }
