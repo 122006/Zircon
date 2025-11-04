@@ -27,7 +27,7 @@
 
 ![](others/exmethod_show4.gif)
 
-### 2. 可选链 <kbd>_v3.3.0预览支持_</kbd>
+### 2. 可选链
 
 `String text=XXX.returnNull()?.getText(); //不会抛出空指针异常，而是返回null`
 
@@ -39,7 +39,7 @@
 >
 > 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。 特别的，对于<kbd>单赋值语句</kbd>，链式不满足时直接跳过该语句执行
 
-### 3. `elvis`表达式 <kbd>_v3.3.0预览支持_</kbd>
+### 3. `elvis`表达式
 
 `String text= xxxx.returnNull() ?: "默认值"; //简单使用`
 
@@ -85,7 +85,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.2.6'
+        classpath 'com.github.122006.Zircon:gradle:3.3.0'
     }
 }
 ````
@@ -102,13 +102,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.2.6</version>
+            <version>3.3.0</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.2.6</version>
+            <version>3.3.0</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -170,6 +170,13 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 --------------
 
 ## ChangeLog
+
+
+### v3.3.0
+
+1. 支持`elvis`表达式
+2. 支持可选链语法
+3. 支持json风格的模板字符串
 
 ### v3.2.6
 
@@ -242,9 +249,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.4
+### idea插件4.6
 
-1. 提供对可选链 &`elvis` 支持
+1. 支持idea版本至2025.3
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -331,6 +338,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 修复4.1版本对基本类型数组拓展方法无法补全的问题
 2. 对cover类型拓展方法使用处增加提示信息及自动import
+
+### idea插件4.4
+
+1. 提供对可选链 &`elvis` 支持
 
 
 </details>
