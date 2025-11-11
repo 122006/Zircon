@@ -9,7 +9,7 @@ public class JStringFormatter implements Formatter {
 
     @Override
     public String prefix() {
-        return "j" ;
+        return "j";
     }
 
     @Override
@@ -24,11 +24,11 @@ public class JStringFormatter implements Formatter {
             final StringRange last = stringRanges.get(stringRanges.size() - 1);
             if (last.codeStyle != 1) {
                 last.endIndex = a.endIndex;
-                if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
-                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"" ;
-                } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
+                if (a.codeStyle == 0 && a.highlight == 1 && !a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                } else if (a.codeStyle == 0 && a.highlight == 1 && a.stringVal.startsWith("\"")) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
-                } else if (a.codeStyle == 0 && a.highlight == 1) {
+                } else if (a.codeStyle == 0 && a.highlight == 2) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
                 } else {
                     last.stringVal = last.stringVal + a.stringVal;
@@ -84,11 +84,11 @@ public class JStringFormatter implements Formatter {
             final StringRange last = stringRanges.get(stringRanges.size() - 1);
             if (last.codeStyle != 1) {
                 last.endIndex = a.endIndex;
-                if (a.codeStyle == 0 && a.highlight == 2 && !a.stringVal.startsWith("\"")) {
-                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"" ;
-                } else if (a.codeStyle == 0 && a.highlight == 2 && a.stringVal.startsWith("\"")) {
+                if (a.codeStyle == 0 && a.highlight == 1 && !a.stringVal.startsWith("\"")) {
+                    last.stringVal = last.stringVal + "\\\"" + a.stringVal + "\\\"";
+                } else if (a.codeStyle == 0 && a.highlight == 1 && a.stringVal.startsWith("\"")) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
-                } else if (a.codeStyle == 0 && a.highlight == 1) {
+                } else if (a.codeStyle == 0 && a.highlight == 2) {
                     last.stringVal = last.stringVal + a.stringVal.replace("\"", "\\\"");
                 } else {
                     last.stringVal = last.stringVal + a.stringVal;
