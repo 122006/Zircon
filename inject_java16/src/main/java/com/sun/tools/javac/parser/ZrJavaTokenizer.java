@@ -9,7 +9,8 @@ import java.nio.CharBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.sun.tools.javac.util.LayoutCharacters.FF;
+import static com.sun.tools.javac.util.LayoutCharacters.*;
+import static com.sun.tools.javac.util.LayoutCharacters.LF;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public ZrJavaTokenizer(ScannerFactory scannerFactory, CharBuffer charBuffer) {
@@ -37,7 +38,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             return assignableFrom;
         }
 
-        assignableFrom = UnicodeReader.class .isAssignableFrom(JavaTokenizer.class);
+        assignableFrom = UnicodeReader.class.isAssignableFrom(JavaTokenizer.class);
         return assignableFrom;
     }
 
@@ -214,15 +215,35 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     private Tokens.Token superReadToken() {
-        switch (getReaderCh()) {
-            case ' ': // (Spec 3.6)
-            case '\t': // (Spec 3.6)
-            case FF: // (Spec 3.6)
-                do {
+        int pos;
+        loop:
+        while (true) {
+            pos = getReaderBp();
+            switch (getReaderCh()) {
+                case ' ': // (Spec 3.6)
+                case '\t': // (Spec 3.6)
+                case FF: // (Spec 3.6)
+                    do {
+                        reIndex(getReaderBp() + 1);
+                    } while (getReaderCh() == ' ' || getReaderCh() == '\t' || getReaderCh() == FF);
+                    processWhiteSpace(pos, getReaderBp());
+                    break;
+                case LF: // (Spec 3.4)
                     reIndex(getReaderBp() + 1);
-                } while (getReaderCh() == ' ' || getReaderCh() == '\t' || getReaderCh() == FF);
+                    processLineTerminator(pos, getReaderBp());
+                    break;
+                case CR: // (Spec 3.4)
+                    reIndex(getReaderBp() + 1);
+                    if (getReaderCh() == LF) {
+                        reIndex(getReaderBp() + 1);
+                    }
+                    processLineTerminator(pos, getReaderBp());
+                    break;
+                default:
+                    break loop;
+            }
         }
-        int pos = getReaderBp();
+        pos = getReaderBp();
         if (getReaderCh() == '?') {
             if (charAt(pos + 1) == '.' && (charAt(pos + 2) < '0' || charAt(pos + 2) > '9')) {
                 Name name = fac.names.fromString("$$NullSafe");
@@ -277,7 +298,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     private char[] getReaderBuf() {
         if (buffer != null) return buffer;
         try {
-            final Field bufferField = UnicodeReader.class .getDeclaredField("buffer");
+            final Field bufferField = UnicodeReader.class.getDeclaredField("buffer");
             bufferField.setAccessible(true);
             return (char[]) bufferField.get(this);
         } catch (NoSuchFieldException e) {

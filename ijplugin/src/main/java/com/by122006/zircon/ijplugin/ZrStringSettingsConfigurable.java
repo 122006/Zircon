@@ -16,6 +16,7 @@ import zircon.example.ExObject;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.Objects;
+import java.util.function.Function;
 
 import javax.swing.*;
 
@@ -271,7 +272,8 @@ public class ZrStringSettingsConfigurable implements Configurable {
                     it.add(foregroundColorLightFields[fi]);
                     it.add(new JBLabel("前景[暗]:"));
                     it.add(foregroundColorDarkFields[fi]);
-                    clearBackgroundButtons[fi].addActionListener(actionEvent -> {
+                    it.add(clearForegroundButtons[fi]);
+                    clearForegroundButtons[fi].addActionListener(actionEvent -> {
                         foregroundColorLightFields[fi].setSelectedColor(null);
                         foregroundColorDarkFields[fi].setSelectedColor(null);
                     });
@@ -295,7 +297,7 @@ public class ZrStringSettingsConfigurable implements Configurable {
                     it.add(new JBLabel("效果类型:"));
                     it.add(effectTypeFields[fi]);
                 }));
-                if (i < colorCount-1) { // Add separator between types, but not after the last one
+                if (i < colorCount - 1) { // Add separator between types, but not after the last one
                     builder.addSeparator();
                 }
             }
@@ -310,30 +312,25 @@ public class ZrStringSettingsConfigurable implements Configurable {
         }
 
         private void resetToDefaults(StringRangeHighlightSetting[] defaults) {
+            Function<Integer, Color> function = (color) -> color == null ? null : new Color(color);
             for (int i = 0; i < colorCount; i++) {
                 foregroundColorLightFields[i].setSelectedColor(
-                        defaults[i].foregroundColorLight != null ?
-                                new Color(defaults[i].foregroundColorLight) : null
+                        function.apply(defaults[i].foregroundColorLight)
                 );
                 foregroundColorDarkFields[i].setSelectedColor(
-                        defaults[i].foregroundColorDark != null ?
-                                new Color(defaults[i].foregroundColorDark) : null
+                        function.apply(defaults[i].foregroundColorDark)
                 );
                 backgroundColorLightFields[i].setSelectedColor(
-                        defaults[i].backgroundColorLight != null ?
-                                new Color(defaults[i].backgroundColorLight) : null
+                        function.apply(defaults[i].backgroundColorLight)
                 );
                 backgroundColorDarkFields[i].setSelectedColor(
-                        defaults[i].backgroundColorDark != null ?
-                                new Color(defaults[i].backgroundColorDark) : null
+                        function.apply(defaults[i].backgroundColorDark)
                 );
                 effectColorLightFields[i].setSelectedColor(
-                        defaults[i].effectColorLight != null ?
-                                new Color(defaults[i].effectColorLight) : null
+                        function.apply(defaults[i].effectColorLight)
                 );
                 effectColorDarkFields[i].setSelectedColor(
-                        defaults[i].effectColorDark != null ?
-                                new Color(defaults[i].effectColorDark) : null
+                        function.apply(defaults[i].effectColorDark)
                 );
                 fontTypeFields[i].setSelectedIndex(defaults[i].fontType);
                 effectTypeFields[i].setSelectedIndex(getEffectTypeIndex(defaults[i].effectType));

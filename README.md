@@ -85,7 +85,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.3.0'
+        classpath 'com.github.122006.Zircon:gradle:3.3.1'
     }
 }
 ````
@@ -102,13 +102,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.3.0</version>
+            <version>3.3.1</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.3.0</version>
+            <version>3.3.1</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -172,18 +172,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ## ChangeLog
 
 
-### v3.3.0
+### v3.3.1
 
-1. 支持`elvis`表达式
-2. 支持可选链语法
-3. 支持json风格的模板字符串
-
-### v3.2.6
-
-1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
-2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
-3. 优化编译速度
-4. 增加`@ExMethodIDE`注解，以增强ide的提示特性
+1. 修复换行时无法识别可选链的问题 [#17](https://github.com/122006/Zircon/issues/17)
+2. json风格模板字符串优化
 
 <details>
   <summary>历史依赖更新</summary>
@@ -246,6 +238,19 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 支持java21、java22
 2. 优化项目编译结构
+
+### v3.2.6
+
+1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
+2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
+3. 优化编译速度
+4. 增加`@ExMethodIDE`注解，以增强ide的提示特性
+
+### v3.3.0
+
+1. 支持`elvis`表达式
+2. 支持可选链语法
+3. 支持json风格的模板字符串
 
 </details>
 

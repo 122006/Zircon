@@ -8,7 +8,8 @@ import java.nio.CharBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.sun.tools.javac.util.LayoutCharacters.FF;
+import static com.sun.tools.javac.util.LayoutCharacters.*;
+import static com.sun.tools.javac.util.LayoutCharacters.LF;
 
 public class ZrJavaTokenizer extends JavaTokenizer {
     public static boolean debug = "true".equalsIgnoreCase(System.getenv("Debug"));
@@ -183,15 +184,35 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     }
 
     private Tokens.Token superReadToken() {
-        switch (reader.ch) {
-            case ' ': // (Spec 3.6)
-            case '\t': // (Spec 3.6)
-            case FF: // (Spec 3.6)
-                do {
+        int pos;
+        loop:
+        while (true) {
+            pos = reader.bp;
+            switch (reader.ch) {
+                case ' ': // (Spec 3.6)
+                case '\t': // (Spec 3.6)
+                case FF: // (Spec 3.6)
+                    do {
+                        reader.scanChar();
+                    } while (reader.ch == ' ' || reader.ch == '\t' || reader.ch == FF);
+                    processWhiteSpace(pos, reader.bp);
+                    break;
+                case LF: // (Spec 3.4)
                     reader.scanChar();
-                } while (reader.ch == ' ' || reader.ch == '\t' || reader.ch == FF);
+                    processLineTerminator(pos, reader.bp);
+                    break;
+                case CR: // (Spec 3.4)
+                    reader.scanChar();
+                    if (reader.ch == LF) {
+                        reader.scanChar();
+                    }
+                    processLineTerminator(pos, reader.bp);
+                    break;
+                default:
+                    break loop;
+            }
         }
-        int pos = reader.bp;
+        pos = reader.bp;
         if (reader.ch == '?') {
             if (charAt(pos + 1) == '.' && (charAt(pos + 2) < '0' || charAt(pos + 2) > '9')) {
                 Name name = fac.names.fromString("$$NullSafe");

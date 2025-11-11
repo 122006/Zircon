@@ -577,6 +577,7 @@ public class TestExMethod {
         methodNames.add("testClassExMethodObject");
         return clazz;
     }
+
     @ExMethod
     public static <T extends TestExMethod.FatherClass> Class<T> testClassExMethodObjectMR(Class<T> clazz) {
         methodNames.add("testClassExMethodObjectMR");

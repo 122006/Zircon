@@ -25,9 +25,12 @@ public class TestOptionalChaining {
     public void testBasic() {
         TestClass v = new TestClass();
         TestClass nullV = null;
-        TestClass var = v?.returnThis()?.returnThis2();
+        TestClass var = v
+                ?.returnThis()
+                ?.returnThis2();
         Integer varInt = v?.return_int1();
-        Integer nullInt = nullV?.return_int1() ?: null;
+        Integer nullInt = nullV?.return_int1()
+            ?: null;
         assert nullInt == null;
         int varint = v?.return_int1() ?: 1;
         float testNormalExpr = true ? .5f : .3f;
