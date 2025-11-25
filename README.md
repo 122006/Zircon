@@ -141,7 +141,7 @@ Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
 
 #### 手动安装（推荐）
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.6.zip)
+1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.7.zip)
    进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）'
 2. 下载文件后 拖动至idea中自动安装 或 idea中指定路径加载
    > For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>
@@ -254,9 +254,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.6
+### idea插件4.7
 
-1. 支持idea版本至2025.3
+1. 现在匹配拓展方法时，会判断对象继承链的泛型，以正确匹配对应方法
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -347,6 +347,10 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 ### idea插件4.4
 
 1. 提供对可选链 &`elvis` 支持
+
+### idea插件4.6
+
+1. 支持idea版本至2025.3
 
 
 </details>

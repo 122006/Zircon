@@ -13,7 +13,6 @@ import com.intellij.psi.*;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
-import com.intellij.psi.util.PsiTypesUtil;
 import com.intellij.psi.util.TypeConversionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,6 +21,7 @@ import zircon.example.ExArray;
 import zircon.example.ExObject;
 
 import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
@@ -110,59 +110,34 @@ public class ZrPluginUtil {
         if (psiType1.equals(psiType2) || (allowExtend && TypeConversionUtil.isAssignable(psiType1, psiType2)))
             return true;
         if (psiType1 instanceof PsiClassType && psiType2 instanceof PsiClassType) {
-            if (!TypeConversionUtil.isAssignable(erasure1, TypeConversionUtil.erasure(psiType2)))
-                return false;
-            final PsiType[] parameters1 = ((PsiClassType) psiType1).getParameters();
-            if (parameters1.length == 0) {
-                return true;
-            }
-            Predicate<PsiClassType> predicate = nType2 -> {
-                PsiType found = psiType2;
-                br:
-                for (PsiType a : nType2.getSuperTypes()) {
-                    if (PsiTypesUtil.getPsiClass(psiType1) == PsiTypesUtil.getPsiClass(a)) {
-                        found = a;
-                        break;
-                    }
-                    for (PsiType b : a.getSuperTypes()) {
-                        if (PsiTypesUtil.getPsiClass(psiType1) == PsiTypesUtil.getPsiClass(b)) {
-                            found = b;
-                            break br;
-                        }
-                    }
-                }
-                nType2 = (PsiClassType) found;
-                final PsiType[] parameters2 = nType2.getParameters();
-                if (parameters1.length == parameters2.length) {
+
+            Predicate<PsiType> test = psiType -> {
+                if (TypeConversionUtil.erasure(psiType).equals(TypeConversionUtil.erasure(psiType1))) {
+                    final PsiType[] parameters1 = ((PsiClassType) psiType).getParameters();
+                    final PsiType[] parameters2 = ((PsiClassType) psiType1).getParameters();
+                    if (parameters1.size() != parameters2.size())
+                        return false;
                     for (int i = 0; i < parameters1.length; i++) {
-                        PsiType param = convertTypeByMethodTypeParameter(parameters1[i], parameters);
-                        if (param == parameters1[i]) {
-                            if (param instanceof PsiWildcardType) {
-                                if (!((PsiWildcardType) param).isBounded()) {
-                                    param = PsiClassType.getTypeByName("java.lang.Object", project, GlobalSearchScope.allScope(project));
-                                } else {
-                                    param = ((PsiWildcardType) param).getBound();
-                                }
-                            }
-                            //非由方法泛型引入的约束(参数中直接定义)，强制相等
-                            final boolean b = Objects.equals(PsiTypesUtil.getPsiClass(param), PsiTypesUtil.getPsiClass(parameters2[i]));
-                            if (b) {
-                                continue;
-                            }
-                        }
-                        //防止循环定义
-                        if (PsiTypesUtil.compareTypes(param, psiType1, true)) {
-                            continue;
-                        }
-                        if (!isAssignableSite(project, param, parameters2[i], parameters, false)) {
-                            return false;
-                        }
+                        final boolean convertibleFrom = parameters1[i].isConvertibleFrom(parameters2[i]);
+                        if (!convertibleFrom) return false;
                     }
                     return true;
                 }
                 return false;
             };
-            return predicate.test((PsiClassType) psiType2);
+            Function<PsiType, PsiType> find = new Function<>() {
+                @Override
+                public PsiType apply(PsiType psiType) {
+                    if (test.test(psiType)) return psiType;
+                    final PsiType[] superTypes = psiType.getSuperTypes();
+                    for (PsiType superType : superTypes) {
+                        final PsiType apply = apply(superType);
+                        if (apply != null) return apply;
+                    }
+                    return null;
+                }
+            };
+            return find.apply(psiType2) != null;
         }
         return false;
     }
@@ -192,6 +167,7 @@ public class ZrPluginUtil {
     }
 
     static BuildNumber build = ApplicationInfo.getInstance().getBuild();
+
     public static int getBuildVersion() {
         return build.getBaselineVersion();
     }
