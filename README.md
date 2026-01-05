@@ -12,9 +12,9 @@
 
 ## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
 
-*  **快速接入**: 在已有java项目使用，最快**2**行代码引入。
-*  **无缝衔接**: 所有新增语法和java8-23版本基础语法完全兼容，无需更换语言提升开发体验。
-*  **依赖安全**: 不依赖第三方库，且构建结果为正常jar文件，无依赖传染
+* **快速接入**: 在已有java项目使用，最快**2**行代码引入。
+* **无缝衔接**: 所有新增语法和java8-23版本基础语法完全兼容，无需更换语言提升开发体验。
+* **依赖安全**: 不依赖第三方库，且构建结果为正常jar文件，无依赖传染
 
 ----------------
 
@@ -37,7 +37,8 @@
 >
 > 在编程中，“短路”是指当沿着正在访问的属性或方法链遇到null值时，表达式的评估会立即停止的行为。与继续评估表达式不同，结果会立即设置为null，并跳过任何后续的属性或方法访问。
 >
-> 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。 特别的，对于<kbd>单赋值语句</kbd>，链式不满足时直接跳过该语句执行
+> 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。 特别的，对于<kbd>单赋值语句</kbd>
+> ，链式不满足时直接跳过该语句执行
 
 ### 3. `elvis`表达式
 
@@ -70,6 +71,7 @@
 *快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
 
 #### [可选链 & `elvis`表达式（点击跳转）](mds/README_ZrOptionalChaining.md)
+
 ### 插件引入
 
 <details>
@@ -171,7 +173,6 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-
 ### v3.3.1
 
 1. 修复换行时无法识别可选链的问题 [#17](https://github.com/122006/Zircon/issues/17)
@@ -254,9 +255,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 </details>
 
-### idea插件4.7
+### idea插件4.8
 
-1. 现在匹配拓展方法时，会判断对象继承链的泛型，以正确匹配对应方法
+1. IntelliJ插件市场审核修改
 
 <details>
   <summary>历史idea插件更新</summary>
@@ -352,6 +353,9 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 1. 支持idea版本至2025.3
 
+### idea插件4.7
+
+1. 现在匹配拓展方法时，会判断对象继承链的泛型，以正确匹配对应方法
 
 </details>
 

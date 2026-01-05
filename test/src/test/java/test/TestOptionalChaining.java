@@ -30,7 +30,7 @@ public class TestOptionalChaining {
                 ?.returnThis2();
         Integer varInt = v?.return_int1();
         Integer nullInt = nullV?.return_int1()
-            ?: null;
+                ?: null;
         assert nullInt == null;
         int varint = v?.return_int1() ?: 1;
         float testNormalExpr = true ? .5f : .3f;
@@ -185,7 +185,7 @@ public class TestOptionalChaining {
         assert classVar.returnThis().obj.nullOr(classVar)?.valString != null;
         assert (Math.random() > -1 ? classVar : classVar?.obj) != null;
         assert (Math.random() > -1 ? classVar : classVar?.returnThis()) != null;
-        
+
         checkMethodInvokes(
                 () -> (TestChildClass.staticObj?.nullStaticObj ?: "567" + null) ?: (TestChildClass.staticObj?.getTestImplClass() ?: "456" + null)
                 , () -> "567null");

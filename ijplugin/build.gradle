@@ -5,9 +5,6 @@ buildscript {
         }
         maven { url 'https://jitpack.io' }
     }
-    dependencies {
-        classpath 'com.github.122006.Zircon:gradle:master-SNAPSHOT'
-    }
 }
 
 plugins {
@@ -17,7 +14,7 @@ plugins {
 //apply plugin: 'zircon'
 
 group 'com.by122006.zircon'
-version '4.7'
+version '4.8'
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -73,16 +70,16 @@ dependencies {
 //        intellijIdeaCommunity '2022.3'
 //        intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '2025.1'
-        intellijIdeaUltimate '253.25908.13'
+        intellijIdeaUltimate '2025.3'
         instrumentationTools()
     }
     annotationProcessor project(":javac")
     implementation project(":zircon")
     implementation project(":base")
+    testAnnotationProcessor project(":javac")
     annotationProcessor "org.projectlombok:lombok:1.18.42"
     compileOnly 'org.projectlombok:lombok:1.18.42'
     implementation('com.github.122006:ExMethodUtil:1.1.8')
-    testAnnotationProcessor project(":javac")
     implementation project(":ijplugin_252_ex")
     implementation project(":ijplugin_mix")
 

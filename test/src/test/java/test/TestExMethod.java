@@ -415,6 +415,14 @@ public class TestExMethod {
         }
     }
 
+    public static class AList extends ArrayList<String> {
+    }
+
+    public static class AList2<T> extends AList {
+    }
+
+
+
     @ExMethod
     public static String sameNameExtendClass(FatherClass fatherClass) {
         methodNames.add("[FatherClass]sameNameExtendClass(");

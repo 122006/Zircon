@@ -1,5 +1,7 @@
 package com.by122006.zircon.ijplugin;
 
+import com.by122006.zircon.ijplugin252.ZrHighlightVisitorNew;
+import com.intellij.codeInsight.daemon.impl.HighlightVisitor;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -88,8 +90,10 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
     @Override
     public void accept(@NotNull PsiElementVisitor visitor) {
         super.accept(visitor);
-        if (visitor instanceof HighlightVisitorImpl) {
-            HighlightVisitorImpl highlightVisitor = (HighlightVisitorImpl) visitor;
+        if (visitor instanceof HighlightVisitor && (visitor instanceof ZrHighlightVisitorNew || visitor.getClass().getSimpleName().endsWith("HighlightVisitorImpl"))) {
+            HighlightVisitor highlightVisitor = visitor instanceof ZrHighlightVisitorNew
+                    ? ((ZrHighlightVisitorNew) visitor).visitor
+                    : (HighlightVisitor) visitor;
             try {
                 final Field myRefCountHolder = highlightVisitor.getClass().getDeclaredField("myRefCountHolder");
                 myRefCountHolder.setAccessible(true);

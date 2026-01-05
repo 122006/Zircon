@@ -30,6 +30,7 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleManager;
+import com.intellij.psi.impl.compiled.ClsClassImpl;
 import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.ClassUtil;
@@ -342,6 +343,9 @@ public class ZrAnnotator implements Annotator {
             final String qualifiedName = containingClass.getQualifiedName();
             final PsiFile originalFile = element.getContainingFile().getOriginalFile();
             if (qualifiedName == null) return;
+            if (containingClass instanceof ClsClassImpl) {
+                return;
+            }
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
             if (canBeImported) {
                 holder.newSilentAnnotation(errLevel).range(element.getMethodExpression().getLastChild())

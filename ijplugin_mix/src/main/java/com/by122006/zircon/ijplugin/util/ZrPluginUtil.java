@@ -60,7 +60,6 @@ public class ZrPluginUtil {
                     return b;
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 return true;
             }
         } finally {
@@ -110,16 +109,20 @@ public class ZrPluginUtil {
         if (psiType1.equals(psiType2) || (allowExtend && TypeConversionUtil.isAssignable(psiType1, psiType2)))
             return true;
         if (psiType1 instanceof PsiClassType && psiType2 instanceof PsiClassType) {
-
-            Predicate<PsiType> test = psiType -> {
-                if (TypeConversionUtil.erasure(psiType).equals(TypeConversionUtil.erasure(psiType1))) {
-                    final PsiType[] parameters1 = ((PsiClassType) psiType).getParameters();
-                    final PsiType[] parameters2 = ((PsiClassType) psiType1).getParameters();
-                    if (parameters1.size() != parameters2.size())
+            final PsiType deepComponentType = convertTypeByMethodTypeParameter(psiType1.getDeepComponentType(), parameters);
+            final PsiType[] parameters1 = ((PsiClassType) deepComponentType).getParameters();
+            Predicate<PsiType> test = _psiType2 -> {
+                if (TypeConversionUtil.erasure(_psiType2).equals(TypeConversionUtil.erasure(psiType1))) {
+                    final PsiType[] parameters2 = ((PsiClassType) _psiType2).getParameters();
+                    if (parameters2.size() != parameters1.size())
                         return false;
-                    for (int i = 0; i < parameters1.length; i++) {
-                        final boolean convertibleFrom = parameters1[i].isConvertibleFrom(parameters2[i]);
-                        if (!convertibleFrom) return false;
+                    for (int i = 0; i < parameters2.length; i++) {
+                        if (parameters1[i].equals(psiType1) && parameters2[i].equals(psiType2)) {
+                            //防止类似T extends A<T>的递归
+                            continue;
+                        }
+                        final boolean assignable = isAssignableSite(project, parameters1[i], parameters2[i], parameters, allowExtend);
+                        if (!assignable) return false;
                     }
                     return true;
                 }
@@ -170,31 +173,5 @@ public class ZrPluginUtil {
 
     public static int getBuildVersion() {
         return build.getBaselineVersion();
-    }
-
-    public static boolean hasOptionalChaining(PsiElement element) {
-        if (element instanceof PsiMethodCallExpression || element instanceof PsiReferenceExpression) {
-            final PsiReferenceExpression methodExpression = element instanceof PsiReferenceExpression
-                    ? (PsiReferenceExpression) element
-                    : ((PsiMethodCallExpression) element).getMethodExpression();
-            final @NotNull PsiElement[] children = methodExpression.getChildren();
-            if (children.length <= 1) return false;
-            final PsiElement firstElement = children.get(1);
-            if (firstElement == null) return false;
-            if (!(firstElement instanceof PsiJavaToken)) {
-                return false;
-            }
-            final PsiJavaToken javaToken = (PsiJavaToken) children.get(1);
-            if (javaToken.getTokenType() == JavaTokenType.DOT) {
-                if (javaToken.getText().equals("?.")) {
-                    return true;
-                } else {
-                    return hasOptionalChaining(children[0]);
-                }
-            }
-            return false;
-        }
-        return false;
-
     }
 }

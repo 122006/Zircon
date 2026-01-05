@@ -16,6 +16,7 @@ import com.intellij.psi.*;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExArray;
 import zircon.example.ExCollection;
 
 import java.lang.reflect.Field;
@@ -31,10 +32,9 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
     Logger logger = Logger.getInstance(ZrHighlightVisitor.class);
     HighlightInfoHolder holder;
 
-    public HighlightVisitorImpl getHighlightVisitor(Project project) {
+    public HighlightVisitor getHighlightVisitor(Project project) {
         final HighlightVisitor[] extensions = HighlightVisitor.EP_HIGHLIGHT_VISITOR.getExtensions(project);
-        HighlightVisitorImpl highlightVisitor = (HighlightVisitorImpl) Arrays.stream(extensions).filter(a -> a instanceof HighlightVisitorImpl).findFirst().orElse(null);
-        return highlightVisitor;
+        return extensions.list().filter(HighlightVisitor.class).head();
     }
 
     @Override
@@ -82,7 +82,7 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                     if (expressionFromTextPair == null) return;
                     PsiExpression expressionFromText = expressionFromTextPair.getSecond();
                     if (expressionFromText == null) return;
-                    final HighlightVisitorImpl highlightVisitor = getHighlightVisitor(psiElement.getProject());
+                    final HighlightVisitor highlightVisitor = getHighlightVisitor(psiElement.getProject());
                     Consumer<PsiElement> consumer = new Consumer<PsiElement>() {
                         @Override
                         public void accept(PsiElement elem) {
@@ -133,14 +133,14 @@ public class ZrHighlightVisitor implements HighlightVisitor, DumbAware {
                 });
     }
 
-    private HighlightInfoHolder getMyHolder(@NotNull HighlightVisitorImpl highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
-        final Field myHolder = HighlightVisitorImpl.class.getDeclaredField("myHolder");
+    private HighlightInfoHolder getMyHolder(@NotNull HighlightVisitor highlightVisitor) throws NoSuchFieldException, IllegalAccessException {
+        final Field myHolder = highlightVisitor.getClass().getDeclaredField("myHolder");
         myHolder.setAccessible(true);
         return (HighlightInfoHolder) myHolder.get(highlightVisitor);
     }
 
-    private void setMyHolder(@NotNull HighlightVisitorImpl highlightVisitor, @NotNull HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-        final Method myHolder = HighlightVisitorImpl.class.getDeclaredMethod("prepare", HighlightInfoHolder.class, PsiFile.class);
+    private void setMyHolder(@NotNull HighlightVisitor highlightVisitor, @NotNull HighlightInfoHolder highlightInfoHolder) throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+        final Method myHolder = highlightVisitor.getClass().getDeclaredMethod("prepare", HighlightInfoHolder.class, PsiFile.class);
         myHolder.setAccessible(true);
         myHolder.invoke(highlightVisitor, highlightInfoHolder, highlightInfoHolder.getContextFile());
     }

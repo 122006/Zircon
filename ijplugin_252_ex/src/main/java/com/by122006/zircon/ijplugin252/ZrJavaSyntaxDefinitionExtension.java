@@ -1,6 +1,9 @@
 package com.by122006.zircon.ijplugin252;
 
+import com.intellij.codeInsight.AutoPopupController;
 import com.intellij.java.frontback.psi.impl.syntax.JavaSyntaxDefinitionExtension;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
 import com.intellij.platform.syntax.LanguageSyntaxDefinition;
 import com.intellij.platform.syntax.SyntaxElementTypeSet;
 import com.intellij.platform.syntax.lexer.Lexer;
@@ -8,8 +11,10 @@ import com.intellij.platform.syntax.parser.OpaqueElementPolicy;
 import com.intellij.platform.syntax.parser.SyntaxTreeBuilder;
 import com.intellij.platform.syntax.parser.WhitespaceOrCommentBindingPolicy;
 import com.intellij.pom.java.LanguageLevel;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zircon.example.ExReflection;
 
 /**
  * @ClassName: ZrJavaSyntaxDefinitionExtension
@@ -18,28 +23,39 @@ import org.jetbrains.annotations.Nullable;
  * @Description:
  */
 public class ZrJavaSyntaxDefinitionExtension implements LanguageSyntaxDefinition {
-    public static final ZrJavaLexer252 JAVA_LEXER = new ZrJavaLexer252(LanguageLevel.HIGHEST);
-    JavaSyntaxDefinitionExtension javaSyntaxDefinitionExtension = new JavaSyntaxDefinitionExtension();
 
+    Logger logger = Logger.getInstance(ZrJavaSyntaxDefinitionExtension.class);
+
+    public static final ZrJavaLexer252 JAVA_LEXER = new ZrJavaLexer252(LanguageLevel.HIGHEST);
+    LanguageSyntaxDefinition javaSyntaxDefinitionExtension;
+
+    public ZrJavaSyntaxDefinitionExtension() {
+        try {
+            final Class<?> aClass = Class.forName("com.intellij.java.frontback.psi.impl.syntax.JavaSyntaxDefinitionExtension");
+            javaSyntaxDefinitionExtension = (LanguageSyntaxDefinition) aClass.getConstructor().newInstance();
+        } catch (Exception e) {
+            logger.error(e);
+        }
+    }
 
     @Override
     public @Nullable WhitespaceOrCommentBindingPolicy getWhitespaceOrCommentBindingPolicy() {
-        return javaSyntaxDefinitionExtension.getWhitespaceOrCommentBindingPolicy();
+        return javaSyntaxDefinitionExtension.reflectionInvokeMethod("getWhitespaceOrCommentBindingPolicy");
     }
 
     @Override
     public @Nullable OpaqueElementPolicy getOpaqueElementPolicy() {
-        return javaSyntaxDefinitionExtension.getOpaqueElementPolicy();
+        return javaSyntaxDefinitionExtension.reflectionInvokeMethod("getOpaqueElementPolicy");
     }
 
     @Override
     public @NotNull SyntaxElementTypeSet getComments() {
-        return javaSyntaxDefinitionExtension.getComments();
+        return javaSyntaxDefinitionExtension.reflectionInvokeMethod("getComments");
     }
 
     @Override
     public void parse(@NotNull SyntaxTreeBuilder syntaxTreeBuilder) {
-        javaSyntaxDefinitionExtension.parse(syntaxTreeBuilder);
+        javaSyntaxDefinitionExtension.reflectionInvokeMethod("parse", syntaxTreeBuilder);
     }
 
     @Override

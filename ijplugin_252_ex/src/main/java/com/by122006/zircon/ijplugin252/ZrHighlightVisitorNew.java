@@ -3,8 +3,8 @@ package com.by122006.zircon.ijplugin252;
 import com.by122006.zircon.ijplugin.Keys;
 import com.by122006.zircon.ijplugin.ZrCheckLevelHighlightInfoHolder;
 import com.by122006.zircon.ijplugin.util.ZrUtil;
+import com.intellij.codeInsight.daemon.impl.HighlightVisitor;
 import com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder;
-import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.java.codeserver.highlighting.JavaErrorCollector;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -18,16 +18,34 @@ import zircon.example.ExCollection;
 import zircon.example.ExObject;
 import zircon.example.ExReflection;
 
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
+public class ZrHighlightVisitorNew extends JavaElementVisitor implements HighlightVisitor {
     Logger logger = Logger.getInstance(ZrHighlightVisitorNew.class);
     ZrCheckLevelHighlightInfoHolder holder;
+    public HighlightVisitor visitor;
+
+    public ZrHighlightVisitorNew() {
+    }
+
+    public HighlightVisitor getHighlighter() {
+        if (visitor != null) return visitor;
+        try {
+            final Class<?> aClass = Class.forName("com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl");
+            final Constructor<?> constructor = aClass.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return visitor = (HighlightVisitor) constructor.newInstance();
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
+        }
+    }
 
     public boolean suitableForFile(@NotNull PsiFile psiFile) {
-        return super.suitableForFile(psiFile);
+        return getHighlighter()?.suitableForFile(psiFile);
     }
 
     public @NotNull ZrHighlightVisitorNew clone() {
@@ -37,7 +55,7 @@ public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
 
     @Override
     public void visit(@NotNull PsiElement psiElement) {
-        super.visit(psiElement);
+        getHighlighter()?.visit(psiElement);
         if (holder != null && psiElement instanceof PsiLiteralExpression && psiElement.getContainingFile() != null && psiElement.getContainingFile().isPhysical()) {
             @NotNull PsiLiteralExpression expression = (PsiLiteralExpression) psiElement;
             final String text = expression.getText();
@@ -66,10 +84,9 @@ public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
                     } catch (ProcessCanceledException e) {
                         throw e;
                     } catch (Exception e) {
-                        e.printStackTrace();
                         return null;
                     }
-                });
+                }).filterNoNull();
 
         model.getList().filter(b -> b.codeStyle == 1)
                 .forEach(b -> {
@@ -83,7 +100,7 @@ public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
                     try {
                         holder.updateStartIndex(startOffset);
                         holder.setPsiElement(expressionFromText);
-                        super.visit(expressionFromText);
+                        getHighlighter()?.visit(expressionFromText);
                         Object myCollector = this.reflectionFieldValue("myCollector");
                         if (myCollector != null) {
                             final @NotNull List<PsiMethodCallExpression> methodCallExpressionList = findExpressions(expressionFromText, PsiMethodCallExpression.class);
@@ -127,7 +144,7 @@ public class ZrHighlightVisitorNew extends HighlightVisitorImpl {
         final boolean analyze;
         try {
             holder = new ZrCheckLevelHighlightInfoHolder(psiFile, highlightInfoHolder, 0);
-            analyze = super.analyze(psiFile, b, holder, runnable);
+            analyze = getHighlighter()?.analyze(psiFile, b, holder, runnable) ?: false;
         } finally {
             holder = null;
             psiFile.putUserData(Keys.CACHE_IMPORT_EXMETHOD, null);
