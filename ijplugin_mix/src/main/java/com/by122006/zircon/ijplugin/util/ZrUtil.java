@@ -5,6 +5,7 @@ import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.sun.tools.javac.parser.Formatter;
 import org.jetbrains.annotations.NotNull;
+import zircon.example.ExArray;
 import zircon.example.ExCollection;
 import zircon.example.ExObject;
 

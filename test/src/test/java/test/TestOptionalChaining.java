@@ -554,6 +554,17 @@ public class TestOptionalChaining {
             return classVar.getTestChildClass()?.return_Integer1();
         }, () -> classVar.getTestChildClass().return_Integer1());
 
+        //fix:3.3.1 只有pt基础类型，条件为包装器的时候会出问题
+        {
+            int a = nullInt ?: 1;
+            try {
+                int b = nullInt.intValue() ?: 1;
+                throw new AssertionError();
+            } catch (NullPointerException ignore) {
+                //如果是手动intValue()的,应该空指针异常
+            }
+        }
+
         {
             List<String> stringList = null;
             if (!(stringList?.isEmpty() ?: true)) {

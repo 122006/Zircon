@@ -89,6 +89,7 @@ public class ZrGen extends Gen {
 
     }
 
+
     void intoNewApplyDepthAndNoAcceptNull() {
         applyDepth++;
     }
@@ -422,34 +423,52 @@ public class ZrGen extends Gen {
                         }
 
                         final JCTree.JCExpression second = tree.getFalseExpression();
-                        final JCTree.JCExpression head = tree.getTrueExpression();
+                        JCTree.JCExpression _cond = tree.getTrueExpression();
+                        Symbol.MethodSymbol primitiveMethodSymbol = null;
+                        //如果期望值为基础类型，且条件为对象，true分支会有拆箱动作。要回溯这个动作作为条件
+                        if (pt.isPrimitive() && _cond.type.isPrimitive() && _cond instanceof JCTree.JCMethodInvocation) {
+                            final JCTree.JCMethodInvocation _invoke = (JCTree.JCMethodInvocation) _cond;
+                            primitiveMethodSymbol = (Symbol.MethodSymbol) TreeInfo.symbol(_invoke.meth);
+                            if (CommonUtil.isPrimitiveValue(primitiveMethodSymbol) && _invoke.meth.pos == _invoke.pos) {//防止是手动申明的
+                                if (_invoke.meth instanceof JCTree.JCFieldAccess) {
+                                    _cond = ((JCTree.JCFieldAccess) _invoke.meth).selected;
+                                    tree.cond = _cond;
+                                }
+                            }
+                        }
 
-
-                        code.statBegin(head.pos);
-                        result = genExpr(head, head.type).load().coerce(pt);
-                        code.state.forceStackTop(pt);
+                        code.statBegin(_cond.pos);
+                        genExpr(_cond, _cond.type).load();
+                        getItems().makeStackItem(pt).load();
+                        code.state.forceStackTop(_cond.type);
                         Code.Chain nullChain = applyChains.get(currentApplyDepth).nullChain;
                         leaveCurrentApplyDepth();
-                        if (!head.type.isPrimitive()) {
+                        if (!_cond.type.isPrimitive()) {
                             code.emitop0(dup);
                             Code.Chain elseChain = chainCreate(if_acmp_null);
                             nullChain = Code.mergeChains(nullChain, elseChain);
                         }
+
                         if (nullChain != null) {
                             //单链第一个方法引用，需要承接跳转
-                            Code.Chain thenExit = chainCreate(goto_);
+                            if (pt.isPrimitive() && !_cond.type.isPrimitive() && primitiveMethodSymbol != null) {
+                                //这里需要调用primitiveMethodSymbol的方法
+                                callMethod(_cond, _cond.type, primitiveMethodSymbol.name, List.nil(), false);
+                            }
+                            Code.Chain thenExit = Code.mergeChains(code.pendingJumps, chainCreate(goto_));
                             chainJoin(nullChain, tree.truepart);
 
                             pop();
 
                             {
                                 code.statBegin(second.pos);
-                                result = genExpr(second, second.type).load().coerce(pt);
+                                genExpr(second, second.type).load().coerce(pt);
                                 code.state.forceStackTop(pt);
                             }
                             chainJoin(thenExit, tree.falsepart);
-                        }
 
+                        }
+                        result = getItems().makeStackItem(getTopStackType(getItems().code.state)).coerce(pt).load();
                         return;
                     }
                 }

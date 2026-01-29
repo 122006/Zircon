@@ -1,7 +1,7 @@
 Manifest-Version: 1.0
 Created-By: Gradle 8.7
-Version: 4.3
-Build-JVM: 17.0.14 (Eclipse Adoptium 17.0.14+7)
+Version: 4.8
+Build-JVM: 17.0.16 (Amazon.com Inc. 17.0.16+8-LTS)
 Build-OS: Windows 11 10.0 amd64
 Build-Plugin: IntelliJ Platform Gradle Plugin
 Build-Plugin-Version: 2.6.0

@@ -178,8 +178,8 @@ public class ZrAnnotator implements Annotator {
                                         fElement.replace(codeBlockFromText);
                                         try {
                                             CodeStyleManager.getInstance(project).reformat(fElement);
-                                        } catch (Exception e) {
-                                            e.printStackTrace();
+                                        } catch (Throwable e) {
+                                            LOG.warn(e);
                                         }
                                     }
 
@@ -604,8 +604,8 @@ public class ZrAnnotator implements Annotator {
                                 method.getModifierList().setModifierProperty(PsiModifier.STATIC, true);
                                 ZrPsiAugmentProvider.freshCachedAllMethod(project);
                                 CodeStyleManager.getInstance(project).reformat(method.getContainingFile());
-                            } catch (Exception e) {
-                                e.printStackTrace();
+                            } catch (Throwable e) {
+                                LOG.warn(e);
                             }
                         });
 

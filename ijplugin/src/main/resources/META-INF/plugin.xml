@@ -111,9 +111,10 @@
                 id="ZrExMethodSettingsConfigurable"
                 displayName="Extension Method"/>
         <applicationService serviceImplementation="com.by122006.zircon.ijplugin.ZirconSettings"/>
-        <projectService serviceInterface="com.intellij.codeInsight.AutoPopupController"
-                        serviceImplementation="com.by122006.zircon.ijplugin.ZrAutoPopupController"
-                        overrides="true"/>
+
+        <typedHandler implementation="com.by122006.zircon.ijplugin.ZrTypedHandler" id="ZrTypedHandler"
+                      order="before java"/>
+
         <syntax.syntaxDefinition language="JAVA"
                                  implementationClass="com.by122006.zircon.ijplugin252.ZrJavaSyntaxDefinitionExtension"/>
         <applicationService serviceInterface="com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory"

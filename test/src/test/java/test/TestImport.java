@@ -8,6 +8,9 @@ public class TestImport {
     public String a23 = "";
     public String a24 = "";
 
+    Integer nullInt = null;
+    String nullString = null;
+
     /**
      * 123
      */
@@ -19,8 +22,6 @@ public class TestImport {
 
         String a23 = $"{${"123".toBigDecimal()}}";
         a23 = "123";
-
-
     }
 
 
