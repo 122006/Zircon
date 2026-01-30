@@ -221,9 +221,14 @@ public class TextStringFormat {
         String av = "241av";
         {
             String jsonString = j"{a:{a1:"a1value",a2:true,a3:localvar,a4:[1,"",localvar,{"aa":av}]},"b":"bvalue","c":1} ";
-            String jsonString2 = ("{\"a\":{\"a1\":\"a1value\",\"a2\":true,\"a3\":" + (localvar) + ",\"a4\":[1,\"\"," + (localvar) + ",{\"aa\":" + (av) + "}]},\"b\":\"bvalue\",\"c\":1} ");
+            String jsonString2 = ("{\"a\":{\"a1\":\"a1value\",\"a2\":true,\"a3\":\"" + (localvar) + "\",\"a4\":[1,\"\",\"" + (localvar) + "\",{\"aa\":\"" + (av) + "\"}]},\"b\":\"bvalue\",\"c\":1} ");
             assertEquals(jsonString, jsonString2);
-
+        }
+        {
+            String a="123";
+            String jsonString = j"{Id:a.hashCode(),Length:a.length(),Desc:a.toString()}";
+            String jsonString2 = "{\"Id\":" + (a.hashCode()) + ",\"Length\":" + (a.length()) + ",\"Desc\":\"" + (a.toString()) + "\"}";
+            assertEquals(jsonString, jsonString2);
         }
 
 

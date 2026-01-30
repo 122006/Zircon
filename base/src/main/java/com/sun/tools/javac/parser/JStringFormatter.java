@@ -105,13 +105,14 @@ public class JStringFormatter implements Formatter {
                 int startIndex = stringRange.startIndex;
                 int endIndex = stringRange.endIndex;
                 if (stringRange.codeStyle == 1) {
-                    if (i == 0) {
-                        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "String"));
-                        items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
-                        items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "valueOf"));
-                    } else {
+                    if (i != 0) {
                         items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
                     }
+                    items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "zircon"));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
+                    items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "BiOp"));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
+                    items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "jString"));
                     items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
                     codeTransfer(buf, groupStartIndex, text, startIndex, endIndex);
                     items.add(Item.loadJavacCode(startIndex, endIndex));
