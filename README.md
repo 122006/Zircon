@@ -87,7 +87,7 @@ buildscript {
         maven { url 'https://jitpack.io' }
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.3.1'
+        classpath 'com.github.122006.Zircon:gradle:3.3.2'
     }
 }
 ````
@@ -104,13 +104,13 @@ Step 1. 增加依赖
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>javac</artifactId>
-            <version>3.3.1</version>
+            <version>3.3.2</version>
             <scope>provided</scope>
         </dependency>
 	    <dependency>
             <groupId>com.github.122006.Zircon</groupId>
             <artifactId>zircon</artifactId>
-            <version>3.3.1</version>
+            <version>3.3.2</version>
         </dependency>
 
 Step 2. 配置jitpack仓库
@@ -173,7 +173,7 @@ for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kb
 
 ## ChangeLog
 
-### v3.3.1
+### v3.3.2
 
 1. 修复换行时无法识别可选链的问题 [#17](https://github.com/122006/Zircon/issues/17)
 2. json风格模板字符串优化
