@@ -102,6 +102,32 @@ public class ZirconJdtAgent {
                                 .advice(ElementMatchers.named("generateCode"),
                                         MessageSendGenerateCodeAdvice.class.getName()));
 
+                builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.core.search.matching.MethodLocator"))
+                        .transform(new AgentBuilder.Transformer.ForAdvice()
+                                .withExceptionHandler(net.bytebuddy.asm.Advice.ExceptionHandler.Default.PRINTING)
+                                .include(ClassFileLocator.ForJarFile.of(agentJar))
+                                .advice(ElementMatchers.takesArgument(0,
+                                                ElementMatchers.named("org.eclipse.jdt.internal.compiler.lookup.MethodBinding")),
+                                        JdtSearchBindingAdvice.class.getName())
+                                .advice(ElementMatchers.named("resolveLevel")
+                                                .and(ElementMatchers.takesArguments(1))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.lookup.Binding"))),
+                                        JdtSearchBindingAdvice.class.getName())
+                                .advice(ElementMatchers.named("resolveLevel")
+                                                .and(ElementMatchers.takesArguments(1))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.MessageSend")
+                                                                .or(ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.ReferenceExpression")))),
+                                        JdtSearchNodeAdvice.class.getName())
+                                .advice(ElementMatchers.named("match")
+                                                .and(ElementMatchers.takesArguments(2))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.MessageSend")))
+                                                .and(ElementMatchers.takesArgument(1,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet"))),
+                                        JdtSearchCandidateAdvice.class.getName()));
+
                 builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.LambdaExpression"))
                         .transform(new AgentBuilder.Transformer.ForAdvice()
                                 .withExceptionHandler(net.bytebuddy.asm.Advice.ExceptionHandler.Default.PRINTING)

@@ -6,7 +6,7 @@ import { getZirconConfig } from './config';
 import { ZirconDiagnostics } from './diagnostics';
 import { registerExMethodCompletion } from './exMethodCompletion';
 import { DEPENDENCY_DOCUMENT_SCHEME, ExMethodIndex } from './exMethodIndex';
-import { registerExMethodNavigation } from './exMethodNavigation';
+import { probeNativeJavaReferences, registerExMethodNavigation } from './exMethodNavigation';
 import { registerExMethodSignatureHelp } from './exMethodSignatureHelp';
 import { ZirconJavaAgentManager } from './javaAgent';
 import { registerJavaProjectChangeListeners } from './javaProjectClasspath';
@@ -214,6 +214,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }),
         vscode.commands.registerCommand('zircon.refreshDiagnostics', () => {
             diagnostics.refreshOpenEditors();
+        }),
+        vscode.commands.registerCommand('zircon.probeNativeJavaSearch', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor || editor.document.languageId !== 'java') {
+                void vscode.window.showWarningMessage('请先把光标放在 Java 扩展方法声明或调用上。');
+                return;
+            }
+            const position = editor.selection.active;
+            const locations = await probeNativeJavaReferences(editor.document, position);
+            output.appendLine(
+                `[ZirconSearch] native references at ${editor.document.uri.toString()}`
+                + `:${position.line + 1}:${position.character + 1} -> ${locations.length}`
+            );
+            for (const location of locations.slice(0, 50)) {
+                output.appendLine(
+                    `[ZirconSearch]   ${location.uri.toString()}`
+                    + `:${location.range.start.line + 1}:${location.range.start.character + 1}`
+                );
+            }
+            void vscode.window.showInformationMessage(
+                `JDT 原生引用查询返回 ${locations.length} 个位置，详情见 Zircon 输出。`
+            );
         }),
         {
             dispose: () => {

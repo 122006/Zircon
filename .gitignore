@@ -19,6 +19,7 @@
 /vscode_plugin/node_modules/
 /vscode_plugin/out/
 /vscode_plugin/*.vsix
+/vscode_plugin/test-fixtures/**/bin/
 /vscode_plugin/server/zircon-agent.jar
 /vscode_plugin/server/zircon-agent-bootstrap.jar
 /vscode_plugin_agent/bin/

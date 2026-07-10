@@ -28,7 +28,8 @@
         "onCommand:zircon.forceInject",
         "onCommand:zircon.showProjectStatus",
         "onCommand:zircon.restartJavaServer",
-        "onCommand:zircon.refreshDiagnostics"
+        "onCommand:zircon.refreshDiagnostics",
+        "onCommand:zircon.probeNativeJavaSearch"
     ],
     "contributes": {
         "configuration": {
@@ -117,6 +118,10 @@
             {
                 "command": "zircon.refreshDiagnostics",
                 "title": "Zircon: 刷新诊断"
+            },
+            {
+                "command": "zircon.probeNativeJavaSearch",
+                "title": "Zircon: 验证 JDT 原生引用查询"
             }
         ]
     },
@@ -129,6 +134,7 @@
         "build": "tsc -p ./",
         "test": "node ./scripts/validateCompletion.cjs",
         "validate:completion": "npm test",
+        "probe:native-search": "node ./scripts/probeNativeJavaSearch.cjs",
         "package": "npm test && vsce package --allow-missing-repository"
     },
     "dependencies": {

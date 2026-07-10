@@ -152,7 +152,10 @@ public class ScopeAdvice {
         return builder.toString();
     }
 
-    private static boolean isSelectorTraceEnabled(String selector) {
+    // Advice is inlined into JDT's Scope class. Every helper called directly from the
+    // advice body must therefore be public; otherwise the transformed JDT class cannot
+    // legally invoke it when tracing is enabled.
+    public static boolean isSelectorTraceEnabled(String selector) {
         if (selector == null || selector.isEmpty()) {
             return false;
         }

@@ -4,6 +4,7 @@ import { ExMethodIndex } from './exMethodIndex';
 import { resolveDefinitionTargets, resolveMethodTargets } from './exMethodUsage';
 
 const SEARCH_EXCLUDE = '**/{node_modules,build,out,.git,.gradle}/**';
+let suppressCustomReferenceProvider = false;
 
 export function registerExMethodNavigation(
     context: vscode.ExtensionContext,
@@ -38,6 +39,9 @@ export function registerExMethodNavigation(
         }),
         vscode.languages.registerReferenceProvider(selector, {
             async provideReferences(document, position, options) {
+                if (suppressCustomReferenceProvider) {
+                    return [];
+                }
                 const targets = resolveMethodTargets(index, document, position);
                 if (targets.length === 0) {
                     return [];
@@ -47,6 +51,22 @@ export function registerExMethodNavigation(
             }
         })
     );
+}
+
+export async function probeNativeJavaReferences(
+    document: vscode.TextDocument,
+    position: vscode.Position
+): Promise<vscode.Location[]> {
+    suppressCustomReferenceProvider = true;
+    try {
+        return await vscode.commands.executeCommand<vscode.Location[]>(
+            'vscode.executeReferenceProvider',
+            document.uri,
+            position
+        ) ?? [];
+    } finally {
+        suppressCustomReferenceProvider = false;
+    }
 }
 
 function toDefinitionLink(descriptor: ExMethodDescriptor): vscode.DefinitionLink {

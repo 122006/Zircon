@@ -49,6 +49,12 @@ public class ZirconCore {
             Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Map<String, List<Object>>> SELECTOR_EXTENSION_METHOD_CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
+    // JDT's Java search resolves candidate calls again after its index has narrowed the files.
+    // Facade bindings intentionally look like receiver methods, while the SearchPattern points at
+    // the original static @ExMethod declaration. Keep a weak identity-like bridge so MethodLocator
+    // can compare the stable declaration without retaining compilation environments indefinitely.
+    private static final Map<Object, Object> JDT_SEARCH_ORIGINAL_METHODS =
+            Collections.synchronizedMap(new WeakHashMap<>());
     // These de-dup sets only gate debug logging so repeated JDT callbacks do not flood the console.
     private static final Set<String> MESSAGE_SEND_GENERATE_CODE_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
     private static final Set<String> MESSAGE_SEND_GENERATE_CODE_PREPARE_KEYS = ConcurrentHashMap.newKeySet();
@@ -11430,6 +11436,7 @@ public class ZirconCore {
         if (binding == null || originalMethod == null) {
             return;
         }
+        rememberJdtSearchOriginalMethod(binding, originalMethod);
         Field originalMethodField = findField(binding.getClass(), "originalMethod");
         if (originalMethodField == null) {
             return;
@@ -11456,6 +11463,169 @@ public class ZirconCore {
                         + ", error=" + error.getClass().getName() + ": " + error.getMessage());
             }
         }
+    }
+
+    static void rememberJdtSearchOriginalMethod(Object binding, Object originalMethod) {
+        if (binding == null || originalMethod == null || binding == originalMethod) {
+            return;
+        }
+        synchronized (JDT_SEARCH_ORIGINAL_METHODS) {
+            JDT_SEARCH_ORIGINAL_METHODS.put(binding, originalMethod);
+        }
+    }
+
+    public static Object normalizeJdtSearchBinding(Object binding) {
+        Object current = binding;
+        for (int depth = 0; current != null && depth < 8; depth++) {
+            Object original;
+            synchronized (JDT_SEARCH_ORIGINAL_METHODS) {
+                original = JDT_SEARCH_ORIGINAL_METHODS.get(current);
+            }
+            if (original == null || original == current) {
+                break;
+            }
+            current = original;
+        }
+        return current;
+    }
+
+    public static void normalizeJdtSearchNodeBinding(Object node) {
+        if (node == null) {
+            return;
+        }
+        try {
+            Field bindingField = findField(node.getClass(), "binding");
+            if (bindingField == null) {
+                return;
+            }
+            Object binding = bindingField.get(node);
+            Object normalized = normalizeJdtSearchBinding(binding);
+            if (normalized != null && normalized != binding && bindingField.getType().isInstance(normalized)) {
+                bindingField.set(node, normalized);
+                if (Util.isTraceEnabled()) {
+                    Util.log("[ZirconSearch] normalized selector=" + getSelectorName(normalized)
+                            + ", node=" + node.getClass().getSimpleName());
+                }
+            }
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] binding normalization failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    /**
+     * JDT's syntactic MethodLocator filter normally requires the invocation and
+     * declaration to have identical arity. An extension invocation omits the
+     * declaration's first (receiver) parameter, so it would be discarded before
+     * binding resolution. Add only that shape back as a possible match for an
+     * {@code @ExMethod} focus; resolveLevel then performs JDT's normal precise check.
+     */
+    public static int expandJdtSearchCandidate(Object locator, Object node, Object nodeSet, int currentLevel) {
+        if (currentLevel != 0 || locator == null || node == null || nodeSet == null) {
+            return currentLevel;
+        }
+        try {
+            Object pattern = getFieldValue(locator, "pattern");
+            if (pattern == null || !isExMethodSearchPattern(pattern)) {
+                return currentLevel;
+            }
+            Object[] parameterNames = (Object[]) getFieldValue(pattern, "parameterSimpleNames");
+            Object[] arguments = (Object[]) getFieldValue(node, "arguments");
+            int declarationArity = parameterNames == null ? -1 : parameterNames.length;
+            int invocationArity = arguments == null ? 0 : arguments.length;
+            if (declarationArity != invocationArity + 1) {
+                return currentLevel;
+            }
+
+            char[] patternSelector = (char[]) getFieldValue(pattern, "selector");
+            char[] nodeSelector = (char[]) getFieldValue(node, "selector");
+            if (patternSelector == null || nodeSelector == null
+                    || !java.util.Arrays.equals(patternSelector, nodeSelector)) {
+                return currentLevel;
+            }
+
+            Method addMatch = findMethod(nodeSet.getClass(), "addMatch", node.getClass(), int.class);
+            if (addMatch == null) {
+                return currentLevel;
+            }
+            Object expanded = addMatch.invoke(nodeSet, node, 2);
+            int level = expanded instanceof Number ? ((Number) expanded).intValue() : 2;
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconSearch] expanded candidate selector=" + new String(nodeSelector)
+                        + ", declarationArity=" + declarationArity
+                        + ", invocationArity=" + invocationArity
+                        + ", level=" + level);
+            }
+            return level;
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] candidate expansion failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+            return currentLevel;
+        }
+    }
+
+    public static void traceJdtSearchResolution(Object node, int level) {
+        if (!Util.isTraceEnabled() || node == null) {
+            return;
+        }
+        try {
+            Object selector = getFieldValue(node, "selector");
+            String selectorName = selector instanceof char[] ? new String((char[]) selector) : "";
+            String configured = System.getProperty("zircon.trace.selectors", "");
+            if (!configured.isEmpty() && !configured.contains(selectorName) && !configured.contains("*")) {
+                return;
+            }
+            Object binding = getFieldValue(node, "binding");
+            Object arguments = getFieldValue(node, "arguments");
+            int arity = arguments instanceof Object[] ? ((Object[]) arguments).length : 0;
+            Util.log("[ZirconSearch] resolved selector=" + selectorName
+                    + ", invocationArity=" + arity
+                    + ", level=" + level
+                    + ", source=" + readIntField(node, "sourceStart", -1)
+                    + "-" + readIntField(node, "sourceEnd", -1)
+                    + ", binding=" + describeMethodBinding(binding));
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] resolution trace failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    private static boolean isExMethodSearchPattern(Object pattern) throws Exception {
+        Object focus = getFieldValue(pattern, "focus");
+        if (focus == null) {
+            return false;
+        }
+        Method getAnnotations = findMethod(focus.getClass(), "getAnnotations");
+        if (getAnnotations == null) {
+            return false;
+        }
+        Object value = getAnnotations.invoke(focus);
+        if (!(value instanceof Object[])) {
+            return false;
+        }
+        for (Object annotation : (Object[]) value) {
+            if (annotation == null) {
+                continue;
+            }
+            Method getElementName = findMethod(annotation.getClass(), "getElementName");
+            Object name = getElementName == null ? null : getElementName.invoke(annotation);
+            String annotationName = name == null ? "" : name.toString();
+            if ("ExMethod".equals(annotationName) || annotationName.endsWith(".ExMethod")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int readIntField(Object target, String fieldName, int fallback) throws Exception {
+        Object value = getFieldValue(target, fieldName);
+        return value instanceof Number ? ((Number) value).intValue() : fallback;
     }
 
     private static void primeMethodBindingState(Object binding) throws Exception {
