@@ -1,0 +1,85 @@
+ext.codeExe = (project.findProperty('codeExe') ?: ("D:" + File.separator + "VSCode" + File.separator + "Code.exe")).toString()
+ext.workspaceDir = file(project.findProperty('workspaceDir') ?: ("D:" + File.separator + "IdeaProjects" + File.separator + "Zircon" + File.separator + "ZirconTest")).canonicalFile
+ext.extensionDir = projectDir.canonicalFile
+ext.userDataDir = new File(workspaceDir.parentFile, '.zircon-vscode-devhost-data').canonicalFile
+ext.extensionsRootDir = new File(workspaceDir.parentFile, '.zircon-vscode-devhost-extensions').canonicalFile
+ext.extensionsDir = new File(extensionsRootDir, 'session-' + System.currentTimeMillis()).canonicalFile
+ext.sampleFile = new File(workspaceDir, 'src' + File.separator + 'test' + File.separator + 'java' + File.separator + 'test' + File.separator + 'TestExMethodImpl.java').canonicalFile
+
+tasks.register('prepareVscodeDevHostExtensions') {
+    group = 'vscode'
+    description = 'Prepare an isolated VSCode extensions directory containing redhat.java only.'
+
+    doLast {
+        File sourceExtensionsDir = new File(System.getProperty('user.home'), '.vscode' + File.separator + 'extensions')
+        File redhatJavaDir = sourceExtensionsDir.listFiles()?.findAll { File file ->
+            file.isDirectory() && file.name.startsWith('redhat.java-')
+        }?.max { File file ->
+            file.lastModified()
+        }
+        if (redhatJavaDir == null || !redhatJavaDir.exists()) {
+            throw new GradleException("redhat.java extension not found under ${sourceExtensionsDir.absolutePath}")
+        }
+
+        if (!extensionsRootDir.exists()) {
+            extensionsRootDir.mkdirs()
+        }
+        extensionsDir.mkdirs()
+
+        extensionsRootDir.listFiles()?.findAll { File file ->
+            file.isDirectory() && file != extensionsDir
+        }?.each { File file ->
+            try {
+                project.delete(file)
+            } catch (Exception ignored) {
+            }
+        }
+
+        project.copy {
+            from redhatJavaDir
+            into new File(extensionsDir, redhatJavaDir.name)
+        }
+
+        println "extensions-dir=${extensionsDir.absolutePath}"
+        println "redhat.java-dir=${redhatJavaDir.absolutePath}"
+    }
+}
+
+tasks.register('launchVscodeDevHost') {
+    group = 'vscode'
+    description = 'Launch VSCode Extension Development Host for the Zircon plugin.'
+    dependsOn ':vscode_plugin_agent:buildZirconVsCodePlugin', 'prepareVscodeDevHostExtensions'
+
+    doLast {
+        File codeFile = file(codeExe)
+        if (!codeFile.exists()) {
+            throw new GradleException("VSCode executable not found: ${codeFile.absolutePath}")
+        }
+        if (!userDataDir.exists()) {
+            userDataDir.mkdirs()
+        }
+        if (!extensionsDir.exists()) {
+            extensionsDir.mkdirs()
+        }
+
+        println "Launching VSCode from ${codeFile.absolutePath}"
+        println "workspace-dir=${workspaceDir.absolutePath}"
+        println "user-data-dir=${userDataDir.absolutePath}"
+        println "extensions-dir=${extensionsDir.absolutePath}"
+        println "extensionDevelopmentPath=${extensionDir.absolutePath}"
+
+        def command = [
+            'cmd.exe', '/c', 'start', '""', codeFile.absolutePath,
+            '-n',
+            '--user-data-dir', userDataDir.absolutePath,
+            '--extensions-dir', extensionsDir.absolutePath,
+            '--extensionDevelopmentPath', extensionDir.absolutePath,
+            workspaceDir.absolutePath,
+            '--goto', sampleFile.absolutePath + ':1:1'
+        ]
+
+        new ProcessBuilder(command)
+            .directory(workspaceDir)
+            .start()
+    }
+}

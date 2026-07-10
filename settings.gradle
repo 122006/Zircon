@@ -11,6 +11,8 @@ include ':gradle_plugin'
 if (System.getProperty("user.name", "") == "jitpack") {
     System.out.println("build by JITPACK")
 } else {
+    include ':vscode_plugin'
+    include ':vscode_plugin_agent'
     include ':ijplugin'
     include ':ijplugin_223'
     include ':ijplugin_241'

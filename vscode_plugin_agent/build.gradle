@@ -1,0 +1,150 @@
+buildscript {
+    repositories {
+        maven {
+            url uri('../../repo')
+        }
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
+}
+
+group 'com.by122006.zircon'
+version '4.3'
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    maven {
+        url uri('../../repo')
+    }
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+
+}
+dependencies {
+    annotationProcessor project(":javac")
+    testAnnotationProcessor project(":javac")
+    implementation 'net.bytebuddy:byte-buddy:1.14.3'
+    compileOnly 'org.eclipse.jdt:org.eclipse.jdt.core:3.35.0'
+}
+
+
+tasks.withType(JavaCompile) {
+    it.options.compilerArgs << "-Xplugin:ZrOptionalChain"
+    it.options.compilerArgs << "-Xplugin:ZrExMethod"
+    it.options.compilerArgs << "-Xplugin:ZrString"
+    it.options.fork = true
+}
+
+shadowJar {
+    archiveClassifier.set('') //
+    mergeServiceFiles() //
+
+    // 将 Byte Buddy 移入你自己的包空间下
+    relocate 'net.bytebuddy', 'com.by122006.zircon.repackaged.bytebuddy'
+
+    manifest {
+        attributes(
+                'Premain-Class': 'com.by122006.zircon.vsplugin.ZirconJdtAgent', //
+                'Can-Redefine-Classes': 'true', //
+                'Can-Retransform-Classes': 'true' //
+        )
+    }
+}
+
+tasks.register('bootstrapHelperJar', Jar) {
+    dependsOn classes
+    archiveClassifier.set('bootstrap')
+    from(sourceSets.main.output) {
+        include 'com/by122006/zircon/vsplugin/ScopeAdvice*.class'
+        include 'com/by122006/zircon/vsplugin/ZirconCore*.class'
+        include 'com/by122006/zircon/vsplugin/Util*.class'
+        include 'com/by122006/zircon/vsplugin/TemplateScannerAdvice*.class'
+        include 'com/by122006/zircon/vsplugin/TemplateScannerAccessorAdvice*.class'
+        include 'com/by122006/zircon/vsplugin/TemplateScannerResetAdvice*.class'
+        include 'com/by122006/zircon/vsplugin/TemplateStringSupport*.class'
+    }
+}
+
+// 1. 安装依赖
+task npmInstall(type: Exec) {
+    workingDir "${rootDir}/vscode_plugin"
+    group = 'vscode'
+
+    def npmCmd = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'npm'] : ['npm']
+    commandLine(*(npmCmd + ['ci']))
+}
+
+// 2. 编译 TS
+task npmCompile(type: Exec) {
+    dependsOn npmInstall
+    workingDir "${rootDir}/vscode_plugin"
+    group = 'vscode'
+
+    def npmCmd = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'npm'] : ['npm']
+    commandLine(*(npmCmd + ['run', 'build']))
+}
+task npmTest(type: Exec) {
+    dependsOn npmInstall
+    workingDir "${rootDir}/vscode_plugin"
+    group = 'vscode'
+
+    def npmCmd = System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c', 'npm'] : ['npm']
+    commandLine(*(npmCmd + ['test']))
+}
+
+// 3. 最终打包逻辑：先编译 Agent，再拷贝，最后编译 TS
+task buildZirconVsCodePlugin {
+    group = 'zircon'
+    dependsOn shadowJar, bootstrapHelperJar, npmTest
+    doLast {
+        copy {
+            from shadowJar.archiveFile
+            into "${rootDir}/vscode_plugin/server"
+            rename { 'zircon-agent.jar' } // 统一命名，方便 TS 调用
+        }
+        copy {
+            from tasks.named('bootstrapHelperJar').flatMap { it.archiveFile }
+            into "${rootDir}/vscode_plugin/server"
+            rename { 'zircon-agent-bootstrap.jar' }
+        }
+        println "Zircon VS Code Plugin 构建完成！"
+    }
+}
+task packageVsix(type: Exec) {
+    group = 'zircon'
+    description = '打包生成 .vsix 插件安装包'
+
+    // 必须依赖于你的构建逻辑
+    dependsOn buildZirconVsCodePlugin
+
+    workingDir "${rootDir}/vscode_plugin"
+
+    if (System.getProperty('os.name').toLowerCase().contains('windows')) {
+        commandLine 'cmd', '/c', 'npx vsce package'
+    } else {
+        commandLine 'npx', 'vsce', 'package'
+    }
+
+    doLast {
+        println "--------------------------------------------------"
+        println "成功！.vsix 文件已生成在 vscode_plugin 目录下。"
+        println "你可以通过 VS Code 的 'Install from VSIX...' 手动安装。"
+        println "--------------------------------------------------"
+    }
+}
+

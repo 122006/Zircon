@@ -1,0 +1,149 @@
+{
+    "name": "zircon-vscode",
+    "displayName": "Zircon Java Support",
+    "description": "Zircon 语法增强插件，支持扩展方法注入",
+    "version": "0.0.1",
+    "license": "Apache-2.0",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/122006/Zircon.git"
+    },
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "files": [
+        "out/**",
+        "server/**",
+        "README.md",
+        "LICENSE",
+        "package.json"
+    ],
+    "categories": [
+        "Programming Languages"
+    ],
+    "main": "./out/extension.js",
+    "activationEvents": [
+        "onLanguage:java",
+        "workspaceContains:**/*.java",
+        "onCommand:zircon.forceInject",
+        "onCommand:zircon.showProjectStatus",
+        "onCommand:zircon.restartJavaServer",
+        "onCommand:zircon.refreshDiagnostics"
+    ],
+    "contributes": {
+        "configuration": {
+            "title": "Zircon",
+            "properties": {
+                "zircon.enable": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "启用 Zircon VSCode 扩展。"
+                },
+                "zircon.enableExperimentalJavaAgent": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "启用实验中的 Zircon JDT Agent。当前默认关闭，以避免影响普通 Java 语言服务。"
+                },
+                "zircon.autoInjectJavaAgent": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "在已启用实验 JDT Agent 时，激活后自动把 Zircon JDT Agent 注入到 `java.jdt.ls.vmargs`。"
+                },
+                "zircon.onlyInjectWhenProjectUsesZircon": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "仅在检测到当前工作区已经使用 Zircon 时才自动注入 Agent。"
+                },
+                "zircon.javaAgentConfigurationTarget": {
+                    "type": "string",
+                    "enum": [
+                        "workspace",
+                        "global"
+                    ],
+                    "default": "workspace",
+                    "description": "写入 `java.jdt.ls.vmargs` 时使用的配置作用域。"
+                },
+                "zircon.enableDiagnostics": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "启用 Zircon 模板字符串的基础诊断。"
+                },
+                "zircon.enableSemanticHighlighting": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "启用 Zircon 语法的基础语义高亮。"
+                },
+                "zircon.enableStatusBar": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "在状态栏显示 Zircon 项目状态。"
+                },
+                "zircon.debug": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "启用 Zircon VSCode 扩展和 JDT Agent 的调试日志。"
+                },
+                "zircon.additionalAgentVmArgs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "附加到 Zircon Java Agent 的 JVM 参数。"
+                },
+                "zircon.additionalJdtVmArgs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [],
+                    "description": "附加到 JDT Language Server 的额外 JVM 参数。"
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "zircon.forceInject",
+                "title": "Zircon: 重新注入 Java Agent"
+            },
+            {
+                "command": "zircon.showProjectStatus",
+                "title": "Zircon: 查看项目状态"
+            },
+            {
+                "command": "zircon.restartJavaServer",
+                "title": "Zircon: 重启 Java Language Server"
+            },
+            {
+                "command": "zircon.refreshDiagnostics",
+                "title": "Zircon: 刷新诊断"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "tsc -p ./",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "tsc -p ./ && eslint src --ext ts",
+        "lint": "eslint src --ext ts",
+        "build": "tsc -p ./",
+        "test": "node ./scripts/validateCompletion.cjs",
+        "validate:completion": "npm test",
+        "package": "npm test && vsce package --allow-missing-repository"
+    },
+    "dependencies": {
+        "adm-zip": "^0.5.16"
+    },
+    "devDependencies": {
+        "@types/adm-zip": "^0.5.7",
+        "@types/glob": "^8.1.0",
+        "@types/node": "16.x",
+        "@types/vscode": "^1.75.0",
+        "@typescript-eslint/eslint-plugin": "^5.53.0",
+        "@typescript-eslint/parser": "^5.53.0",
+        "@vscode/vsce": "^3.7.1",
+        "eslint": "^8.34.0",
+        "typescript": "^4.9.5"
+    }
+
+}

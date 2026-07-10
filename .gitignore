@@ -15,4 +15,13 @@
 /ijplugin_252/build/
 /ijplugin_252_ex/build/
 /ijplugin_mix/build/
+/vscode_plugin/.gradle/
+/vscode_plugin/node_modules/
+/vscode_plugin/out/
+/vscode_plugin/*.vsix
+/vscode_plugin/server/zircon-agent.jar
+/vscode_plugin/server/zircon-agent-bootstrap.jar
+/vscode_plugin_agent/bin/
+/vscode_plugin_agent/build/
+/.vscode-devhost-data/
 /ijplugin/src/main/resources/clazz/
