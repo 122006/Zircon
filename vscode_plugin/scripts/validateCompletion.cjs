@@ -218,7 +218,11 @@ async function main() {
     const pluginRoot = path.resolve(__dirname, '..');
     const { ExMethodIndex, toJarArtifactKey } = require(path.join(pluginRoot, 'out', 'exMethodIndex.js'));
     const { registerExMethodCompletion } = require(path.join(pluginRoot, 'out', 'exMethodCompletion.js'));
-    const { hasZirconAgentVmArg, sanitizeZirconVmArgs } = require(path.join(pluginRoot, 'out', 'javaAgent.js'));
+    const {
+        areVmArgsEquivalent,
+        hasZirconAgentVmArg,
+        sanitizeZirconVmArgs
+    } = require(path.join(pluginRoot, 'out', 'javaAgent.js'));
 
     const quotedAgentArgs = String.raw`-Xmx1g -javaagent:"C:\Program Files\Zircon\zircon-agent.jar" -Dzircon.vscode=true -Duser.option=keep`;
     const unquotedAgentArgs = String.raw`-javaagent:C:\Zircon\zircon-agent.jar=mode -Dzircon.debug=false -Duser.option=keep`;
@@ -237,6 +241,17 @@ async function main() {
     const duplicatedExtras = `${quotedAgentArgs} ${configuredExtras.join(' ')} ${configuredExtras.join(' ')}`;
     if (sanitizeZirconVmArgs(duplicatedExtras, configuredExtras) !== '-Xmx1g -Duser.option=keep') {
         throw new Error('重复的 additionalAgentVmArgs 没有被清理');
+    }
+    const vmArgsUpperCasePath = String.raw`-Xmx768m -javaagent:"D:\IdeaProjects\Zircon\Zircon\vscode_plugin\server\zircon-agent.jar" -Dzircon.vscode=true -Dzircon.agent.jar="D:\IdeaProjects\Zircon\Zircon\vscode_plugin\server\zircon-agent.jar" -Dzircon.workspace.roots="D:\IdeaProjects\Zircon\ZirconTest"`;
+    const vmArgsLowerCasePath = String.raw`-Xmx768m -javaagent:"d:\ideaprojects\zircon\zircon\vscode_plugin\server\zircon-agent.jar" -Dzircon.vscode=TRUE -Dzircon.agent.jar="d:\IdeaProjects\zircon\Zircon\vscode_plugin\server\zircon-agent.jar" -Dzircon.workspace.roots="d:\IdeaProjects\zircon\ZirconTest"`;
+    if (!areVmArgsEquivalent(vmArgsUpperCasePath, vmArgsLowerCasePath)) {
+        throw new Error('Windows 路径大小写差异被错误识别为 Java Language Server 配置变化');
+    }
+    if (areVmArgsEquivalent(vmArgsUpperCasePath, vmArgsLowerCasePath.replace('-Xmx768m', '-Xmx1g'))) {
+        throw new Error('不同的非 Zircon VM 参数被错误识别为等价');
+    }
+    if (areVmArgsEquivalent('-DUserOption=true', '-Duseroption=true')) {
+        throw new Error('区分大小写的普通 Java 系统属性被错误识别为等价');
     }
     console.log('[validate:completion] javaagent VM argument cleanup passed');
 

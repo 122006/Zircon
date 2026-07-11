@@ -4,6 +4,8 @@ import { getJavaConfigurationTarget, getZirconConfig } from './config';
 import { ZirconWorkspaceInfo } from './projectDetector';
 
 export class ZirconJavaAgentManager {
+    private injectionQueue: Promise<void> = Promise.resolve();
+
     constructor(
         private readonly context: vscode.ExtensionContext,
         private readonly output: vscode.OutputChannel
@@ -14,6 +16,12 @@ export class ZirconJavaAgentManager {
     }
 
     public async ensureInjected(info: ZirconWorkspaceInfo, force: boolean): Promise<boolean> {
+        const pending = this.injectionQueue.then(() => this.ensureInjectedNow(info, force));
+        this.injectionQueue = pending.then(() => undefined, () => undefined);
+        return pending;
+    }
+
+    private async ensureInjectedNow(info: ZirconWorkspaceInfo, force: boolean): Promise<boolean> {
         const config = getZirconConfig();
         if (!config.enable) {
             await this.removeInjectedVmArgsAndScheduleRestart();
@@ -47,7 +55,7 @@ export class ZirconJavaAgentManager {
         const currentVmArgs = javaConfig.get<string>('jdt.ls.vmargs', '') ?? '';
         const nextVmArgs = this.buildNextVmArgs(currentVmArgs, config.debug);
 
-        if (nextVmArgs === currentVmArgs) {
+        if (areVmArgsEquivalent(nextVmArgs, currentVmArgs)) {
             this.output.appendLine('[Zircon] Java agent vmargs already up to date.');
             return true;
         }
@@ -180,6 +188,13 @@ export function sanitizeZirconVmArgs(vmArgs: string, additionalVmArgs: readonly 
         .join(' ');
 }
 
+export function areVmArgsEquivalent(left: string, right: string): boolean {
+    const leftArgs = splitVmArgs(left).map(canonicalizeVmArg);
+    const rightArgs = splitVmArgs(right).map(canonicalizeVmArg);
+    return leftArgs.length === rightArgs.length
+        && leftArgs.every((argument, index) => argument === rightArgs[index]);
+}
+
 function getConfiguredAdditionalVmArgs(config = getZirconConfig()): string[] {
     const uniqueArgs = new Set<string>();
     for (const configuredValue of [...config.additionalAgentVmArgs, ...config.additionalJdtVmArgs]) {
@@ -194,6 +209,52 @@ function getConfiguredAdditionalVmArgs(config = getZirconConfig()): string[] {
 
 function splitVmArgs(vmArgs: string): string[] {
     return vmArgs.match(/(?:[^\s"]+|"[^"]*")+/g) ?? [];
+}
+
+function canonicalizeVmArg(argument: string): string {
+    const javaAgentMatch = argument.match(/^-javaagent:(.+)$/i);
+    if (javaAgentMatch) {
+        const separator = javaAgentMatch[1].indexOf('=');
+        const rawPath = separator >= 0 ? javaAgentMatch[1].slice(0, separator) : javaAgentMatch[1];
+        const options = separator >= 0 ? javaAgentMatch[1].slice(separator) : '';
+        return `-javaagent:${canonicalizePath(rawPath)}${options}`;
+    }
+
+    const propertyMatch = argument.match(/^-D([^=]+)=(.*)$/i);
+    if (!propertyMatch) {
+        return argument;
+    }
+    const name = propertyMatch[1].toLowerCase();
+    if (!ZIRCON_AGENT_OPTION_NAMES.has(name)) {
+        return argument;
+    }
+    let value = propertyMatch[2];
+    if (name === 'zircon.agent.jar') {
+        value = canonicalizePath(value);
+    } else if (name === 'zircon.workspace.roots') {
+        value = stripWrappingQuotes(value)
+            .split(path.delimiter)
+            .map(canonicalizePath)
+            .join(path.delimiter);
+    } else if (name === 'zircon.vscode'
+            || name === 'zircon.forcelocalsuppress'
+            || name === 'zircon.debug') {
+        value = stripWrappingQuotes(value).toLowerCase();
+    }
+    return `-D${name}=${value}`;
+}
+
+function canonicalizePath(value: string): string {
+    const normalized = stripWrappingQuotes(value).replace(/\\/g, '/');
+    return /^[a-z]:\//i.test(normalized) || normalized.startsWith('//')
+        ? normalized.toLowerCase()
+        : normalized;
+}
+
+function stripWrappingQuotes(value: string): string {
+    return value.length >= 2 && value.startsWith('"') && value.endsWith('"')
+        ? value.slice(1, -1)
+        : value;
 }
 
 function isZirconAgentArgument(argument: string): boolean {

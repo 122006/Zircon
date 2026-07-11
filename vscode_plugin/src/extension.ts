@@ -97,14 +97,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         diagnostics.refreshOpenEditors();
     };
 
+    let workspaceRefreshQueue: Promise<void> = Promise.resolve();
     const scheduleWorkspaceRefresh = (forceInject: boolean, reason: string): Promise<void> => {
-        return (async (): Promise<void> => {
+        const pending = workspaceRefreshQueue.then(async (): Promise<void> => {
             try {
                 await refreshWorkspace(forceInject);
             } catch (error) {
                 output.appendLine(`[Zircon] Workspace refresh failed (${reason}): ${String(error)}`);
             }
-        })();
+        });
+        workspaceRefreshQueue = pending.then(() => undefined, () => undefined);
+        return pending;
     };
 
     const refreshDocument = (document: vscode.TextDocument): void => {
@@ -270,7 +273,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await scheduleWorkspaceRefresh(false, 'workspaceFolders');
         }),
         vscode.workspace.onDidChangeConfiguration(async (event) => {
-            if (event.affectsConfiguration('zircon') || event.affectsConfiguration('java.jdt.ls.vmargs')) {
+            // Do not react to java.jdt.ls.vmargs here: ensureInjected writes this setting itself.
+            // Listening to that write creates feedback loops across multiple VS Code windows.
+            if (event.affectsConfiguration('zircon')) {
                 await scheduleWorkspaceRefresh(false, 'configuration');
             }
         }),
