@@ -278,16 +278,56 @@ function workspaceEditEntries(edit) {
     const entries = [];
     for (const [uri, edits] of Object.entries(edit.changes || {})) {
         for (const entry of edits) {
-            entries.push({ uri, range: entry.range });
+            entries.push({ uri, range: entry.range, newText: entry.newText });
         }
     }
     for (const change of edit.documentChanges || []) {
         const uri = change.textDocument?.uri || change.uri;
         for (const entry of change.edits || []) {
-            entries.push({ uri, range: entry.range });
+            entries.push({ uri, range: entry.range, newText: entry.newText });
         }
     }
     return entries;
+}
+
+function positionToOffset(text, position) {
+    let offset = 0;
+    let line = 0;
+    while (line < position.line && offset < text.length) {
+        const newline = text.indexOf('\n', offset);
+        if (newline < 0) {
+            return text.length;
+        }
+        offset = newline + 1;
+        line++;
+    }
+    return Math.min(text.length, offset + position.character);
+}
+
+function applyWorkspaceEditToText(edit, uri, text) {
+    const edits = workspaceEditEntries(edit)
+        .filter((entry) => entry.uri === uri)
+        .map((entry) => ({
+            start: positionToOffset(text, entry.range.start),
+            end: positionToOffset(text, entry.range.end),
+            newText: entry.newText || ''
+        }))
+        .sort((left, right) => right.start - left.start);
+    let result = text;
+    for (const entry of edits) {
+        result = result.slice(0, entry.start) + entry.newText + result.slice(entry.end);
+    }
+    return result;
+}
+
+function countText(text, value) {
+    let count = 0;
+    let offset = 0;
+    while ((offset = text.indexOf(value, offset)) >= 0) {
+        count++;
+        offset += value.length;
+    }
+    return count;
 }
 
 function rangeContainsPosition(range, position) {
@@ -370,6 +410,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 8_000));
 
     const documentPosition = { textDocument: { uri: sourceUri }, position };
+    const renameName = `${probeMethodName}Probe`;
     const references = await request('textDocument/references', {
         ...documentPosition,
         context: { includeDeclaration: true }
@@ -377,7 +418,7 @@ async function main() {
     const prepareRename = await request('textDocument/prepareRename', documentPosition, 60_000)
         .catch(() => null);
     const renameEdit = prepareRename
-        ? await request('textDocument/rename', { ...documentPosition, newName: `${probeMethodName}Probe` }, 90_000)
+        ? await request('textDocument/rename', { ...documentPosition, newName: renameName }, 90_000)
             .catch(() => null)
         : null;
     const callItems = await request('textDocument/prepareCallHierarchy', documentPosition, 60_000)
@@ -389,10 +430,11 @@ async function main() {
     const declarationPosition = declarationLocation
         ? { textDocument: { uri: declarationLocation.uri }, position: declarationLocation.range.start }
         : null;
+    const declarationRenameName = `${probeMethodName}DeclarationProbe`;
     const declarationRename = declarationPosition
         ? await request('textDocument/rename', {
             ...declarationPosition,
-            newName: `${probeMethodName}DeclarationProbe`
+            newName: declarationRenameName
         }, 90_000).catch(() => null)
         : null;
     let codeLenses = declarationFile
@@ -439,6 +481,28 @@ async function main() {
     }
     if (!prepareRename || !workspaceEditContainsPosition(renameEdit, sourceUri, position)) {
         throw new Error('JDT native rename did not edit the extension invocation itself.');
+    }
+    if (declarationFile) {
+        const declarationUri = pathToFileURL(declarationFile).href;
+        const declarationText = fs.readFileSync(declarationFile, 'utf8');
+        const renamedUsage = applyWorkspaceEditToText(renameEdit, sourceUri, text);
+        const renamedDeclaration = applyWorkspaceEditToText(renameEdit, declarationUri, declarationText);
+        if (countText(renamedUsage, `.${renameName}(`) !== 2
+                || countText(renamedUsage, `.${probeMethodName}(`) !== 0
+                || countText(renamedDeclaration, `${renameName}(`) !== 1) {
+            throw new Error('JDT native rename did not semantically rename declaration, extension call and static call.');
+        }
+        const declarationStartedUsage = applyWorkspaceEditToText(declarationRename, sourceUri, text);
+        const declarationStartedDeclaration = applyWorkspaceEditToText(
+            declarationRename,
+            declarationUri,
+            declarationText
+        );
+        if (countText(declarationStartedUsage, `.${declarationRenameName}(`) !== 2
+                || countText(declarationStartedDeclaration, `${declarationRenameName}(`) !== 1) {
+            throw new Error('Declaration-started JDT rename did not update all three method occurrences.');
+        }
+        console.log('[probe:native-search] semanticRenameOccurrences=3 (both entry points)');
     }
     const hasExtensionIncomingCall = Array.isArray(incomingCalls) && incomingCalls.some((call) => {
         return call.from?.uri === sourceUri

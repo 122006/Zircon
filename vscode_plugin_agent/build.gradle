@@ -48,6 +48,9 @@ tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"
     it.options.compilerArgs << "-Xplugin:ZrString"
     it.options.fork = true
+    // Keep the agent build usable while one or more JDT language servers are running.
+    // Gradle's default compiler worker reserves 512 MiB, which is unnecessarily high here.
+    it.options.forkOptions.memoryMaximumSize = '256m'
 }
 
 shadowJar {
