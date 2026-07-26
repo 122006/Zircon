@@ -1,9 +1,9 @@
-import AdmZip = require('adm-zip');
 import { execFile as execFileCallback } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import * as vscode from 'vscode';
+import * as yauzl from 'yauzl';
 import { ExMethodDescriptor, JavaDocumentContext, JavaParameterInfo } from './exMethodModel';
 import { countStructuralBraceDelta } from './javaLexing';
 import { collectJavaProjectDependencyJars } from './javaProjectClasspath';
@@ -12,20 +12,6 @@ const SEARCH_EXCLUDE = '**/{node_modules,build,out,.git,.gradle}/**';
 const DEPENDENCY_SEARCH_EXCLUDE = '**/{node_modules,.git,.gradle,out}/**';
 const execFile = promisify(execFileCallback);
 const stat = promisify(fs.stat);
-const readFile = promisify(fs.readFile);
-const SKIPPED_SCAN_PREFIXES = [
-    'com.sun.',
-    'sun.',
-    'jdk.',
-    'java.',
-    'javax.'
-] as const;
-const MAX_DEPENDENCY_JARS = 80;
-const MAX_WORKSPACE_JAVA_FILES = 5_000;
-const MAX_SOURCE_JAR_ENTRIES = 6_000;
-const MAX_BINARY_JAR_ENTRIES = 10_000;
-const MAX_BINARY_EXTENSION_CLASSES_PER_REBUILD = 40;
-const JAVAP_TIMEOUT_MS = 3_000;
 
 export const DEPENDENCY_DOCUMENT_SCHEME = 'zircon-dependency';
 
@@ -33,6 +19,7 @@ interface JavaTypeDeclaration {
     simpleName: string;
     qualifiedName: string;
     parentTypes: string[];
+    annotations: string[];
     startOffset: number;
     bodyStartOffset: number;
     bodyEndOffset: number;
@@ -55,6 +42,7 @@ interface DependencyIndexStats {
 }
 
 interface IndexedDependencyDocument {
+    jarPath: string;
     uri: vscode.Uri;
     descriptors: ExMethodDescriptor[];
     typeDeclarations: JavaTypeDeclaration[];
@@ -66,9 +54,14 @@ interface DependencyJarCacheEntry {
     documents: IndexedDependencyDocument[];
 }
 
-interface BinaryIndexBudget {
-    remainingClasses: number;
-    didLogLimit: boolean;
+interface DependencyJarInventoryEntry {
+    stamp: string;
+    entries: Set<string>;
+}
+
+export interface ImportedDependencyTargets {
+    exactTypes: Set<string>;
+    wildcardPackages: Set<string>;
 }
 
 export interface InternalJavaContext {
@@ -89,6 +82,14 @@ export class ExMethodIndex implements vscode.Disposable {
     private readonly parentTypes = new Map<string, Set<string>>();
     private readonly simpleToQualifiedTypes = new Map<string, Set<string>>();
     private readonly dependencyJarCache = new Map<string, DependencyJarCacheEntry>();
+    private readonly dependencyJarInventories = new Map<string, DependencyJarInventoryEntry>();
+    private readonly targetedDependencyCache = new Map<string, DependencyJarCacheEntry>();
+    private readonly loadedDependencyDocuments = new Map<string, IndexedDependencyDocument>();
+    private dependencyJarPaths: string[] = [];
+    private dependencyJarStamps = new Map<string, string>();
+    private dependencyCandidatesReady = false;
+    private allDependenciesIndexed = false;
+    private dependencyLoadQueue: Promise<void> = Promise.resolve();
     private rebuildPromise: Promise<void> | undefined;
     private rebuildRequestedWhileRunning = false;
 
@@ -117,6 +118,70 @@ export class ExMethodIndex implements vscode.Disposable {
         this.descriptors.set(document.uri.toString(), parseExMethods(document));
         this.typeDeclarations.set(document.uri.toString(), scanJavaSource(text).typeDeclarations);
         this.rebuildHierarchyCache();
+    }
+
+    /** Load only dependency extension containers explicitly visible to this Java source. */
+    public async ensureImportedDependencies(document: vscode.TextDocument): Promise<void> {
+        if (document.languageId !== 'java' || this.allDependenciesIndexed) {
+            return;
+        }
+        const targets = collectImportedDependencyTargets(document.getText());
+        if (targets.exactTypes.size === 0 && targets.wildcardPackages.size === 0) {
+            return;
+        }
+        await this.waitForActiveRebuild();
+        await this.enqueueDependencyLoad(async () => {
+            if (this.allDependenciesIndexed) {
+                return;
+            }
+            await this.ensureDependencyCandidates();
+            const documents = await indexImportedDependencyTargets(
+                this.dependencyJarPaths,
+                targets,
+                this.output,
+                this.dependencyJarInventories,
+                this.targetedDependencyCache
+            );
+            if (documents.length === 0) {
+                return;
+            }
+            applyIndexedDependencyDocuments(
+                documents,
+                this.descriptors,
+                this.typeDeclarations,
+                this.virtualDocumentContents,
+                this.loadedDependencyDocuments
+            );
+            this.rebuildHierarchyCache();
+        });
+    }
+
+    /** Completion is the one operation allowed to pay for a full dependency scan. */
+    public async ensureAllDependenciesIndexed(): Promise<void> {
+        if (this.allDependenciesIndexed) {
+            return;
+        }
+        await this.waitForActiveRebuild();
+        await this.enqueueDependencyLoad(async () => {
+            if (this.allDependenciesIndexed) {
+                return;
+            }
+            await this.ensureDependencyCandidates();
+            const stats = await collectDependencyIndexEntries(
+                this.descriptors,
+                this.typeDeclarations,
+                this.virtualDocumentContents,
+                this.output,
+                this.dependencyJarCache,
+                this.loadedDependencyDocuments,
+                this.dependencyJarPaths
+            );
+            this.allDependenciesIndexed = true;
+            this.rebuildHierarchyCache();
+            this.output.appendLine(
+                `[Zircon] Completion loaded ${stats.documentCount} dependency documents from ${stats.jarCount} jars.`
+            );
+        });
     }
 
     public remove(uri: vscode.Uri): void {
@@ -151,6 +216,12 @@ export class ExMethodIndex implements vscode.Disposable {
 
         return descriptors.filter((descriptor) => {
             if (descriptor.shouldInvokeDirectly && !allowDirectOnly) {
+                return false;
+            }
+            if (descriptor.filterAnnotations.length > 0
+                && !receiverTypes.some((receiverType) => {
+                    return this.typeHasDirectAnnotations(receiverType, descriptor.filterAnnotations);
+                })) {
                 return false;
             }
             return descriptor.targetTypes.some((targetType) => {
@@ -205,6 +276,31 @@ export class ExMethodIndex implements vscode.Disposable {
         this.parentTypes.clear();
         this.simpleToQualifiedTypes.clear();
         this.dependencyJarCache.clear();
+        this.dependencyJarInventories.clear();
+        this.targetedDependencyCache.clear();
+        this.loadedDependencyDocuments.clear();
+    }
+
+    private typeHasDirectAnnotations(receiverType: string, requiredAnnotations: readonly string[]): boolean {
+        const receiverBase = eraseType(receiverType);
+        const receiverCandidates = this.getCanonicalTypeCandidates(receiverBase);
+        const declarations = [...this.typeDeclarations.values()].flat().filter((declaration) => {
+            return receiverCandidates.has(declaration.qualifiedName)
+                || receiverCandidates.has(declaration.simpleName)
+                || simpleNameOf(receiverBase) === declaration.simpleName;
+        });
+        if (declarations.length === 0) {
+            // The native JDT completion path can inspect binary annotations.
+            // The lightweight provider must not offer an annotation-filtered
+            // method when it cannot prove the receiver satisfies the filter.
+            return false;
+        }
+        return declarations.some((declaration) => requiredAnnotations.every((required) => {
+            const requiredSimple = simpleNameOf(required);
+            return declaration.annotations.some((actual) => {
+                return actual === required || simpleNameOf(actual) === requiredSimple;
+            });
+        }));
     }
 
     private async runRebuildLoop(): Promise<void> {
@@ -215,10 +311,10 @@ export class ExMethodIndex implements vscode.Disposable {
     }
 
     private async doRebuild(): Promise<void> {
-        const javaFiles = await vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE, MAX_WORKSPACE_JAVA_FILES);
-        if (javaFiles.length === MAX_WORKSPACE_JAVA_FILES) {
-            this.output.appendLine(`[Zircon] Workspace Java source indexing reached the ${MAX_WORKSPACE_JAVA_FILES}-file safety limit.`);
-        }
+        // A classpath rebuild and a lazy dependency load must not replace each
+        // other's maps. New lazy loads already wait for rebuildPromise.
+        await this.dependencyLoadQueue;
+        const javaFiles = await vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE);
         const nextDescriptors = new Map<string, ExMethodDescriptor[]>();
         const nextTypes = new Map<string, JavaTypeDeclaration[]>();
         const nextVirtualDocumentContents = new Map<string, string>();
@@ -238,12 +334,14 @@ export class ExMethodIndex implements vscode.Disposable {
                 await yieldToEventLoop();
             }
         }
-        const dependencyStats = await collectDependencyIndexEntries(
+        // Rebuild only discovers the classpath. Dependency contents stay lazy:
+        // imported containers are loaded on demand, completion may request all.
+        await this.refreshDependencyCandidates(await findDependencyJarCandidates(this.output));
+        applyIndexedDependencyDocuments(
+            [...this.loadedDependencyDocuments.values()],
             nextDescriptors,
             nextTypes,
-            nextVirtualDocumentContents,
-            this.output,
-            this.dependencyJarCache
+            nextVirtualDocumentContents
         );
 
         // Disk reads above can race with an unsaved editor buffer. Apply the current
@@ -272,8 +370,49 @@ export class ExMethodIndex implements vscode.Disposable {
         this.rebuildHierarchyCache();
         this.output.appendLine(
             `[Zircon] Indexed ${this.size()} extension methods from ${javaFiles.length} Java files and `
-            + `${dependencyStats.documentCount} dependency documents across ${dependencyStats.jarCount} jars.`
+            + `${this.loadedDependencyDocuments.size} lazily loaded dependency documents; `
+            + `${this.dependencyJarPaths.length} dependency jars are available for completion.`
         );
+    }
+
+    private async waitForActiveRebuild(): Promise<void> {
+        const activeRebuild = this.rebuildPromise;
+        if (activeRebuild) {
+            await activeRebuild;
+        }
+    }
+
+    private async enqueueDependencyLoad(task: () => Promise<void>): Promise<void> {
+        const current = this.dependencyLoadQueue.then(task, task);
+        this.dependencyLoadQueue = current.then(() => undefined, () => undefined);
+        await current;
+    }
+
+    private async ensureDependencyCandidates(): Promise<void> {
+        if (!this.dependencyCandidatesReady) {
+            await this.refreshDependencyCandidates(await findDependencyJarCandidates(this.output));
+        }
+    }
+
+    private async refreshDependencyCandidates(jarPaths: string[]): Promise<void> {
+        const nextStamps = new Map<string, string>();
+        await Promise.all(jarPaths.map(async (jarPath) => {
+            nextStamps.set(jarPath, await buildDependencyJarStamp(jarPath) ?? 'missing');
+        }));
+        const changed = jarPaths.length !== this.dependencyJarPaths.length
+            || jarPaths.some((jarPath, index) => jarPath !== this.dependencyJarPaths[index])
+            || jarPaths.some((jarPath) => nextStamps.get(jarPath) !== this.dependencyJarStamps.get(jarPath));
+        this.dependencyJarPaths = jarPaths;
+        this.dependencyJarStamps = nextStamps;
+        this.dependencyCandidatesReady = true;
+        if (!changed) {
+            return;
+        }
+        this.allDependenciesIndexed = false;
+        this.loadedDependencyDocuments.clear();
+        this.dependencyJarCache.clear();
+        this.targetedDependencyCache.clear();
+        this.dependencyJarInventories.clear();
     }
 
     private rebuildHierarchyCache(): void {
@@ -620,7 +759,14 @@ function buildDescriptorFromSignature(
     line: number,
     signatureStartOffset: number
 ): ExMethodDescriptor | undefined {
-    const normalized = rawSignature.replace(/\s+/g, ' ').replace(/\s*\{.*$/, '').trim();
+    const normalized = rawSignature
+        .replace(/\s+/g, ' ')
+        .replace(/\s*\{.*$/, '')
+        // javap-backed virtual sources use declaration stubs ending in ';'.
+        // Source methods end in a body, so the old parser accidentally discarded
+        // every extension method loaded from a binary dependency.
+        .replace(/;\s*$/, '')
+        .trim();
     const signatureMatch = normalized.match(/^(?:public|protected|private|static|final|synchronized|abstract|native|default|strictfp|\s)+(?:(<.*?>)\s+)?(.+?)\s+([A-Za-z_$][\w$]*)\s*\((.*)\)$/);
     if (!signatureMatch) {
         return undefined;
@@ -684,11 +830,17 @@ function scanJavaSource(text: string): {
     const packageMatch = text.match(/^\s*package\s+([\w.]+)\s*;/m);
     const packageName = packageMatch ? packageMatch[1] : '';
 
-    const importPattern = /^\s*import\s+([\w.*]+)\s*;/gm;
+    const importPattern = /^\s*import\s+(static\s+)?([\w.*]+)\s*;/gm;
     let wildcardImportIndex = 0;
     for (let match = importPattern.exec(text); match !== null; match = importPattern.exec(text)) {
-        const qualifiedName = match[1];
-        if (qualifiedName.endsWith('.*')) {
+        const isStatic = match[1] !== undefined;
+        const importedName = match[2];
+        const qualifiedName = isStatic
+            ? (importedName.endsWith('.*')
+                ? importedName.slice(0, -2)
+                : importedName.slice(0, importedName.lastIndexOf('.')))
+            : importedName;
+        if (!isStatic && qualifiedName.endsWith('.*')) {
             imports.set(`*${wildcardImportIndex++}`, qualifiedName);
         } else {
             imports.set(simpleNameOf(qualifiedName), qualifiedName);
@@ -713,7 +865,9 @@ function scanJavaSource(text: string): {
     const typeDeclarations = rawDeclarations.map((declaration) => ({
         ...declaration,
         parentTypes: declaration.parentTypes
-            .map((parentType) => resolveTypeName(parentType, baseContext) ?? normalizeType(parentType))
+            .map((parentType) => resolveTypeName(parentType, baseContext) ?? normalizeType(parentType)),
+        annotations: declaration.annotations
+            .map((annotation) => resolveTypeName(annotation, baseContext) ?? normalizeType(annotation))
     }));
 
     return {
@@ -747,6 +901,7 @@ function scanTypeDeclarations(text: string, packageName: string): JavaTypeDeclar
 
         const simpleName = match[2];
         const parentTypes = parseParentTypeNames(match[3]);
+        const annotations = collectTypeAnnotations(text, match.index);
         const enclosingType = stack[stack.length - 1];
         const qualifiedName = enclosingType
             ? `${enclosingType.qualifiedName}.${simpleName}`
@@ -757,6 +912,7 @@ function scanTypeDeclarations(text: string, packageName: string): JavaTypeDeclar
             simpleName,
             qualifiedName,
             parentTypes,
+            annotations,
             startOffset: match.index,
             bodyStartOffset: headerPattern.lastIndex - 1,
             bodyEndOffset: text.length,
@@ -774,6 +930,7 @@ function scanTypeDeclarations(text: string, packageName: string): JavaTypeDeclar
         simpleName: declaration.simpleName,
         qualifiedName: declaration.qualifiedName,
         parentTypes: declaration.parentTypes,
+        annotations: declaration.annotations,
         startOffset: declaration.startOffset,
         bodyStartOffset: declaration.bodyStartOffset,
         bodyEndOffset: declaration.bodyEndOffset
@@ -881,14 +1038,384 @@ function resolveMethodTargetType(
     return normalizeType(resolveTypeName(normalizedType, context) ?? normalizedType);
 }
 
+/**
+ * Extension containers follow normal Java visibility rules: a dependency class
+ * must be explicitly imported (or covered by a wildcard import). Static imports
+ * are accepted as well so older Zircon source styles remain discoverable.
+ */
+export function collectImportedDependencyTargets(source: string): ImportedDependencyTargets {
+    const exactTypes = new Set<string>();
+    const wildcardPackages = new Set<string>();
+    const importPattern = /^\s*import\s+(static\s+)?([A-Za-z_$][\w$]*(?:\.[A-Za-z_$*][\w$*]*)*)\s*;/gm;
+    for (let match = importPattern.exec(source); match; match = importPattern.exec(source)) {
+        const isStatic = match[1] !== undefined;
+        const importedName = match[2];
+        if (!isStatic && importedName.endsWith('.*')) {
+            wildcardPackages.add(importedName.slice(0, -2));
+            continue;
+        }
+        if (isStatic) {
+            const withoutWildcard = importedName.endsWith('.*')
+                ? importedName.slice(0, -2)
+                : importedName.slice(0, importedName.lastIndexOf('.'));
+            if (withoutWildcard.length > 0) {
+                exactTypes.add(withoutWildcard);
+            }
+            continue;
+        }
+        exactTypes.add(importedName);
+    }
+    return { exactTypes, wildcardPackages };
+}
+
+async function indexImportedDependencyTargets(
+    jarPaths: readonly string[],
+    targets: ImportedDependencyTargets,
+    output: vscode.OutputChannel,
+    inventories: Map<string, DependencyJarInventoryEntry>,
+    targetedCache: Map<string, DependencyJarCacheEntry>
+): Promise<IndexedDependencyDocument[]> {
+    const { sourceJars, binaryJars } = partitionDependencyJars(jarPaths);
+    const documents: IndexedDependencyDocument[] = [];
+    for (const [jarKind, candidates] of [
+        ['source', sourceJars] as const,
+        ['binary', binaryJars] as const
+    ]) {
+        for (const jarPath of candidates) {
+            const inventory = await getDependencyJarInventory(jarPath, inventories, output);
+            if (!inventory) {
+                continue;
+            }
+            const matchedEntries = matchImportedJarEntries(inventory.entries, targets, jarKind);
+            if (matchedEntries.length === 0) {
+                continue;
+            }
+            documents.push(...await indexTargetedJarEntries(
+                jarPath,
+                jarKind,
+                matchedEntries,
+                inventory.stamp,
+                targetedCache,
+                output
+            ));
+        }
+    }
+    return dedupeIndexedDependencyDocuments(documents);
+}
+
+function partitionDependencyJars(jarPaths: readonly string[]): { sourceJars: string[]; binaryJars: string[] } {
+    const sourceArtifactKeys = new Set(jarPaths
+        .filter((jarPath) => jarPath.toLowerCase().endsWith('-sources.jar'))
+        .map(toJarArtifactKey));
+    return {
+        sourceJars: jarPaths.filter((jarPath) => jarPath.toLowerCase().endsWith('-sources.jar')),
+        binaryJars: jarPaths.filter((jarPath) => {
+            return !jarPath.toLowerCase().endsWith('-sources.jar')
+                && !sourceArtifactKeys.has(toJarArtifactKey(jarPath));
+        })
+    };
+}
+
+function matchImportedJarEntries(
+    entries: ReadonlySet<string>,
+    targets: ImportedDependencyTargets,
+    jarKind: 'source' | 'binary'
+): string[] {
+    const suffix = jarKind === 'source' ? '.java' : '.class';
+    const matches = new Set<string>();
+    for (const qualifiedType of targets.exactTypes) {
+        const directEntry = `${qualifiedType.replace(/\./g, '/')}${suffix}`;
+        if (entries.has(directEntry)) {
+            matches.add(directEntry);
+        }
+        // Explicit imports can name a nested extension container. Package and
+        // type boundaries are not encoded in an import, so try the finite set
+        // of possible boundaries and retain only paths present in the jar.
+        const parts = qualifiedType.split('.');
+        if (jarKind === 'binary') {
+            for (let classStart = parts.length - 2; classStart >= 0; classStart--) {
+                const nestedEntry = `${parts.slice(0, classStart).join('/')}${classStart > 0 ? '/' : ''}`
+                    + `${parts.slice(classStart).join('$')}.class`;
+                if (entries.has(nestedEntry)) {
+                    matches.add(nestedEntry);
+                }
+            }
+        } else {
+            for (let classStart = parts.length - 2; classStart >= 0; classStart--) {
+                const nestedSourceEntry = `${parts.slice(0, classStart).join('/')}${classStart > 0 ? '/' : ''}`
+                    + `${parts[classStart]}.java`;
+                if (entries.has(nestedSourceEntry)) {
+                    matches.add(nestedSourceEntry);
+                }
+            }
+        }
+    }
+    for (const packageName of targets.wildcardPackages) {
+        const prefix = `${packageName.replace(/\./g, '/')}/`;
+        for (const entry of entries) {
+            const remainder = entry.startsWith(prefix) ? entry.slice(prefix.length) : '';
+            if (remainder.length === 0 || remainder.includes('/') || !remainder.endsWith(suffix)) {
+                continue;
+            }
+            if (jarKind === 'binary' && remainder.includes('$')) {
+                continue;
+            }
+            matches.add(entry);
+        }
+    }
+    return [...matches].sort();
+}
+
+async function indexTargetedJarEntries(
+    jarPath: string,
+    jarKind: 'source' | 'binary',
+    entryNames: readonly string[],
+    stamp: string,
+    targetedCache: Map<string, DependencyJarCacheEntry>,
+    output: vscode.OutputChannel
+): Promise<IndexedDependencyDocument[]> {
+    const documents: IndexedDependencyDocument[] = [];
+    const missingEntries: string[] = [];
+    for (const entryName of entryNames) {
+        const cacheKey = `${jarKind}:${jarPath}:${entryName}`;
+        const cached = targetedCache.get(cacheKey);
+        if (cached?.stamp === stamp) {
+            documents.push(...cached.documents);
+        } else {
+            missingEntries.push(entryName);
+        }
+    }
+    if (missingEntries.length === 0) {
+        return documents;
+    }
+    try {
+        const pendingEntries = new Set(missingEntries);
+        await forEachZipEntry(jarPath, async (zip, entry) => {
+            const entryName = entry.fileName;
+            if (!pendingEntries.delete(entryName)) {
+                return;
+            }
+            const cacheKey = `${jarKind}:${jarPath}:${entryName}`;
+            let indexed: IndexedDependencyDocument[] = [];
+            if (!isZipDirectory(entry)) {
+                if (jarKind === 'source') {
+                    const text = (await readZipEntryBuffer(zip, entry)).toString('utf8');
+                    if (text.includes('@ExMethod') || text.includes('@ExMethodIDE')) {
+                        const uri = createDependencyUri(jarPath, entryName);
+                        const source = createVirtualJavaSource(uri, path.basename(entryName), text);
+                        indexed = [{
+                            jarPath,
+                            uri,
+                            descriptors: parseExMethods(source),
+                            typeDeclarations: scanJavaSource(text).typeDeclarations,
+                            content: text
+                        }];
+                    }
+                } else {
+                    const classBytes = await readZipEntryBuffer(zip, entry);
+                    if (classBytes.includes(Buffer.from('zircon/ExMethod'))
+                        || classBytes.includes(Buffer.from('zircon/ExMethodIDE'))) {
+                        const className = entryName.replace(/\.class$/, '').replace(/\//g, '.');
+                        const content = await buildVirtualSourceFromClass(jarPath, className, output);
+                        if (content) {
+                            const uri = createDependencyUri(jarPath, entryName.replace(/\.class$/, '.java'));
+                            const source = createVirtualJavaSource(uri, `${simpleNameOf(className)}.java`, content);
+                            indexed = [{
+                                jarPath,
+                                uri,
+                                descriptors: parseExMethods(source),
+                                typeDeclarations: scanJavaSource(content).typeDeclarations,
+                                content
+                            }];
+                        }
+                    }
+                }
+            }
+            targetedCache.set(cacheKey, { stamp, documents: indexed });
+            documents.push(...indexed);
+        });
+        for (const entryName of pendingEntries) {
+            const cacheKey = `${jarKind}:${jarPath}:${entryName}`;
+            targetedCache.set(cacheKey, { stamp, documents: [] });
+        }
+    } catch (error) {
+        output.appendLine(`[Zircon] Failed to load imported dependency entries from ${jarPath}: ${String(error)}`);
+    }
+    return documents;
+}
+
+async function getDependencyJarInventory(
+    jarPath: string,
+    cache: Map<string, DependencyJarInventoryEntry>,
+    output: vscode.OutputChannel
+): Promise<DependencyJarInventoryEntry | undefined> {
+    const stamp = await buildDependencyJarStamp(jarPath);
+    if (!stamp) {
+        return undefined;
+    }
+    const cached = cache.get(jarPath);
+    if (cached?.stamp === stamp) {
+        return cached;
+    }
+    try {
+        let entries: Set<string>;
+        try {
+            entries = await readZipCentralDirectory(jarPath);
+        } catch {
+            // ZIP64 and unusual archives take the compatibility path. Normal
+            // jars stay on the central-directory-only fast path.
+            entries = new Set<string>();
+            await forEachZipEntry(jarPath, (_zip, entry) => {
+                entries.add(entry.fileName);
+            });
+        }
+        const inventory = { stamp, entries };
+        cache.set(jarPath, inventory);
+        return inventory;
+    } catch (error) {
+        output.appendLine(`[Zircon] Failed to read dependency directory ${jarPath}: ${String(error)}`);
+        return undefined;
+    }
+}
+
+async function readZipCentralDirectory(jarPath: string): Promise<Set<string>> {
+    const handle = await fs.promises.open(jarPath, 'r');
+    try {
+        const fileStat = await handle.stat();
+        const tailLength = Math.min(fileStat.size, 65_557);
+        const tail = Buffer.alloc(tailLength);
+        await handle.read(tail, 0, tailLength, fileStat.size - tailLength);
+        let eocdOffset = -1;
+        for (let offset = tail.length - 22; offset >= 0; offset--) {
+            if (tail.readUInt32LE(offset) === 0x06054b50) {
+                eocdOffset = offset;
+                break;
+            }
+        }
+        if (eocdOffset < 0) {
+            throw new Error('ZIP end-of-central-directory record not found');
+        }
+        const directorySize = tail.readUInt32LE(eocdOffset + 12);
+        const directoryOffset = tail.readUInt32LE(eocdOffset + 16);
+        if (directorySize === 0xffffffff || directoryOffset === 0xffffffff) {
+            throw new Error('ZIP64 dependency jars are not supported by the fast directory reader');
+        }
+        const directory = Buffer.alloc(directorySize);
+        await handle.read(directory, 0, directorySize, directoryOffset);
+        const entries = new Set<string>();
+        for (let offset = 0; offset + 46 <= directory.length;) {
+            if (directory.readUInt32LE(offset) !== 0x02014b50) {
+                break;
+            }
+            const nameLength = directory.readUInt16LE(offset + 28);
+            const extraLength = directory.readUInt16LE(offset + 30);
+            const commentLength = directory.readUInt16LE(offset + 32);
+            entries.add(directory.toString('utf8', offset + 46, offset + 46 + nameLength));
+            offset += 46 + nameLength + extraLength + commentLength;
+        }
+        return entries;
+    } finally {
+        await handle.close();
+    }
+}
+
+const MAX_DEPENDENCY_ENTRY_BYTES = 64 * 1024 * 1024;
+
+async function forEachZipEntry(
+    jarPath: string,
+    visitor: (zip: yauzl.ZipFile, entry: yauzl.Entry) => void | Promise<void>
+): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+        yauzl.open(jarPath, { lazyEntries: true, autoClose: true }, (openError, zip) => {
+            if (openError || !zip) {
+                reject(openError ?? new Error(`Unable to open dependency archive ${jarPath}`));
+                return;
+            }
+            let settled = false;
+            const fail = (error: unknown): void => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                zip.close();
+                reject(error);
+            };
+            zip.once('error', fail);
+            zip.once('end', () => {
+                if (!settled) {
+                    settled = true;
+                    resolve();
+                }
+            });
+            zip.on('entry', entry => {
+                Promise.resolve(visitor(zip, entry))
+                    .then(() => {
+                        if (!settled) {
+                            zip.readEntry();
+                        }
+                    })
+                    .catch(fail);
+            });
+            zip.readEntry();
+        });
+    });
+}
+
+async function readZipEntryBuffer(zip: yauzl.ZipFile, entry: yauzl.Entry): Promise<Buffer> {
+    if (entry.uncompressedSize > MAX_DEPENDENCY_ENTRY_BYTES) {
+        throw new Error(
+            `Dependency archive entry ${entry.fileName} is too large (${entry.uncompressedSize} bytes)`
+        );
+    }
+    return await new Promise<Buffer>((resolve, reject) => {
+        zip.openReadStream(entry, (openError, stream) => {
+            if (openError || !stream) {
+                reject(openError ?? new Error(`Unable to read dependency archive entry ${entry.fileName}`));
+                return;
+            }
+            const chunks: Buffer[] = [];
+            let totalBytes = 0;
+            stream.on('data', chunk => {
+                const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                totalBytes += buffer.length;
+                if (totalBytes > MAX_DEPENDENCY_ENTRY_BYTES) {
+                    stream.destroy(new Error(
+                        `Dependency archive entry ${entry.fileName} exceeded the extraction limit`
+                    ));
+                    return;
+                }
+                chunks.push(buffer);
+            });
+            stream.once('error', reject);
+            stream.once('end', () => resolve(Buffer.concat(chunks, totalBytes)));
+        });
+    });
+}
+
+function isZipDirectory(entry: yauzl.Entry): boolean {
+    return /\/$/.test(entry.fileName);
+}
+
+function dedupeIndexedDependencyDocuments(
+    documents: readonly IndexedDependencyDocument[]
+): IndexedDependencyDocument[] {
+    const unique = new Map<string, IndexedDependencyDocument>();
+    for (const document of documents) {
+        unique.set(document.uri.toString(), document);
+    }
+    return [...unique.values()];
+}
+
 async function collectDependencyIndexEntries(
     descriptorMap: Map<string, ExMethodDescriptor[]>,
     typeMap: Map<string, JavaTypeDeclaration[]>,
     virtualDocumentContents: Map<string, string>,
     output: vscode.OutputChannel,
-    dependencyJarCache: Map<string, DependencyJarCacheEntry>
+    dependencyJarCache: Map<string, DependencyJarCacheEntry>,
+    loadedDependencyDocuments: Map<string, IndexedDependencyDocument>,
+    knownJarPaths?: readonly string[]
 ): Promise<DependencyIndexStats> {
-    const jarPaths = await findDependencyJarCandidates(output);
+    const jarPaths = knownJarPaths ?? await findDependencyJarCandidates(output);
     if (jarPaths.length === 0) {
         return { documentCount: 0, jarCount: 0 };
     }
@@ -914,10 +1441,6 @@ async function collectDependencyIndexEntries(
 
     let documentCount = 0;
     const activeCacheKeys = new Set<string>();
-    const binaryIndexBudget: BinaryIndexBudget = {
-        remainingClasses: MAX_BINARY_EXTENSION_CLASSES_PER_REBUILD,
-        didLogLimit: false
-    };
     let processedJars = 0;
     for (const jarPath of sourceJars) {
         documentCount += await applyCachedDependencyJar(
@@ -928,7 +1451,8 @@ async function collectDependencyIndexEntries(
             virtualDocumentContents,
             output,
             dependencyJarCache,
-            activeCacheKeys
+            activeCacheKeys,
+            loadedDependencyDocuments
         );
         processedJars++;
         if (processedJars % 2 === 0) {
@@ -936,13 +1460,6 @@ async function collectDependencyIndexEntries(
         }
     }
     for (const jarPath of binaryJars) {
-        if (binaryIndexBudget.remainingClasses === 0) {
-            if (!binaryIndexBudget.didLogLimit) {
-                output.appendLine(`[Zircon] Binary dependency indexing stopped after ${MAX_BINARY_EXTENSION_CLASSES_PER_REBUILD} extension classes.`);
-                binaryIndexBudget.didLogLimit = true;
-            }
-            break;
-        }
         documentCount += await applyCachedDependencyJar(
             jarPath,
             'binary',
@@ -952,7 +1469,7 @@ async function collectDependencyIndexEntries(
             output,
             dependencyJarCache,
             activeCacheKeys,
-            binaryIndexBudget
+            loadedDependencyDocuments
         );
         processedJars++;
         if (processedJars % 2 === 0) {
@@ -990,7 +1507,7 @@ async function findDependencyJarCandidates(output: vscode.OutputChannel): Promis
         '**/libs/**/*.jar'
     ];
     const matches = await Promise.all(searchPatterns.map((pattern) => {
-        return vscode.workspace.findFiles(pattern, DEPENDENCY_SEARCH_EXCLUDE, MAX_DEPENDENCY_JARS);
+        return vscode.workspace.findFiles(pattern, DEPENDENCY_SEARCH_EXCLUDE);
     }));
     for (const uri of matches.flat()) {
         if (!shouldSkipDependencyJar(uri.fsPath)) {
@@ -1007,14 +1524,27 @@ async function findDependencyJarCandidates(output: vscode.OutputChannel): Promis
         }
     }
 
-    const sortedJarPaths = [...enrichedJarPaths]
-        .sort(compareDependencyJarPriority);
-    const limitedJarPaths = sortedJarPaths.slice(0, MAX_DEPENDENCY_JARS);
-    if (sortedJarPaths.length > limitedJarPaths.length) {
-        output.appendLine(`[Zircon] Dependency jar candidates capped at ${MAX_DEPENDENCY_JARS}; skipped ${sortedJarPaths.length - limitedJarPaths.length} lower-priority jars.`);
+    const sortedJarPaths = [...enrichedJarPaths].sort(compareDependencyJarPriority);
+    output.appendLine(`[Zircon] Dependency jar candidates: total=${sortedJarPaths.length}, redhat.java=${redhatJarCount}.`);
+    return sortedJarPaths;
+}
+
+function collectTypeAnnotations(text: string, classKeywordOffset: number): string[] {
+    let start = classKeywordOffset - 1;
+    while (start >= 0 && text[start] !== ';' && text[start] !== '{' && text[start] !== '}') {
+        start -= 1;
     }
-    output.appendLine(`[Zircon] Dependency jar candidates: total=${limitedJarPaths.length}, redhat.java=${redhatJarCount}.`);
-    return limitedJarPaths;
+    const prefix = text.slice(start + 1, classKeywordOffset)
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')
+        .replace(/\/\/[^\r\n]*/g, ' ');
+    const annotations: string[] = [];
+    const pattern = /@([A-Za-z_$][\w$.]*)\b/g;
+    for (let match = pattern.exec(prefix); match; match = pattern.exec(prefix)) {
+        if (match[1] !== 'interface') {
+            annotations.push(match[1]);
+        }
+    }
+    return annotations;
 }
 
 function compareDependencyJarPriority(left: string, right: string): number {
@@ -1064,7 +1594,7 @@ async function applyCachedDependencyJar(
     output: vscode.OutputChannel,
     dependencyJarCache: Map<string, DependencyJarCacheEntry>,
     activeCacheKeys: Set<string>,
-    binaryIndexBudget?: BinaryIndexBudget
+    loadedDependencyDocuments: Map<string, IndexedDependencyDocument>
 ): Promise<number> {
     const cacheKey = `${jarKind}:${jarPath}`;
     activeCacheKeys.add(cacheKey);
@@ -1072,15 +1602,27 @@ async function applyCachedDependencyJar(
     if (stamp) {
         const cached = dependencyJarCache.get(cacheKey);
         if (cached?.stamp === stamp) {
-            applyIndexedDependencyDocuments(cached.documents, descriptorMap, typeMap, virtualDocumentContents);
+            applyIndexedDependencyDocuments(
+                cached.documents,
+                descriptorMap,
+                typeMap,
+                virtualDocumentContents,
+                loadedDependencyDocuments
+            );
             return cached.documents.length;
         }
     }
 
     const documents = jarKind === 'source'
         ? await indexSourceJar(jarPath, output)
-        : await indexBinaryJar(jarPath, output, binaryIndexBudget);
-    applyIndexedDependencyDocuments(documents, descriptorMap, typeMap, virtualDocumentContents);
+        : await indexBinaryJar(jarPath, output);
+    applyIndexedDependencyDocuments(
+        documents,
+        descriptorMap,
+        typeMap,
+        virtualDocumentContents,
+        loadedDependencyDocuments
+    );
 
     if (stamp) {
         dependencyJarCache.set(cacheKey, { stamp, documents });
@@ -1092,7 +1634,8 @@ function applyIndexedDependencyDocuments(
     documents: readonly IndexedDependencyDocument[],
     descriptorMap: Map<string, ExMethodDescriptor[]>,
     typeMap: Map<string, JavaTypeDeclaration[]>,
-    virtualDocumentContents: Map<string, string>
+    virtualDocumentContents: Map<string, string>,
+    loadedDependencyDocuments?: Map<string, IndexedDependencyDocument>
 ): void {
     for (const document of documents) {
         descriptorMap.set(document.uri.toString(), document.descriptors);
@@ -1100,6 +1643,7 @@ function applyIndexedDependencyDocuments(
         if (document.content !== undefined) {
             virtualDocumentContents.set(document.uri.toString(), document.content);
         }
+        loadedDependencyDocuments?.set(document.uri.toString(), document);
     }
 }
 
@@ -1117,32 +1661,24 @@ async function indexSourceJar(
     output: vscode.OutputChannel
 ): Promise<IndexedDependencyDocument[]> {
     try {
-        const zip = new AdmZip(await readFile(jarPath));
         const documents: IndexedDependencyDocument[] = [];
         let inspectedEntries = 0;
-        for (const entry of zip.getEntries()) {
+        await forEachZipEntry(jarPath, async (zip, entry) => {
             inspectedEntries++;
-            if (inspectedEntries > MAX_SOURCE_JAR_ENTRIES) {
-                output.appendLine(`[Zircon] Source dependency ${jarPath} exceeded ${MAX_SOURCE_JAR_ENTRIES} entries; remaining entries skipped.`);
-                break;
-            }
             if (inspectedEntries % 256 === 0) {
                 await yieldToEventLoop();
             }
-            if (entry.isDirectory || !entry.entryName.endsWith('.java')) {
-                continue;
+            if (isZipDirectory(entry) || !entry.fileName.endsWith('.java')) {
+                return;
             }
-            const className = entry.entryName.replace(/\.java$/, '').replace(/\//g, '.');
-            if (shouldSkipDependencyClassName(className)) {
-                continue;
-            }
-            const text = entry.getData().toString('utf8');
+            const text = (await readZipEntryBuffer(zip, entry)).toString('utf8');
             if (!text.includes('@ExMethod') && !text.includes('@ExMethodIDE')) {
-                continue;
+                return;
             }
-            const uri = createDependencyUri(jarPath, entry.entryName);
-            const source = createVirtualJavaSource(uri, path.basename(entry.entryName), text);
+            const uri = createDependencyUri(jarPath, entry.fileName);
+            const source = createVirtualJavaSource(uri, path.basename(entry.fileName), text);
             documents.push({
+                jarPath,
                 uri,
                 descriptors: parseExMethods(source),
                 typeDeclarations: scanJavaSource(text).typeDeclarations,
@@ -1151,7 +1687,7 @@ async function indexSourceJar(
             if (documents.length % 24 === 0) {
                 await yieldToEventLoop();
             }
-        }
+        });
         return documents;
     } catch (error) {
         output.appendLine(`[Zircon] Failed to index dependency sources from ${jarPath}: ${String(error)}`);
@@ -1161,48 +1697,33 @@ async function indexSourceJar(
 
 async function indexBinaryJar(
     jarPath: string,
-    output: vscode.OutputChannel,
-    budget: BinaryIndexBudget | undefined
+    output: vscode.OutputChannel
 ): Promise<IndexedDependencyDocument[]> {
-    if (!budget || budget.remainingClasses === 0) {
-        return [];
-    }
     try {
-        const zip = new AdmZip(await readFile(jarPath));
         const documents: IndexedDependencyDocument[] = [];
         let inspectedEntries = 0;
-        for (const entry of zip.getEntries()) {
+        await forEachZipEntry(jarPath, async (zip, entry) => {
             inspectedEntries++;
-            if (inspectedEntries > MAX_BINARY_JAR_ENTRIES) {
-                output.appendLine(`[Zircon] Binary dependency ${jarPath} exceeded ${MAX_BINARY_JAR_ENTRIES} entries; remaining entries skipped.`);
-                break;
-            }
             if (inspectedEntries % 512 === 0) {
                 await yieldToEventLoop();
             }
-            if (budget.remainingClasses === 0) {
-                break;
+            if (isZipDirectory(entry) || !entry.fileName.endsWith('.class')) {
+                return;
             }
-            if (entry.isDirectory || !entry.entryName.endsWith('.class') || entry.entryName.includes('$')) {
-                continue;
-            }
-            const classBytes = entry.getData();
+            const classBytes = await readZipEntryBuffer(zip, entry);
             if (!classBytes.includes(Buffer.from('zircon/ExMethod'))
                 && !classBytes.includes(Buffer.from('zircon/ExMethodIDE'))) {
-                continue;
+                return;
             }
-            const className = entry.entryName.replace(/\.class$/, '').replace(/\//g, '.');
-            if (shouldSkipDependencyClassName(className)) {
-                continue;
-            }
-            budget.remainingClasses--;
+            const className = entry.fileName.replace(/\.class$/, '').replace(/\//g, '.');
             const content = await buildVirtualSourceFromClass(jarPath, className, output);
             if (!content) {
-                continue;
+                return;
             }
-            const uri = createDependencyUri(jarPath, entry.entryName.replace(/\.class$/, '.java'));
+            const uri = createDependencyUri(jarPath, entry.fileName.replace(/\.class$/, '.java'));
             const source = createVirtualJavaSource(uri, `${simpleNameOf(className)}.java`, content);
             documents.push({
+                jarPath,
                 uri,
                 descriptors: parseExMethods(source),
                 typeDeclarations: scanJavaSource(content).typeDeclarations,
@@ -1211,7 +1732,7 @@ async function indexBinaryJar(
             if (documents.length % 24 === 0) {
                 await yieldToEventLoop();
             }
-        }
+        });
         return documents;
     } catch (error) {
         output.appendLine(`[Zircon] Failed to index dependency classes from ${jarPath}: ${String(error)}`);
@@ -1306,8 +1827,7 @@ async function buildVirtualSourceFromClass(
 ): Promise<string | undefined> {
     try {
         const result = await execFile('javap', ['-classpath', jarPath, '-v', className], {
-            maxBuffer: 16 * 1024 * 1024,
-            timeout: JAVAP_TIMEOUT_MS
+            maxBuffer: 16 * 1024 * 1024
         });
         return buildVirtualSourceFromJavapOutput(className, String(result.stdout));
     } catch (error) {
@@ -1338,10 +1858,6 @@ function buildVirtualSourceFromJavapOutput(className: string, output: string): s
     }
     lines.push('}');
     return lines.join('\n');
-}
-
-function shouldSkipDependencyClassName(className: string): boolean {
-    return SKIPPED_SCAN_PREFIXES.some((prefix) => className.startsWith(prefix));
 }
 
 function extractAnnotatedMethodsFromJavap(

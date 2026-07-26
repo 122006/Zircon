@@ -70,6 +70,28 @@ public interface Formatter {
 
     ZrStringModel build(String text);
 
+    static ZrStringModel buildFromSharedSplitter(
+            Formatter formatter,
+            String text,
+            TemplateStringSplitter.Syntax syntax
+    ) {
+        TemplateStringSplitter.Result split = TemplateStringSplitter.split(text, formatter.prefix(), syntax);
+        ZrStringModel model = new ZrStringModel();
+        model.setFormatter(formatter);
+        for (TemplateStringSplitter.Range range : split.ranges) {
+            if (range.style == TemplateStringSplitter.CODE) {
+                model.getList().add(StringRange.code(formatter, text, range.startIndex, range.endIndex));
+            } else if (range.style == TemplateStringSplitter.STRING) {
+                model.getList().add(StringRange.string(formatter, text, range.startIndex, range.endIndex));
+            } else {
+                model.getList().add(StringRange.of(range.style, range.startIndex, range.endIndex));
+            }
+        }
+        model.setOriginalString(split.originalString);
+        model.setEndQuoteIndex(split.endQuoteIndex);
+        return model;
+    }
+
     String stringTransfer(String text);
 
     default String codeTransfer(String text) {

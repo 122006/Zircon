@@ -1,3 +1,5 @@
+import * as crypto from 'crypto';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getJavaConfigurationTarget, getZirconConfig } from './config';
@@ -5,6 +7,7 @@ import { ZirconWorkspaceInfo } from './projectDetector';
 
 export class ZirconJavaAgentManager {
     private injectionQueue: Promise<void> = Promise.resolve();
+    private restartTimer: NodeJS.Timeout | undefined;
 
     constructor(
         private readonly context: vscode.ExtensionContext,
@@ -13,6 +16,20 @@ export class ZirconJavaAgentManager {
 
     public getAgentJarPath(): string {
         return this.context.asAbsolutePath(path.join('server', 'zircon-agent.jar'));
+    }
+
+    public getHeartbeatPath(): string {
+        const workspaceKey = crypto.createHash('sha256')
+            .update((vscode.workspace.workspaceFolders ?? [])
+                .map((folder) => canonicalizePath(folder.uri.fsPath))
+                .sort()
+                .join('\0'))
+            .digest('hex')
+            .slice(0, 16);
+        return path.join(
+            this.context.globalStorageUri.fsPath,
+            `zircon-jdt-agent-${workspaceKey || 'empty'}.properties`
+        );
     }
 
     public async ensureInjected(info: ZirconWorkspaceInfo, force: boolean): Promise<boolean> {
@@ -57,11 +74,24 @@ export class ZirconJavaAgentManager {
 
         if (areVmArgsEquivalent(nextVmArgs, currentVmArgs)) {
             this.output.appendLine('[Zircon] Java agent vmargs already up to date.');
+            if (!this.hasActiveAgent()) {
+                // A saved VM argument is configuration, not proof that the
+                // already-running JDT process loaded it. Verify again after
+                // startup and restart only if the full server never writes its
+                // heartbeat.
+                this.scheduleInactiveAgentVerification(4000);
+            }
             return true;
         }
 
         await javaConfig.update('jdt.ls.vmargs', nextVmArgs, getJavaConfigurationTarget(config));
         this.output.appendLine(`[Zircon] Updated java.jdt.ls.vmargs -> ${nextVmArgs}`);
+        if (!force) {
+            // The Java extension may already have started JDT LS before Zircon's
+            // workspace scan finishes. Restart once after the first injection so the
+            // source of truth is the running VM, not merely the saved setting.
+            this.scheduleJavaLanguageServerRestart(1200);
+        }
         return true;
     }
 
@@ -85,10 +115,17 @@ export class ZirconJavaAgentManager {
         return hasZirconAgentVmArg(vmArgs);
     }
 
+    public hasActiveAgent(): boolean {
+        if (!this.hasInjectedVmArg()) {
+            return false;
+        }
+        return readActiveAgentHeartbeat(this.getHeartbeatPath(), this.getAgentJarPath());
+    }
+
     public async removeInjectedVmArgsAndScheduleRestart(): Promise<boolean> {
         const removed = await this.removeInjectedVmArgs();
         if (removed) {
-            this.scheduleJavaLanguageServerRestart();
+            this.scheduleJavaLanguageServerRestart(1200);
         }
         return removed;
     }
@@ -136,9 +173,9 @@ export class ZirconJavaAgentManager {
 
         parts.push(`-javaagent:"${this.getAgentJarPath()}"`);
         parts.push('-Dzircon.vscode=true'.replace('Z', 'z'));
-        parts.push('-Dzircon.forceLocalSuppress=true'.replace('Z', 'z'));
         parts.push(`-Dzircon.debug=${debug}`.replace('Z', 'z'));
         parts.push(`-Dzircon.agent.jar="${this.getAgentJarPath()}"`.replace('Z', 'z'));
+        parts.push(`-Dzircon.agent.heartbeat="${this.getHeartbeatPath()}"`.replace('Z', 'z'));
         const workspaceRoots = (vscode.workspace.workspaceFolders ?? [])
             .map((folder) => folder.uri.fsPath)
             .filter((folder) => folder.length > 0);
@@ -156,12 +193,33 @@ export class ZirconJavaAgentManager {
         return parts.join(' ').trim();
     }
 
-    private scheduleJavaLanguageServerRestart(): void {
-        setTimeout(() => {
+    private scheduleJavaLanguageServerRestart(delayMs: number): void {
+        if (this.restartTimer) {
+            clearTimeout(this.restartTimer);
+        }
+        this.restartTimer = setTimeout(() => {
+            this.restartTimer = undefined;
             void this.restartJavaLanguageServer().catch((error) => {
                 this.output.appendLine(`[Zircon] Deferred Java Language Server restart failed: ${String(error)}`);
             });
-        }, 5000);
+        }, delayMs);
+    }
+
+    private scheduleInactiveAgentVerification(delayMs: number): void {
+        if (this.restartTimer) {
+            return;
+        }
+        this.restartTimer = setTimeout(() => {
+            this.restartTimer = undefined;
+            if (this.hasActiveAgent()) {
+                this.output.appendLine('[Zircon] JDT Agent runtime heartbeat detected.');
+                return;
+            }
+            this.output.appendLine('[Zircon] JDT Agent VM argument exists but no runtime heartbeat was detected; restarting Java Language Server.');
+            void this.restartJavaLanguageServer().catch((error) => {
+                this.output.appendLine(`[Zircon] Inactive-agent restart failed: ${String(error)}`);
+            });
+        }, delayMs);
     }
 }
 
@@ -169,9 +227,55 @@ const ZIRCON_AGENT_OPTION_NAMES = new Set([
     'zircon.vscode',
     'zircon.forcelocalsuppress',
     'zircon.debug',
+    'zircon.debug.problemfiles',
+    'zircon.debug.selectors',
+    'zircon.trace',
+    'zircon.trace.selectors',
     'zircon.agent.jar',
+    'zircon.agent.heartbeat',
     'zircon.workspace.roots'
 ]);
+
+export function readActiveAgentHeartbeat(
+    heartbeatPath: string,
+    expectedAgentJar: string,
+    isProcessAlive: (pid: number) => boolean = defaultProcessAlive
+): boolean {
+    try {
+        const values = new Map<string, string>();
+        for (const line of fs.readFileSync(heartbeatPath, 'utf8').split(/\r?\n/)) {
+            const separator = line.indexOf('=');
+            if (separator <= 0) {
+                continue;
+            }
+            values.set(line.slice(0, separator), line.slice(separator + 1));
+        }
+        const pid = Number(values.get('pid'));
+        const startedAt = Number(values.get('startedAt'));
+        const agentJar = values.get('agentJar') ?? '';
+        if (!Number.isSafeInteger(pid)
+                || pid <= 0
+                || !Number.isFinite(startedAt)
+                || values.get('mode') !== 'full'
+                || canonicalizePath(agentJar) !== canonicalizePath(expectedAgentJar)
+                || !isProcessAlive(pid)) {
+            return false;
+        }
+        const agentModifiedAt = fs.statSync(expectedAgentJar).mtimeMs;
+        return startedAt + 1000 >= agentModifiedAt;
+    } catch {
+        return false;
+    }
+}
+
+function defaultProcessAlive(pid: number): boolean {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === 'EPERM';
+    }
+}
 
 export function hasZirconAgentVmArg(vmArgs: string): boolean {
     return splitVmArgs(vmArgs).some(isZirconAgentArgument);
@@ -229,7 +333,7 @@ function canonicalizeVmArg(argument: string): string {
         return argument;
     }
     let value = propertyMatch[2];
-    if (name === 'zircon.agent.jar') {
+    if (name === 'zircon.agent.jar' || name === 'zircon.agent.heartbeat') {
         value = canonicalizePath(value);
     } else if (name === 'zircon.workspace.roots') {
         value = stripWrappingQuotes(value)

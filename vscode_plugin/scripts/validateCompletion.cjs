@@ -221,6 +221,7 @@ async function main() {
     const {
         areVmArgsEquivalent,
         hasZirconAgentVmArg,
+        readActiveAgentHeartbeat,
         sanitizeZirconVmArgs
     } = require(path.join(pluginRoot, 'out', 'javaAgent.js'));
 
@@ -254,6 +255,23 @@ async function main() {
         throw new Error('区分大小写的普通 Java 系统属性被错误识别为等价');
     }
     console.log('[validate:completion] javaagent VM argument cleanup passed');
+
+    const heartbeatDirectory = fs.mkdtempSync(path.join(require('os').tmpdir(), 'zircon-agent-heartbeat-'));
+    const heartbeatJar = path.join(heartbeatDirectory, 'zircon-agent.jar');
+    const heartbeatFile = path.join(heartbeatDirectory, 'runtime.properties');
+    fs.writeFileSync(heartbeatJar, 'agent');
+    fs.writeFileSync(heartbeatFile, [
+        'pid=12345',
+        `startedAt=${Date.now() + 1000}`,
+        `agentJar=${heartbeatJar}`,
+        'mode=full',
+        ''
+    ].join('\n'));
+    if (!readActiveAgentHeartbeat(heartbeatFile, heartbeatJar, (pid) => pid === 12345)
+            || readActiveAgentHeartbeat(heartbeatFile, heartbeatJar, () => false)) {
+        throw new Error('JDT Agent runtime heartbeat validation failed');
+    }
+    console.log('[validate:completion] javaagent runtime heartbeat passed');
 
     const gradleBinaryJar = String.raw`D:\.gradle\caches\modules-2\files-2.1\demo\library\1.0\aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\library-1.0.jar`;
     const gradleSourceJar = String.raw`D:\.gradle\caches\modules-2\files-2.1\demo\library\1.0\bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\library-1.0-sources.jar`;
@@ -347,6 +365,25 @@ async function main() {
         throw new Error('多行 @ExMethod 注解没有被完整索引');
     }
     console.log('[validate:completion] parser nested and multiline annotations passed');
+
+    const filterIndex = new ExMethodIndex(output);
+    const filterDocument = new MockDocument('FilterAnnotation.java', [
+        'package demo;',
+        '@interface Allowed {}',
+        '@Allowed class Accepted {}',
+        'class Rejected {}',
+        'class FilterExtensions {',
+        '    @ExMethod(filterAnnotation = {Allowed.class})',
+        '    public static String filtered(Object value) { return String.valueOf(value); }',
+        '}'
+    ].join('\n'));
+    await filterIndex.updateDocument(filterDocument);
+    const acceptedMatches = filterIndex.findMatches(['demo.Accepted'], false).map((item) => item.methodName);
+    const rejectedMatches = filterIndex.findMatches(['demo.Rejected'], false).map((item) => item.methodName);
+    if (!acceptedMatches.includes('filtered') || rejectedMatches.includes('filtered')) {
+        throw new Error(`filterAnnotation 补全过滤错误：accepted=${acceptedMatches}, rejected=${rejectedMatches}`);
+    }
+    console.log('[validate:completion] filterAnnotation receiver filtering passed');
 
     const diskUri = Uri.file(path.resolve(pluginRoot, 'Race.java'));
     const diskSource = 'class Race { @ExMethod public static String diskExtension(String value) { return value; } }';
@@ -486,6 +523,27 @@ async function main() {
         }
         console.log(`[validate:completion] ${scenario.label} -> ${labels.length} items, 命中 ${scenario.expected.join(', ')}`);
     }
+
+    let fullDependencyLoads = 0;
+    let importedDependencyLoads = 0;
+    index.ensureAllDependenciesIndexed = async () => {
+        fullDependencyLoads++;
+    };
+    index.ensureImportedDependencies = async () => {
+        importedDependencyLoads++;
+    };
+    registerExMethodCompletion(context, index, output, () => true);
+    const nativeMarkerOffset = probeSource.indexOf('childClass.fa');
+    await capturedProvider.provideCompletionItems(
+        probeDocument,
+        probeDocument.positionAt(nativeMarkerOffset + 'childClass.fa'.length)
+    );
+    if (fullDependencyLoads !== 0 || importedDependencyLoads !== 1) {
+        throw new Error(
+            `Agent 可用时 TypeScript completion 仍触发了错误的依赖扫描：full=${fullDependencyLoads}, imported=${importedDependencyLoads}`
+        );
+    }
+    console.log('[validate:completion] native Agent bypasses TypeScript full dependency scan');
 }
 
 main().catch((error) => {

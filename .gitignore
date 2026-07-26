@@ -20,8 +20,10 @@
 /vscode_plugin/out/
 /vscode_plugin/*.vsix
 /vscode_plugin/test-fixtures/**/bin/
-/vscode_plugin/server/zircon-agent.jar
-/vscode_plugin/server/zircon-agent-bootstrap.jar
+/vscode_plugin/test-fixtures/**/lib/*.jar
+/vscode_plugin/server/*.jar
+/vscode_plugin/hs_err_pid*.log
+/vscode_plugin/replay_pid*.log
 /vscode_plugin_agent/bin/
 /vscode_plugin_agent/build/
 /.vscode-devhost-data/

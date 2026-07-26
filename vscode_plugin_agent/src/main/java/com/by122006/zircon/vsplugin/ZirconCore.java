@@ -2,18 +2,23 @@ package com.by122006.zircon.vsplugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,12 +26,27 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
 public class ZirconCore {
     private static final String EX_METHOD_ANNOTATION = "zircon.ExMethod";
+    private static final String JDT_SEARCH_REQUESTOR_CLASS =
+            "org.eclipse.jdt.core.search.ZirconExMethodSearchRequestor";
+    private static final String JDT_SEARCH_REQUESTOR_RESOURCE =
+            "/org/eclipse/jdt/core/search/ZirconExMethodSearchRequestor.class";
+    private static final long JDT_EXTENSION_INDEX_CACHE_MILLIS = 15_000L;
+    private static final long JDT_EXTENSION_INDEX_COLD_WAIT_MILLIS = 1_200L;
+    private static final int SESSION_DIAGNOSTIC_CACHE_LIMIT = 32_768;
+    private static final int ZIRCON_REQUIRED_IMPORT_PROPOSAL_FLAG = 0x4000_0000;
     private static final String METHOD_BINDING_CLASS = "org.eclipse.jdt.internal.compiler.lookup.MethodBinding";
     private static final String PARAMETERIZED_METHOD_BINDING_CLASS = "org.eclipse.jdt.internal.compiler.lookup.ParameterizedMethodBinding";
     private static final String REFERENCE_BINDING_CLASS = "org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding";
@@ -42,13 +62,32 @@ public class ZirconCore {
     private static final String SKIP_ANONYMOUS_IMPLICIT_SELECTORS_PROPERTY = "zircon.skip.anonymousImplicitSelectors";
     // Binary/source lookup caches avoid repeated jar probing during a single language-server session.
     private static final Map<String, String> DISK_BINARY_LOCATION_CACHE = new ConcurrentHashMap<>();
-    private static final Set<String> DISK_BINARY_LOOKUP_MISSES = ConcurrentHashMap.newKeySet();
+    private static final Set<String> DISK_BINARY_LOOKUP_MISSES = newBoundedConcurrentSet();
     private static final Map<String, Object[]> BINARY_METHOD_ANNOTATION_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Object[]> BINARY_TYPE_ANNOTATION_CACHE = new ConcurrentHashMap<>();
     // Per-compilation-unit caches keep reflection-heavy extension lookup stable without rescanning the same scope.
     private static final Map<Object, List<Object>> COMPILATION_UNIT_CANDIDATE_TYPES_CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
     private static final Map<Object, Map<String, List<Object>>> SELECTOR_EXTENSION_METHOD_CACHE =
             Collections.synchronizedMap(new WeakHashMap<>());
+    // JDT already persists source/binary annotation references. Keep only the
+    // resulting extension owner/selector keys here; no classpath files are scanned.
+    private static final Map<Object, JdtExtensionIndexSnapshot> JDT_EXTENSION_INDEX_CACHE =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Object, CompletableFuture<JdtExtensionIndexSnapshot>> JDT_EXTENSION_INDEX_REFRESHES =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<ClassLoader, Class<?>> JDT_SEARCH_REQUESTOR_CLASSES =
+            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Long, List<JdtIndexedExtensionMethod>> JDT_SEARCH_RESULTS = new ConcurrentHashMap<>();
+    private static final Set<Long> JDT_METHOD_DECLARATION_SEARCH_REQUESTS = ConcurrentHashMap.newKeySet();
+    private static final Map<String, String> JDT_BINARY_TYPE_LOCATIONS = new ConcurrentHashMap<>();
+    private static final Set<String> JDT_APPLICATION_LIBRARY_LOCATIONS = newBoundedConcurrentSet();
+    private static final AtomicLong JDT_SEARCH_REQUEST_IDS = new AtomicLong();
+    private static final ExecutorService JDT_EXTENSION_INDEX_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "zircon-jdt-extension-index");
+        thread.setDaemon(true);
+        return thread;
+    });
     // JDT's Java search resolves candidate calls again after its index has narrowed the files.
     // Facade bindings intentionally look like receiver methods, while the SearchPattern points at
     // the original static @ExMethod declaration. Keep a weak identity-like bridge so MethodLocator
@@ -56,35 +95,114 @@ public class ZirconCore {
     private static final Map<Object, Object> JDT_SEARCH_ORIGINAL_METHODS =
             Collections.synchronizedMap(new WeakHashMap<>());
     // These de-dup sets only gate debug logging so repeated JDT callbacks do not flood the console.
-    private static final Set<String> MESSAGE_SEND_GENERATE_CODE_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> MESSAGE_SEND_GENERATE_CODE_PREPARE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> MESSAGE_SEND_ANALYSE_CODE_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> MESSAGE_SEND_ANALYSE_CODE_STACK_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> MESSAGE_SEND_RESOLVE_TYPE_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> LAMBDA_GENERATE_CODE_PREPARE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> LAMBDA_GENERATE_CODE_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> LAMBDA_CAPTURE_INFERENCE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> LAMBDA_ANALYSE_SCOPE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> AST_INSPECTION_FAILURE_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> FUNCTIONAL_REFRESH_BINDING_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> CONDITIONAL_ANALYSE_DIAGNOSTIC_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> RECEIVER_REWRITE_DIAGNOSTIC_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> FUNCTIONAL_EXPECTED_TYPE_DIAGNOSTIC_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> PROBLEM_REPORT_KEYS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> RECORDED_PROBLEM_KEYS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> MESSAGE_SEND_GENERATE_CODE_FAILURE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> MESSAGE_SEND_GENERATE_CODE_PREPARE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> MESSAGE_SEND_ANALYSE_CODE_FAILURE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> MESSAGE_SEND_ANALYSE_CODE_STACK_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> MESSAGE_SEND_RESOLVE_TYPE_FAILURE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> LAMBDA_GENERATE_CODE_PREPARE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> LAMBDA_GENERATE_CODE_FAILURE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> LAMBDA_CAPTURE_INFERENCE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> LAMBDA_ANALYSE_SCOPE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> AST_INSPECTION_FAILURE_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> FUNCTIONAL_REFRESH_BINDING_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> CONDITIONAL_ANALYSE_DIAGNOSTIC_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> RECEIVER_REWRITE_DIAGNOSTIC_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> FUNCTIONAL_EXPECTED_TYPE_DIAGNOSTIC_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> PROBLEM_REPORT_KEYS = newBoundedConcurrentSet();
+    private static final Set<String> RECORDED_PROBLEM_KEYS = newBoundedConcurrentSet();
     // Successful range records let later JDT diagnostics be suppressed only for invocations we already rebound safely.
-    private static final Set<String> SUCCESSFUL_CLASS_TARGET_EXTENSION_RANGES = ConcurrentHashMap.newKeySet();
-    private static final Set<String> SUCCESSFUL_EXTENSION_UNDEFINED_RANGES = ConcurrentHashMap.newKeySet();
-    private static final Set<String> SUCCESSFUL_FUNCTIONAL_WRAPPER_RANGES = ConcurrentHashMap.newKeySet();
+    private static final Set<String> SUCCESSFUL_CLASS_TARGET_EXTENSION_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> SUCCESSFUL_EXTENSION_UNDEFINED_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> SUCCESSFUL_FUNCTIONAL_WRAPPER_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> PROVEN_EXTENSION_FUNCTIONAL_TARGET_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> PROVEN_LOCAL_REFERENCE_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> SEMANTIC_TYPE_VARIABLE_TARGET_RANGES = newBoundedConcurrentSet();
+    private static final Set<String> SEMANTIC_NESTED_TYPE_VARIABLE_TARGET_RANGES = newBoundedConcurrentSet();
     private static final Map<String, List<Object>> SUCCESSFUL_EXTENSION_FUNCTIONAL_PARAMETER_TYPES = new ConcurrentHashMap<>();
     private static final Map<String, List<Object>> SUCCESSFUL_EXTENSION_FUNCTIONAL_RETURN_TYPES = new ConcurrentHashMap<>();
     private static final Map<String, String> SUCCESSFUL_EXTENSION_UNDEFINED_SELECTORS = new ConcurrentHashMap<>();
     private static final ThreadLocal<Integer> MESSAGE_SEND_RESOLVE_RECOVERY_DEPTH = ThreadLocal.withInitial(() -> 0);
+    private static final ThreadLocal<Map<String, String>> COMPLETION_REQUIRED_IMPORTS = new ThreadLocal<>();
     // Reflection caches keep repeated field lookup cheap across different JDT binding implementations.
     private static final Map<Class<?>, Map<String, Field>> FIELD_CACHE = new ConcurrentHashMap<>();
     private static final Map<Class<?>, Set<String>> FIELD_MISS_CACHE = new ConcurrentHashMap<>();
 
     private ZirconCore() {
+    }
+
+    private static <E> Set<E> newBoundedConcurrentSet() {
+        return new BoundedConcurrentSet<>(SESSION_DIAGNOSTIC_CACHE_LIMIT);
+    }
+
+    private static <K, V> void putBoundedConcurrentMap(Map<K, V> map, K key, V value) {
+        map.put(key, value);
+        if (map.size() <= SESSION_DIAGNOSTIC_CACHE_LIMIT) {
+            return;
+        }
+        synchronized (map) {
+            int removeCount = Math.max(1, map.size() - SESSION_DIAGNOSTIC_CACHE_LIMIT);
+            Iterator<K> iterator = map.keySet().iterator();
+            while (removeCount-- > 0 && iterator.hasNext()) {
+                map.remove(iterator.next());
+            }
+        }
+    }
+
+    private static final class BoundedConcurrentSet<E> extends AbstractSet<E> {
+        private final int maximumSize;
+        private final ConcurrentHashMap<E, Boolean> values = new ConcurrentHashMap<>();
+        private final ConcurrentLinkedQueue<E> insertionOrder = new ConcurrentLinkedQueue<>();
+
+        private BoundedConcurrentSet(int maximumSize) {
+            this.maximumSize = Math.max(1, maximumSize);
+        }
+
+        @Override
+        public boolean add(E value) {
+            if (values.putIfAbsent(value, Boolean.TRUE) != null) {
+                return false;
+            }
+            insertionOrder.add(value);
+            trimToMaximumSize();
+            return true;
+        }
+
+        @Override
+        public boolean remove(Object value) {
+            return values.remove(value) != null;
+        }
+
+        @Override
+        public boolean contains(Object value) {
+            return values.containsKey(value);
+        }
+
+        @Override
+        public Iterator<E> iterator() {
+            return values.keySet().iterator();
+        }
+
+        @Override
+        public int size() {
+            return values.size();
+        }
+
+        @Override
+        public void clear() {
+            values.clear();
+            insertionOrder.clear();
+        }
+
+        private void trimToMaximumSize() {
+            while (values.size() > maximumSize) {
+                E oldest = insertionOrder.poll();
+                if (oldest == null) {
+                    return;
+                }
+                values.remove(oldest);
+            }
+        }
     }
 
     private static final class CandidateBinding {
@@ -93,6 +211,7 @@ public class ZirconCore {
         private final Object targetType;
         private final String ownerClassName;
         private final boolean cover;
+        private boolean completionImportRequired;
 
         private CandidateBinding(Object binding, Object originalMethod, Object targetType, String ownerClassName, boolean cover) {
             this.binding = binding;
@@ -220,7 +339,6 @@ public class ZirconCore {
             if (candidates.isEmpty()) {
                 return null;
             }
-
             Object[] safeArgumentTypes = argumentTypes != null ? argumentTypes : emptyTypeBindingArray(scope);
             List<CandidateBinding> compatibleBindings = new ArrayList<>();
             for (CandidateBinding candidate : candidates) {
@@ -290,6 +408,37 @@ public class ZirconCore {
         rememberSuccessfulExtensionUndefinedRange(scope, result, invocationSite);
         return result;
     }
+
+    private static final class JdtIndexedExtensionMethod {
+        private final String ownerQualifiedName;
+        private final String selector;
+
+        private JdtIndexedExtensionMethod(String ownerQualifiedName, String selector) {
+            this.ownerQualifiedName = ownerQualifiedName;
+            this.selector = selector;
+        }
+
+        private String key() {
+            return ownerQualifiedName + "#" + selector;
+        }
+    }
+
+    private static final class JdtExtensionIndexSnapshot {
+        private final long createdAtMillis;
+        private final long projectModificationStamp;
+        private final List<JdtIndexedExtensionMethod> methods;
+
+        private JdtExtensionIndexSnapshot(
+                long createdAtMillis,
+                long projectModificationStamp,
+                List<JdtIndexedExtensionMethod> methods
+        ) {
+            this.createdAtMillis = createdAtMillis;
+            this.projectModificationStamp = projectModificationStamp;
+            this.methods = methods;
+        }
+    }
+
 
     public static void logMessageSendGenerateCodeFailure(Object messageSend, boolean valueRequired, Throwable throwable) {
         if (messageSend == null || throwable == null) {
@@ -1194,6 +1343,13 @@ public class ZirconCore {
         }
         try {
             if (currentScope != null) {
+                rebindProblemFieldLocalReferences(
+                        messageSend,
+                        currentScope,
+                        currentScope,
+                        new IdentityHashMap<>(),
+                        0
+                );
                 stabilizeMessageSendFunctionalArguments(messageSend, currentScope);
             }
             Object binding = getFieldValue(messageSend, "binding");
@@ -1202,6 +1358,14 @@ public class ZirconCore {
             }
             if (currentScope == null) {
                 logMessageSendAnalyseCodeState("null-scope", messageSend, null, null);
+                return flowInfo;
+            }
+            if (!hydrateMessageSendArgumentTypes(messageSend)) {
+                // Lambda inference can ask analyseCode to inspect a copied AST
+                // before every captured name has a binding. Calling resolveType
+                // in that state enters JDT's invocation checks with a null
+                // argumentType and throws. The enclosing inference pass will
+                // revisit this node after bindings have been established.
                 return flowInfo;
             }
             InvocationRewriteState resolveState = captureInvocationRewriteState(messageSend);
@@ -1874,10 +2038,10 @@ public class ZirconCore {
         boolean functionalContext = looksLikeFunctionalProblemContext(compilationResult, start, end, normalizedContext);
         boolean shouldSuppress = (problemId == 16777235
                 && message.contains("cannot convert from Class<")
-                && message.contains(" to Class<T>"))
+                && isConversionTargetBackedByTypeVariable(compilationResult, start, end, message, true))
                 || (functionalContext && (isFunctionalTargetTypeProblemMessage(message)
                 || isFunctionalVoidReturnProblem(problemId, message)
-                || isFunctionalTypeVariableReturnProblem(problemId, message)
+                || isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)
                 || isFunctionalLambdaReturnProblem(message)));
         if (shouldSuppress && Util.isDebugEnabled()) {
             Util.log("[ZirconCore] suppressClassTargetProblem"
@@ -2147,29 +2311,51 @@ public class ZirconCore {
             return false;
         }
         try {
-            Object compilationResult = findField(problemReporter.getClass(), "referenceContext") != null
-                    ? getFieldValue(problemReporter, "referenceContext")
-                    : null;
-            if (compilationResult == null) {
-                compilationResult = findField(problemReporter.getClass(), "compilationResult") != null
-                        ? getFieldValue(problemReporter, "compilationResult")
-                        : null;
-            }
-            Object rawId = arguments.length > 0 ? arguments[0] : null;
-            Object rawStart = arguments.length > 1 ? arguments[1] : null;
-            Object rawEnd = arguments.length > 2 ? arguments[2] : null;
-            Object rawMessage = arguments.length > 4 ? arguments[4] : null;
-            Integer problemId = rawId instanceof Integer ? (Integer) rawId : null;
-            Integer start = rawStart instanceof Integer ? (Integer) rawStart : null;
-            Integer end = rawEnd instanceof Integer ? (Integer) rawEnd : null;
-            String message = rawMessage == null ? null : String.valueOf(rawMessage);
-            if ((message == null || message.isEmpty()) && arguments.length > 3) {
-                Object localized = arguments[3];
-                if (localized instanceof char[]) {
-                    message = new String((char[]) localized);
-                } else if (localized != null) {
-                    message = String.valueOf(localized);
+            Integer problemId = arguments[0] instanceof Integer ? (Integer) arguments[0] : null;
+            int elaborationId = 0;
+            String[] messageArguments = null;
+            Integer start = null;
+            Integer end = null;
+            Object compilationResult = null;
+            if (arguments.length == 7) {
+                elaborationId = arguments[2] instanceof Integer ? (Integer) arguments[2] : 0;
+                messageArguments = arguments[3] instanceof String[] ? (String[]) arguments[3] : null;
+                start = arguments[5] instanceof Integer ? (Integer) arguments[5] : null;
+                end = arguments[6] instanceof Integer ? (Integer) arguments[6] : null;
+            } else {
+                messageArguments = arguments[2] instanceof String[] ? (String[]) arguments[2] : null;
+                start = arguments[3] instanceof Integer ? (Integer) arguments[3] : null;
+                end = arguments[4] instanceof Integer ? (Integer) arguments[4] : null;
+                if (arguments.length == 6 && !(arguments[5] instanceof Integer)) {
+                    compilationResult = arguments[5];
                 }
+            }
+            if (compilationResult == null) {
+                Object referenceContext = findField(problemReporter.getClass(), "referenceContext") != null
+                        ? getFieldValue(problemReporter, "referenceContext")
+                        : null;
+                compilationResult = referenceContext == null
+                        ? null
+                        : invokeOptionalMethod(referenceContext, "compilationResult");
+                if (compilationResult == null && referenceContext != null) {
+                    compilationResult = getFieldValue(referenceContext, "compilationResult");
+                }
+            }
+            if (compilationResult == null && findField(problemReporter.getClass(), "compilationResult") != null) {
+                compilationResult = getFieldValue(problemReporter, "compilationResult");
+            }
+            String message = null;
+            Object problemFactory = getFieldValue(problemReporter, "problemFactory");
+            if (problemFactory != null && problemId != null) {
+                Object localized;
+                try {
+                    localized = arguments.length == 7
+                            ? invokeMethod(problemFactory, "getLocalizedMessage", problemId, elaborationId, messageArguments)
+                            : invokeMethod(problemFactory, "getLocalizedMessage", problemId, messageArguments);
+                } catch (Exception ignored) {
+                    localized = null;
+                }
+                message = localized == null ? null : String.valueOf(localized);
             }
             return shouldSuppressResolvableLocalReferenceProblem(compilationResult, problemId, start, end, message);
         } catch (Exception ignored) {
@@ -2217,6 +2403,31 @@ public class ZirconCore {
         } catch (Exception ignored) {
             return false;
         }
+    }
+
+    private static boolean hydrateMessageSendArgumentTypes(Object messageSend) throws Exception {
+        Object[] arguments = getFieldValue(messageSend, "arguments") instanceof Object[]
+                ? (Object[]) getFieldValue(messageSend, "arguments")
+                : new Object[0];
+        for (Object argument : arguments) {
+            if (argument == null || isFunctionalInvocationArgument(argument)) {
+                continue;
+            }
+            Object resolvedType = getFieldValue(argument, "resolvedType");
+            if (resolvedType != null) {
+                continue;
+            }
+            Object argumentBinding = getFieldValue(argument, "binding");
+            Object bindingType = argumentBinding == null ? null : getFieldValue(argumentBinding, "type");
+            if (bindingType != null && findField(argument.getClass(), "resolvedType") != null) {
+                setFieldValue(argument, "resolvedType", bindingType);
+                resolvedType = bindingType;
+            }
+            if (resolvedType == null) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean shouldSuppressSuccessfulFunctionalWrapperRecordedProblem(Object compilationResult, Object problem) {
@@ -2321,7 +2532,7 @@ public class ZirconCore {
             shouldSuppress = normalizedContext.contains(".") && normalizedContext.contains("(");
         } else if (isFunctionalTargetTypeProblemMessage(message)
                 || isFunctionalVoidReturnProblem(problemId, message)
-                || isFunctionalTypeVariableReturnProblem(problemId, message)) {
+                || isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)) {
             shouldSuppress = true;
         }
         if (shouldSuppress && Util.isDebugEnabled()) {
@@ -2397,7 +2608,32 @@ public class ZirconCore {
         if (!localFieldProblem && !localVariableProblem) {
             return false;
         }
-        if (Boolean.getBoolean("zircon.forceLocalSuppress")) {
+        String fileName = describeCompilationUnitFileName(compilationResult);
+        if (fileName != null && hasSuccessfulRangeCovering(PROVEN_LOCAL_REFERENCE_RANGES, fileName, start, end)) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconCore] suppressResolvableLocalReferenceProblem"
+                        + ": file=" + fileName
+                        + ", range=" + start + "-" + end
+                        + ", message=" + message
+                        + ", mode=proven-scope-binding");
+            }
+            return true;
+        }
+        String referenceName = extractProblemReferenceName(message);
+        if (referenceName == null || referenceName.isEmpty()) {
+            return false;
+        }
+        String source = getCompilationUnitSource(compilationResult);
+        String diskSource = readCompilationUnitDiskSource(compilationResult);
+        if (hasVisibleLocalDeclarationSource(source, start, referenceName)
+                || hasVisibleLocalDeclarationSource(diskSource, start, referenceName)) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconCore] suppressResolvableLocalReferenceProblem"
+                        + ": range=" + start + "-" + end
+                        + ", message=" + message
+                        + ", reference=" + referenceName
+                        + ", mode=lexical-block");
+            }
             return true;
         }
         Object compilationUnit = invokeOptionalMethod(compilationResult, "getCompilationUnit");
@@ -2415,7 +2651,7 @@ public class ZirconCore {
             return false;
         }
         String simpleName = match.node.getClass().getSimpleName();
-        String referenceName = ("SingleNameReference".equals(simpleName) || "QualifiedNameReference".equals(simpleName))
+        referenceName = ("SingleNameReference".equals(simpleName) || "QualifiedNameReference".equals(simpleName))
                 ? readReferenceSimpleName(match.node, getFieldValue(match.node, "binding"))
                 : null;
         if (referenceName == null || referenceName.isEmpty() || "unknown".equals(referenceName)) {
@@ -2424,8 +2660,6 @@ public class ZirconCore {
                 return false;
             }
         }
-        String source = getCompilationUnitSource(compilationResult);
-        String diskSource = readCompilationUnitDiskSource(compilationResult);
         if (hasNearbyLocalDeclarationSource(source, start, referenceName)
                 || hasNearbyLocalDeclarationSource(diskSource, start, referenceName)
                 || hasSimpleLocalAssignmentSource(source, referenceName)
@@ -2470,6 +2704,151 @@ public class ZirconCore {
                     + ", scope=" + describeScopeDebug(match.scope));
         }
         return true;
+    }
+
+    /**
+     * Proves that a reported name has an earlier declaration in the same
+     * lexical block. This is used only for JDT's transient local/field lookup
+     * diagnostics emitted while resolving synthetic Elvis expressions and
+     * cached lambda copies.
+     */
+    private static boolean hasVisibleLocalDeclarationSource(String source, int referenceStart, String referenceName) {
+        if (source == null
+                || source.isEmpty()
+                || referenceName == null
+                || referenceName.isEmpty()
+                || referenceStart <= 0) {
+            return false;
+        }
+        int safeStart = Math.min(referenceStart, source.length());
+        int blockStart = findInnermostLexicalBlockStart(source, safeStart);
+        int segmentStart = Math.max(0, blockStart + 1);
+        String visiblePrefix = maskNestedBlocksAndNonCode(source, segmentStart, safeStart);
+        if (visiblePrefix.isEmpty()) {
+            return false;
+        }
+        String type = "(?:var|[A-Za-z_$][\\w$]*(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*)*"
+                + "(?:\\s*<[^;{}=()]*>)?(?:\\s*\\[\\s*\\])*)";
+        java.util.regex.Pattern declaration = java.util.regex.Pattern.compile(
+                "(?s)(?:^|[;({])\\s*(?:final\\s+)?"
+                        + "(?!(?:return|throw|case|new|if|while|for|switch)\\b)"
+                        + type
+                        + "\\s+"
+                        + java.util.regex.Pattern.quote(referenceName)
+                        + "\\s*(?==|;|,)"
+        );
+        return declaration.matcher(visiblePrefix).find();
+    }
+
+    private static int findInnermostLexicalBlockStart(String source, int endExclusive) {
+        List<Integer> blockStarts = new ArrayList<>();
+        int state = 0;
+        int limit = Math.min(Math.max(0, endExclusive), source.length());
+        for (int index = 0; index < limit; index++) {
+            char current = source.charAt(index);
+            char next = index + 1 < limit ? source.charAt(index + 1) : '\0';
+            if (state == 1 || state == 2) {
+                if (current == '\\') {
+                    index++;
+                } else if ((state == 1 && current == '\'') || (state == 2 && current == '"')) {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 3) {
+                if (current == '\r' || current == '\n') {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 4) {
+                if (current == '*' && next == '/') {
+                    state = 0;
+                    index++;
+                }
+                continue;
+            }
+            if (current == '\'') {
+                state = 1;
+            } else if (current == '"') {
+                state = 2;
+            } else if (current == '/' && next == '/') {
+                state = 3;
+                index++;
+            } else if (current == '/' && next == '*') {
+                state = 4;
+                index++;
+            } else if (current == '{') {
+                blockStarts.add(index);
+            } else if (current == '}' && !blockStarts.isEmpty()) {
+                blockStarts.remove(blockStarts.size() - 1);
+            }
+        }
+        return blockStarts.isEmpty() ? -1 : blockStarts.get(blockStarts.size() - 1);
+    }
+
+    private static String maskNestedBlocksAndNonCode(String source, int start, int endExclusive) {
+        int safeStart = Math.max(0, Math.min(start, source.length()));
+        int safeEnd = Math.max(safeStart, Math.min(endExclusive, source.length()));
+        StringBuilder visible = new StringBuilder(safeEnd - safeStart);
+        int state = 0;
+        int nestedBlockDepth = 0;
+        for (int index = safeStart; index < safeEnd; index++) {
+            char current = source.charAt(index);
+            char next = index + 1 < safeEnd ? source.charAt(index + 1) : '\0';
+            if (state == 1 || state == 2) {
+                visible.append(' ');
+                if (current == '\\' && index + 1 < safeEnd) {
+                    visible.append(' ');
+                    index++;
+                } else if ((state == 1 && current == '\'') || (state == 2 && current == '"')) {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 3) {
+                visible.append(current == '\r' || current == '\n' ? current : ' ');
+                if (current == '\r' || current == '\n') {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 4) {
+                visible.append(' ');
+                if (current == '*' && next == '/') {
+                    visible.append(' ');
+                    index++;
+                    state = 0;
+                }
+                continue;
+            }
+            if (current == '\'') {
+                visible.append(' ');
+                state = 1;
+            } else if (current == '"') {
+                visible.append(' ');
+                state = 2;
+            } else if (current == '/' && next == '/') {
+                visible.append("  ");
+                index++;
+                state = 3;
+            } else if (current == '/' && next == '*') {
+                visible.append("  ");
+                index++;
+                state = 4;
+            } else if (current == '{') {
+                nestedBlockDepth++;
+                visible.append(' ');
+            } else if (current == '}') {
+                if (nestedBlockDepth > 0) {
+                    nestedBlockDepth--;
+                }
+                visible.append(' ');
+            } else {
+                visible.append(nestedBlockDepth == 0 ? current : ' ');
+            }
+        }
+        return visible.toString();
     }
 
     private static String readCompilationUnitDiskSource(Object compilationResult) {
@@ -2678,7 +3057,7 @@ public class ZirconCore {
                 || start == null
                 || end == null
                 || message == null
-                || !isOptionalFunctionalProblem(problemId, message)) {
+                || !isOptionalFunctionalProblem(compilationResult, problemId, start, end, message)) {
             return false;
         }
         String source = getCompilationUnitSource(compilationResult);
@@ -3124,7 +3503,7 @@ public class ZirconCore {
             selectorName = getSelectorName(binding);
         }
         if (!selectorName.isEmpty()) {
-            SUCCESSFUL_EXTENSION_UNDEFINED_SELECTORS.put(rangeKey, selectorName);
+            putBoundedConcurrentMap(SUCCESSFUL_EXTENSION_UNDEFINED_SELECTORS, rangeKey, selectorName);
         }
         rememberSuccessfulExtensionFunctionalParameterTypes(scope, binding, invocationSite, rangeKey);
     }
@@ -3335,13 +3714,15 @@ public class ZirconCore {
             }
         }
         if (!functionalParameterTypes.isEmpty()) {
-            SUCCESSFUL_EXTENSION_FUNCTIONAL_PARAMETER_TYPES.put(
+            putBoundedConcurrentMap(
+                    SUCCESSFUL_EXTENSION_FUNCTIONAL_PARAMETER_TYPES,
                     rangeKey,
                     Collections.unmodifiableList(new ArrayList<>(functionalParameterTypes))
             );
         }
         if (!functionalReturnTypes.isEmpty()) {
-            SUCCESSFUL_EXTENSION_FUNCTIONAL_RETURN_TYPES.put(
+            putBoundedConcurrentMap(
+                    SUCCESSFUL_EXTENSION_FUNCTIONAL_RETURN_TYPES,
                     rangeKey,
                     Collections.unmodifiableList(new ArrayList<>(functionalReturnTypes))
             );
@@ -3459,10 +3840,15 @@ public class ZirconCore {
                 || message == null) {
             return false;
         }
+        String fileName = describeCompilationUnitFileName(compilationResult);
+        if (isFunctionalTargetTypeProblemMessage(message)
+                && fileName != null
+                && hasSuccessfulRangeCovering(PROVEN_EXTENSION_FUNCTIONAL_TARGET_RANGES, fileName, start, end)) {
+            return true;
+        }
         if (shouldSuppressProvableFunctionalExtensionProblem(compilationResult, problemId, start, end, message)) {
             return true;
         }
-        String fileName = describeCompilationUnitFileName(compilationResult);
         if (fileName == null || !hasSuccessfulRangeCovering(SUCCESSFUL_EXTENSION_UNDEFINED_RANGES, fileName, start, end)) {
             return false;
         }
@@ -3480,7 +3866,7 @@ public class ZirconCore {
             shouldSuppress = hasUsableFunctionalReturnType(functionalReturnTypes);
         } else if (isFunctionalVoidReturnProblem(problemId, message)) {
             shouldSuppress = hasNonVoidFunctionalReturnType(functionalReturnTypes);
-        } else if (isFunctionalTypeVariableReturnProblem(problemId, message)) {
+        } else if (isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)) {
             shouldSuppress = hasUsableFunctionalReturnType(functionalReturnTypes);
         }
         if (shouldSuppress && Util.isDebugEnabled()) {
@@ -3554,7 +3940,7 @@ public class ZirconCore {
             }
             if (isFunctionalTargetTypeProblemMessage(message)
                     || isFunctionalVoidReturnProblem(problemId, message)
-                    || isFunctionalTypeVariableReturnProblem(problemId, message)
+                    || isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)
                     || isFunctionalLambdaReturnProblem(message)) {
                 if (Util.isDebugEnabled()) {
                     Util.log("[ZirconCore] suppressNestedSuccessfulFunctionalProblem"
@@ -3582,7 +3968,7 @@ public class ZirconCore {
             shouldSuppress = functionalReturnTypes.isEmpty() || hasUsableFunctionalReturnType(functionalReturnTypes);
         } else if (isFunctionalVoidReturnProblem(problemId, message)) {
             shouldSuppress = !functionalReturnTypes.isEmpty() && hasNonVoidFunctionalReturnType(functionalReturnTypes);
-        } else if (isFunctionalTypeVariableReturnProblem(problemId, message)) {
+        } else if (isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)) {
             shouldSuppress = !functionalReturnTypes.isEmpty() && hasUsableFunctionalReturnType(functionalReturnTypes);
         }
         if (shouldSuppress && Util.isDebugEnabled()) {
@@ -3914,7 +4300,13 @@ public class ZirconCore {
                 && (normalizedContext.contains("?.") || normalizedContext.contains("?:"));
     }
 
-    private static boolean isOptionalFunctionalProblem(Integer problemId, String message) {
+    private static boolean isOptionalFunctionalProblem(
+            Object compilationResult,
+            Integer problemId,
+            Integer start,
+            Integer end,
+            String message
+    ) throws Exception {
         if (problemId == null || message == null) {
             return false;
         }
@@ -3927,7 +4319,7 @@ public class ZirconCore {
         }
         return isFunctionalTargetTypeProblemMessage(message)
                 || isFunctionalVoidReturnProblem(problemId, message)
-                || isFunctionalTypeVariableReturnProblem(problemId, message)
+                || isFunctionalTypeVariableReturnProblem(compilationResult, problemId, start, end, message)
                 || isFunctionalLambdaReturnProblem(message);
     }
 
@@ -3955,12 +4347,18 @@ public class ZirconCore {
                 && "void".equals(extractConversionTargetTypeName(message));
     }
 
-    private static boolean isFunctionalTypeVariableReturnProblem(Integer problemId, String message) {
+    private static boolean isFunctionalTypeVariableReturnProblem(
+            Object compilationResult,
+            Integer problemId,
+            Integer start,
+            Integer end,
+            String message
+    ) throws Exception {
         return problemId != null
                 && (problemId == 16777235 || problemId == 16777233)
                 && message != null
                 && message.startsWith("Type mismatch: cannot convert from ")
-                && looksLikeTypeVariableName(extractConversionTargetTypeName(message));
+                && isConversionTargetBackedByTypeVariable(compilationResult, start, end, message, false);
     }
 
     private static String extractConversionTargetTypeName(String message) {
@@ -3971,17 +4369,160 @@ public class ZirconCore {
         return marker < 0 ? "" : message.substring(marker + " to ".length()).trim();
     }
 
-    private static boolean looksLikeTypeVariableName(String typeName) {
-        if (typeName == null || typeName.isEmpty() || typeName.length() > 32 || !Character.isUpperCase(typeName.charAt(0))) {
+    private static boolean isConversionTargetBackedByTypeVariable(
+            Object compilationResult,
+            Integer start,
+            Integer end,
+            String message,
+            boolean includeNestedTypeArguments
+    ) throws Exception {
+        if (compilationResult == null || start == null || end == null || message == null) {
             return false;
         }
-        for (int index = 1; index < typeName.length(); index++) {
-            char ch = typeName.charAt(index);
-            if (!Character.isLetterOrDigit(ch) && ch != '_' && ch != '#') {
+        String fileName = describeCompilationUnitFileName(compilationResult);
+        Set<String> semanticRanges = includeNestedTypeArguments
+                ? SEMANTIC_NESTED_TYPE_VARIABLE_TARGET_RANGES
+                : SEMANTIC_TYPE_VARIABLE_TARGET_RANGES;
+        Object compilationUnit = invokeOptionalMethod(compilationResult, "getCompilationUnit");
+        if (compilationUnit == null) {
+            compilationUnit = getFieldValue(compilationResult, "compilationUnit");
+        }
+        if (compilationUnit == null) {
+            compilationUnit = getFieldValue(compilationResult, "compilationUnitDeclaration");
+        }
+        if (compilationUnit == null) {
+            return fileName != null && hasSuccessfulRangeCovering(semanticRanges, fileName, start, end);
+        }
+        RangeAstMatch match = findAstNodeCoveringRange(
+                compilationUnit,
+                start,
+                end,
+                null,
+                null,
+                new IdentityHashMap<>(),
+                0
+        );
+        if (match == null || match.node == null) {
+            return fileName != null && hasSuccessfulRangeCovering(semanticRanges, fileName, start, end);
+        }
+
+        Object targetBinding = findExpectedTypeBindingForProblemNode(match.node);
+        Object lambdaReturnType = match.enclosingLambda != null
+                ? findLambdaReturnTypeBinding(match.enclosingLambda)
+                : null;
+        if (targetBinding != null && !isProblem(targetBinding)) {
+            boolean semanticTypeVariable = includeNestedTypeArguments
+                    ? containsTypeVariableBinding(targetBinding, new IdentityHashMap<>(), 0)
+                    : isActualTypeVariableBinding(targetBinding);
+            if (semanticTypeVariable) {
+                return true;
+            }
+            // A diagnostic whose smallest covering node is the lambda itself sees
+            // Supplier<T> as expectedType. The conversion target is the SAM return
+            // binding, not the functional-interface binding.
+            if (!isLambdaExpression(match.node)) {
                 return false;
             }
         }
-        return true;
+        boolean lambdaTypeVariable = lambdaReturnType != null
+                && (includeNestedTypeArguments
+                ? containsTypeVariableBinding(lambdaReturnType, new IdentityHashMap<>(), 0)
+                : isActualTypeVariableBinding(lambdaReturnType));
+        return lambdaTypeVariable
+                || (fileName != null && hasSuccessfulRangeCovering(semanticRanges, fileName, start, end));
+    }
+
+    private static Object findExpectedTypeBindingForProblemNode(Object node) throws Exception {
+        if (node == null) {
+            return null;
+        }
+        if (findField(node.getClass(), "expectedType") != null) {
+            Object expectedType = getFieldValue(node, "expectedType");
+            if (expectedType != null && !isProblem(expectedType)) {
+                return expectedType;
+            }
+        }
+        String simpleName = node.getClass().getSimpleName();
+        if ("LocalDeclaration".equals(simpleName)) {
+            Object binding = getFieldValue(node, "binding");
+            Object type = binding != null ? getFieldValue(binding, "type") : null;
+            if (type != null && !isProblem(type)) {
+                return type;
+            }
+            Object typeReference = getFieldValue(node, "type");
+            Object resolvedType = typeReference != null ? getFieldValue(typeReference, "resolvedType") : null;
+            if (resolvedType != null && !isProblem(resolvedType)) {
+                return resolvedType;
+            }
+        }
+        if ("Assignment".equals(simpleName)) {
+            Object lhs = getFieldValue(node, "lhs");
+            Object lhsType = lhs != null ? getFieldValue(lhs, "resolvedType") : null;
+            if (lhsType != null && !isProblem(lhsType)) {
+                return lhsType;
+            }
+            Object lhsBinding = lhs != null ? getFieldValue(lhs, "binding") : null;
+            Object bindingType = lhsBinding != null ? getFieldValue(lhsBinding, "type") : null;
+            if (bindingType != null && !isProblem(bindingType)) {
+                return bindingType;
+            }
+        }
+        return null;
+    }
+
+    private static Object findLambdaReturnTypeBinding(Object lambdaExpression) throws Exception {
+        if (!isLambdaExpression(lambdaExpression)) {
+            return null;
+        }
+        Object descriptor = getFieldValue(lambdaExpression, "descriptor");
+        if (descriptor == null || isProblem(descriptor)) {
+            Object expectedType = getFieldValue(lambdaExpression, "expectedType");
+            Object scope = getFieldValue(lambdaExpression, "scope");
+            if (expectedType != null && scope != null && !isProblem(expectedType)) {
+                descriptor = invokeMethod(expectedType, "getSingleAbstractMethod", scope, true);
+            }
+        }
+        Object returnType = descriptor != null && !isProblem(descriptor)
+                ? getFieldValue(descriptor, "returnType")
+                : null;
+        return returnType != null && !isProblem(returnType) ? returnType : null;
+    }
+
+    private static boolean containsTypeVariableBinding(
+            Object typeBinding,
+            Map<Object, Boolean> visited,
+            int depth
+    ) throws Exception {
+        if (typeBinding == null || depth > 8 || visited.put(typeBinding, Boolean.TRUE) != null) {
+            return false;
+        }
+        if (isActualTypeVariableBinding(typeBinding)) {
+            return true;
+        }
+        Object[] typeArguments = safeGetTypeArguments(typeBinding);
+        if (typeArguments != null) {
+            for (Object typeArgument : typeArguments) {
+                if (containsTypeVariableBinding(typeArgument, visited, depth + 1)) {
+                    return true;
+                }
+            }
+        }
+        Object bound = findField(typeBinding.getClass(), "bound") != null
+                ? getFieldValue(typeBinding, "bound")
+                : null;
+        return bound != null && bound != typeBinding
+                && containsTypeVariableBinding(bound, visited, depth + 1);
+    }
+
+    private static boolean isActualTypeVariableBinding(Object typeBinding) throws Exception {
+        if (typeBinding == null || isProblem(typeBinding)) {
+            return false;
+        }
+        if (isTypeVariable(typeBinding)) {
+            return true;
+        }
+        String className = typeBinding.getClass().getName();
+        return className.endsWith("InferenceVariable") || className.endsWith("TypeVariableBinding");
     }
 
     private static boolean hasUsableFunctionalReturnType(List<Object> functionalReturnTypes) throws Exception {
@@ -4746,17 +5287,19 @@ public class ZirconCore {
             }
             String selectorName = getSelectorName(provedBinding);
             if (!selectorName.isEmpty()) {
-                SUCCESSFUL_EXTENSION_UNDEFINED_SELECTORS.put(rangeKey, selectorName);
+                putBoundedConcurrentMap(SUCCESSFUL_EXTENSION_UNDEFINED_SELECTORS, rangeKey, selectorName);
             }
             Object descriptor = invokeMethod(expectedType, "getSingleAbstractMethod", scope, true);
             if (descriptor == null || isProblem(descriptor)) {
                 return;
             }
             Object descriptorReturnType = getFieldValue(descriptor, "returnType");
+            rememberSemanticTypeVariableTargetRange(rangeKey, descriptorReturnType);
             if (descriptorReturnType != null
                     && !isProblem(descriptorReturnType)
                     && !isTypeVariable(descriptorReturnType)) {
-                SUCCESSFUL_EXTENSION_FUNCTIONAL_RETURN_TYPES.put(
+                putBoundedConcurrentMap(
+                        SUCCESSFUL_EXTENSION_FUNCTIONAL_RETURN_TYPES,
                         rangeKey,
                         Collections.unmodifiableList(Collections.singletonList(descriptorReturnType))
                 );
@@ -4773,13 +5316,192 @@ public class ZirconCore {
                     }
                 }
                 if (!normalizedParameters.isEmpty()) {
-                    SUCCESSFUL_EXTENSION_FUNCTIONAL_PARAMETER_TYPES.put(
+                    putBoundedConcurrentMap(
+                            SUCCESSFUL_EXTENSION_FUNCTIONAL_PARAMETER_TYPES,
                             rangeKey,
                             Collections.unmodifiableList(normalizedParameters)
                     );
                 }
             }
+            pruneResolvedExtensionProblems(compilationResult);
         } catch (Exception ignored) {
+        }
+    }
+
+    private static void rememberSemanticTypeVariableTargetRange(
+            String fileName,
+            int start,
+            int end,
+            Object targetBinding
+    ) throws Exception {
+        if (fileName == null || targetBinding == null || isProblem(targetBinding) || start < 0 || end < start) {
+            return;
+        }
+        rememberSemanticTypeVariableTargetRange(fileName + "|" + start + "|" + end, targetBinding);
+    }
+
+    private static void rememberSemanticTypeVariableTargetRange(
+            String rangeKey,
+            Object targetBinding
+    ) throws Exception {
+        if (rangeKey == null || rangeKey.isEmpty() || targetBinding == null || isProblem(targetBinding)) {
+            return;
+        }
+        if (isActualTypeVariableBinding(targetBinding)) {
+            SEMANTIC_TYPE_VARIABLE_TARGET_RANGES.add(rangeKey);
+        }
+        if (containsTypeVariableBinding(targetBinding, new IdentityHashMap<>(), 0)) {
+            SEMANTIC_NESTED_TYPE_VARIABLE_TARGET_RANGES.add(rangeKey);
+        }
+    }
+
+    private static void rememberSemanticTypeVariableTargetRange(Object scope, Object expression) {
+        if (scope == null || expression == null) {
+            return;
+        }
+        try {
+            Object expectedType = findField(expression.getClass(), "expectedType") != null
+                    ? getFieldValue(expression, "expectedType")
+                    : null;
+            Object compilationResult = resolveCompilationResultFromScope(scope);
+            rememberSemanticTypeVariableTargetRange(
+                    describeCompilationUnitFileName(compilationResult),
+                    readIntField(expression, "sourceStart"),
+                    readIntField(expression, "sourceEnd"),
+                    expectedType
+            );
+        } catch (Exception ignored) {
+        }
+    }
+
+
+    /**
+     * Feeds Zircon facade bindings into CompletionEngine's own proposal pipeline.
+     *
+     * <p>The advice passes the arguments of CompletionEngine#findMethods, immediately
+     * before JDT enumerates the receiver hierarchy. Calling
+     * findLocalMethods keeps JDT responsible for name matching, visibility, proposal
+     * shape, relevance, signatures and generic presentation.</p>
+     */
+    public static void contributeExtensionMethodCompletions(Object completionEngine, Object[] arguments) {
+        try {
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] completion hook args="
+                        + (arguments == null ? -1 : arguments.length));
+            }
+            if (completionEngine == null || arguments == null || arguments.length != 20) {
+                return;
+            }
+            Object receiverType = arguments[3];
+            Object scope = arguments[4];
+            Object methodsFound = arguments[5];
+            Object invocationSite = arguments[8];
+            if (receiverType == null || scope == null || methodsFound == null || isProblem(receiverType)) {
+                return;
+            }
+            Object receiverReferenceBinding = asReferenceBinding(receiverType);
+            Object compilationUnitScope = getCompilationUnitScope(scope);
+            if (receiverReferenceBinding == null || compilationUnitScope == null) {
+                return;
+            }
+
+            char[] token = arguments[0] instanceof char[] ? (char[]) arguments[0] : new char[0];
+            List<CandidateBinding> candidates = collectCompletionExtensionCandidates(
+                    completionEngine,
+                    compilationUnitScope,
+                    token,
+                    receiverType,
+                    scope,
+                    invocationSite
+            );
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] completion candidates receiver=" + getTypeName(receiverType)
+                        + ", receiverDetail=" + describeTypeDebug(receiverType)
+                        + ", token=" + new String(token)
+                        + ", count=" + candidates.size());
+            }
+            if (candidates.isEmpty()) {
+                return;
+            }
+
+            Class<?> methodBindingClass = loadClass(METHOD_BINDING_CLASS, receiverType);
+            Object facadeBindings = java.lang.reflect.Array.newInstance(methodBindingClass, candidates.size());
+            for (int index = 0; index < candidates.size(); index++) {
+                java.lang.reflect.Array.set(facadeBindings, index, candidates.get(index).binding);
+            }
+
+            // These three booleans mirror findFieldsAndMethods' normal call to
+            // findMethods for an explicit receiver: onlyStatic=false,
+            // exactMatch=false, canBePrefixed=false.
+            Map<String, String> requiredImports = buildCompletionRequiredImports(candidates);
+            if (!requiredImports.isEmpty()) {
+                COMPLETION_REQUIRED_IMPORTS.set(requiredImports);
+            }
+            try {
+                invokeMethod(
+                        completionEngine,
+                        "findLocalMethods",
+                        token,
+                        arguments[1],
+                        arguments[2],
+                        facadeBindings,
+                        scope,
+                        methodsFound,
+                        arguments[6],
+                        arguments[7],
+                        receiverReferenceBinding,
+                        invocationSite,
+                        arguments[9],
+                        arguments[10],
+                        arguments[11],
+                        arguments[12],
+                        arguments[13],
+                        arguments[14],
+                        arguments[15],
+                        arguments[16],
+                        arguments[17],
+                        arguments[18],
+                        arguments[19]
+                );
+            } finally {
+                COMPLETION_REQUIRED_IMPORTS.remove();
+            }
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] completion receiver=" + getTypeName(receiverType)
+                        + ", token=" + new String(token)
+                        + ", extensionCandidates=" + candidates.size());
+            }
+        } catch (Throwable throwable) {
+            Util.log("[ZirconCore] extension completion failed: "
+                    + throwable.getClass().getName() + ": " + throwable.getMessage());
+            if (Util.isTraceEnabled()) {
+                Util.log(Util.stackTrace(throwable));
+            }
+        }
+    }
+
+    private static void pruneResolvedExtensionProblems(Object compilationResult) throws Exception {
+        if (compilationResult == null || findField(compilationResult.getClass(), "problems") == null) {
+            return;
+        }
+        Object problems = getFieldValue(compilationResult, "problems");
+        if (problems == null || !problems.getClass().isArray()) {
+            return;
+        }
+        Object filtered = filterResolvedExtensionProblems(compilationResult, problems);
+        if (filtered == problems) {
+            return;
+        }
+        int originalLength = Array.getLength(problems);
+        int retainedCount = Array.getLength(filtered);
+        for (int index = 0; index < retainedCount; index++) {
+            Array.set(problems, index, Array.get(filtered, index));
+        }
+        for (int index = retainedCount; index < originalLength; index++) {
+            Array.set(problems, index, null);
+        }
+        if (findField(compilationResult.getClass(), "problemCount") != null) {
+            setFieldValue(compilationResult, "problemCount", retainedCount);
         }
     }
 
@@ -4877,7 +5599,7 @@ public class ZirconCore {
             Object resolvedArgument,
             Object expectedType
     ) {
-        if (!isLambdaExpression(resolvedArgument)) {
+        if (!Util.isDebugEnabled() || !isLambdaExpression(resolvedArgument)) {
             return;
         }
         try {
@@ -4986,6 +5708,9 @@ public class ZirconCore {
             Object resolvedArgument,
             Object expectedType
     ) {
+        if (!Util.isDebugEnabled()) {
+            return;
+        }
         try {
             if (!isLambdaExpression(resolvedArgument)
                     || !containsNestedLambdaExpression(resolvedArgument, false, new IdentityHashMap<>(), 0)) {
@@ -5463,7 +6188,7 @@ public class ZirconCore {
         String simpleName = node.getClass().getSimpleName();
         if ("SingleNameReference".equals(simpleName) || "QualifiedNameReference".equals(simpleName)) {
             Object binding = getFieldValue(node, "binding");
-            if (binding != null && binding.getClass().getName().endsWith("ProblemFieldBinding")) {
+            if (binding == null || isProblem(binding)) {
                 String referenceName = readReferenceSimpleName(node, binding);
                 Object localBinding = findLocalBindingInScopeChain(nextScope, referenceName);
                 if (localBinding == null && rootScope != null && rootScope != nextScope) {
@@ -5485,11 +6210,32 @@ public class ZirconCore {
                         }
                     }
                     normalizeLocalNameReferenceState(node);
+                    rememberProvenLocalReferenceRange(nextScope, node, localBinding);
                 }
             }
         }
         for (Object child : getAstChildren(node)) {
             rebindProblemFieldLocalReferences(child, nextScope, rootScope, visited, depth + 1);
+        }
+    }
+
+    private static void rememberProvenLocalReferenceRange(Object scope, Object node, Object localBinding) throws Exception {
+        if (scope == null || node == null || !isLocalVariableBinding(localBinding)) {
+            return;
+        }
+        Object localType = getFieldValue(localBinding, "type");
+        if (localType == null || isProblem(localType)) {
+            return;
+        }
+        int start = readIntField(node, "sourceStart");
+        int end = readIntField(node, "sourceEnd");
+        if (start < 0 || end < start) {
+            return;
+        }
+        Object compilationResult = resolveCompilationResultFromScope(scope);
+        String fileName = describeCompilationUnitFileName(compilationResult);
+        if (fileName != null) {
+            PROVEN_LOCAL_REFERENCE_RANGES.add(fileName + "|" + start + "|" + end);
         }
     }
 
@@ -5547,6 +6293,31 @@ public class ZirconCore {
                 return local;
             }
         }
+        // During early conditional-expression recovery MethodScope.locals may
+        // not yet contain its formal parameters. Resolve them from the scope's
+        // actual method/lambda reference context, whose Argument nodes already
+        // carry the canonical LocalVariableBinding (including method type
+        // variables and the enclosing type's substitutions).
+        Object referenceContext = findField(scope.getClass(), "referenceContext") != null
+                ? getFieldValue(scope, "referenceContext")
+                : null;
+        Object contextArguments = referenceContext != null
+                && findField(referenceContext.getClass(), "arguments") != null
+                ? getFieldValue(referenceContext, "arguments")
+                : null;
+        if (contextArguments instanceof Object[]) {
+            for (Object argument : (Object[]) contextArguments) {
+                Object argumentBinding = argument != null
+                        && findField(argument.getClass(), "binding") != null
+                        ? getFieldValue(argument, "binding")
+                        : null;
+                if (argumentBinding != null
+                        && isLocalVariableBinding(argumentBinding)
+                        && referenceName.equals(readBindingSimpleName(argumentBinding))) {
+                    return argumentBinding;
+                }
+            }
+        }
         Object extraSyntheticArguments = findField(scope.getClass(), "extraSyntheticArguments") != null
                 ? getFieldValue(scope, "extraSyntheticArguments")
                 : null;
@@ -5566,9 +6337,6 @@ public class ZirconCore {
                 }
             }
         }
-        Object referenceContext = findField(scope.getClass(), "referenceContext") != null
-                ? getFieldValue(scope, "referenceContext")
-                : null;
         Object lambdaOuterLocals = isLambdaExpression(referenceContext)
                 ? getFieldValue(referenceContext, "outerLocalVariables")
                 : null;
@@ -5989,7 +6757,7 @@ public class ZirconCore {
             boolean syntheticArgumentsAdded,
             Throwable error
     ) throws Exception {
-        if (lambdaExpression == null) {
+        if (!Util.isDebugEnabled() || lambdaExpression == null) {
             return;
         }
         String key = describeSourceRange(lambdaExpression);
@@ -7330,7 +8098,9 @@ public class ZirconCore {
     }
 
     private static boolean isProblemFileLoggingEnabled(String fileName) {
-        return fileName != null && isSelectorEnabledForProperty(fileName, DEBUG_PROBLEM_FILES_PROPERTY);
+        return Util.isDebugEnabled()
+                && fileName != null
+                && isSelectorEnabledForProperty(fileName, DEBUG_PROBLEM_FILES_PROPERTY);
     }
 
     private static boolean shouldDeferFacadeCompatibilityForInvocation(Object invocationSite) throws Exception {
@@ -7660,6 +8430,640 @@ public class ZirconCore {
         return candidates;
     }
 
+    private static List<CandidateBinding> collectCompletionExtensionCandidates(
+            Object completionEngine,
+            Object compilationUnitScope,
+            char[] completionToken,
+            Object receiverType,
+            Object scope,
+            Object invocationSite
+    ) throws Exception {
+        String prefix = completionToken == null ? "" : new String(completionToken);
+        List<CandidateBinding> candidates = new ArrayList<>();
+        Set<String> seenBindings = new LinkedHashSet<>();
+        for (Object candidateType : collectCandidateTypes(compilationUnitScope)) {
+            Object holderType = normalizeHolderType(candidateType, scope);
+            if (holderType == null || isProblem(holderType)) {
+                continue;
+            }
+            Object resolvedMethods = invokeMethod(holderType, "availableMethods");
+            if (!(resolvedMethods instanceof Object[])) {
+                resolvedMethods = invokeMethod(holderType, "methods");
+            }
+            if (!(resolvedMethods instanceof Object[])) {
+                continue;
+            }
+            for (Object methodBinding : (Object[]) resolvedMethods) {
+                String selector = getSelectorName(methodBinding);
+                if (!matchesCompletionPrefix(selector, prefix)) {
+                    continue;
+                }
+                addCompletionExtensionCandidate(
+                        methodBinding,
+                        receiverType,
+                        scope,
+                        candidates,
+                        seenBindings,
+                        false
+                );
+            }
+        }
+
+        // Imported/package bindings above keep the common path immediate. The
+        // global completion path consumes JDT's persisted annotation-reference
+        // index and hydrates only @ExMethod declaring types.
+        for (JdtIndexedExtensionMethod indexed : getJdtIndexedExtensionMethods(completionEngine)) {
+            if (!matchesCompletionPrefix(indexed.selector, prefix)) {
+                continue;
+            }
+            Object holderType = resolveTypeBindingByName(compilationUnitScope, indexed.ownerQualifiedName);
+            holderType = normalizeHolderType(holderType, scope);
+            if (holderType == null || isProblem(holderType)) {
+                if (Util.isTraceEnabled()) {
+                    Util.log("[ZirconCore] indexed completion holder unresolved: owner="
+                            + indexed.ownerQualifiedName + ", selector=" + indexed.selector);
+                }
+                continue;
+            }
+            Object resolvedMethods = invokeMethod(holderType, "getMethods", indexed.selector.toCharArray());
+            if (!(resolvedMethods instanceof Object[])) {
+                if (Util.isTraceEnabled()) {
+                    Util.log("[ZirconCore] indexed completion methods unavailable: owner="
+                            + indexed.ownerQualifiedName + ", selector=" + indexed.selector
+                            + ", holder=" + describeTypeDebug(holderType));
+                }
+                continue;
+            }
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] indexed completion method hydration: owner="
+                        + indexed.ownerQualifiedName + ", selector=" + indexed.selector
+                        + ", methods=" + ((Object[]) resolvedMethods).length);
+            }
+            for (Object methodBinding : (Object[]) resolvedMethods) {
+                addCompletionExtensionCandidate(
+                        methodBinding,
+                        receiverType,
+                        scope,
+                        candidates,
+                        seenBindings,
+                        true
+                );
+            }
+        }
+        return candidates;
+    }
+
+    private static void addCompletionExtensionCandidate(
+            Object methodBinding,
+            Object receiverType,
+            Object scope,
+            List<CandidateBinding> candidates,
+            Set<String> seenBindings,
+            boolean requireImport
+    ) throws Exception {
+        if (!isPotentialExtensionMethod(methodBinding)
+                || !matchesExtensionCandidate(methodBinding, receiverType, scope)) {
+            return;
+        }
+        CandidateBinding facade = createCandidateBinding(
+                methodBinding,
+                methodBinding,
+                receiverType,
+                scope,
+                // CompletionOnMessageSendName does not expose the receiver AST
+                // through the normal receiver field.
+                null
+        );
+        if (facade == null) {
+            return;
+        }
+        Object completionOwner = asReferenceBinding(receiverType);
+        if (completionOwner != null) {
+            setFieldValue(facade.binding, "declaringClass", completionOwner);
+            setFieldValue(facade.binding, "receiver", completionOwner);
+            resetMethodBindingCaches(facade.binding);
+        }
+        String key = getOwnerClassName(getFieldValue(methodBinding, "declaringClass"))
+                + "#" + describeMethodBindingDetailed(methodBinding);
+        if (seenBindings.add(key)) {
+            facade.completionImportRequired = requireImport;
+            candidates.add(facade);
+        }
+    }
+
+    private static Map<String, String> buildCompletionRequiredImports(List<CandidateBinding> candidates) {
+        Map<String, String> result = new LinkedHashMap<>();
+        Map<String, String> selectorOwners = new LinkedHashMap<>();
+        Set<String> ambiguousSelectors = new LinkedHashSet<>();
+        for (CandidateBinding candidate : candidates) {
+            if (!candidate.completionImportRequired
+                    || candidate.ownerClassName == null
+                    || candidate.ownerClassName.isEmpty()) {
+                continue;
+            }
+            try {
+                String selector = getSelectorName(candidate.binding);
+                Object signatureValue = invokeMethod(candidate.binding, "signature");
+                String signature = signatureValue instanceof char[] ? new String((char[]) signatureValue) : "";
+                if (!selector.isEmpty() && !signature.isEmpty()) {
+                    result.put(selector + "#" + signature, candidate.ownerClassName);
+                }
+                String existingOwner = selectorOwners.putIfAbsent(selector, candidate.ownerClassName);
+                if (existingOwner != null && !existingOwner.equals(candidate.ownerClassName)) {
+                    ambiguousSelectors.add(selector);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        for (Map.Entry<String, String> entry : selectorOwners.entrySet()) {
+            if (!ambiguousSelectors.contains(entry.getKey())) {
+                result.put("selector#" + entry.getKey(), entry.getValue());
+            }
+        }
+        return result;
+    }
+
+    /** Adds the declaring extension-container import to a native JDT proposal. */
+    public static void attachJdtExtensionCompletionImport(Object proposal) {
+        Map<String, String> requiredImports = COMPLETION_REQUIRED_IMPORTS.get();
+        if (requiredImports == null || requiredImports.isEmpty() || proposal == null) {
+            return;
+        }
+        try {
+            Object kindValue = invokeMethod(proposal, "getKind");
+            int kind = kindValue instanceof Integer ? (Integer) kindValue : -1;
+            if (kind != 6 && kind != 24) {
+                return;
+            }
+            Object nameValue = invokeMethod(proposal, "getName");
+            Object signatureValue = invokeMethod(proposal, "getSignature");
+            String selector = nameValue instanceof char[] ? new String((char[]) nameValue) : "";
+            String signature = signatureValue instanceof char[] ? new String((char[]) signatureValue) : "";
+            String ownerQualifiedName = requiredImports.get(selector + "#" + signature);
+            if (ownerQualifiedName == null) {
+                ownerQualifiedName = requiredImports.get("selector#" + selector);
+            }
+            if (ownerQualifiedName == null || ownerQualifiedName.isEmpty()) {
+                return;
+            }
+
+            Class<?> proposalClass = proposal.getClass();
+            Object completionLocationValue = invokeMethod(proposal, "getCompletionLocation");
+            int completionLocation = completionLocationValue instanceof Integer
+                    ? (Integer) completionLocationValue
+                    : 0;
+            Object requiredType = invokeStaticMethod(proposalClass, "create", 9, completionLocation);
+            if (requiredType == null) {
+                return;
+            }
+            String sourceQualifiedName = ownerQualifiedName.replace('$', '.');
+            int lastDot = sourceQualifiedName.lastIndexOf('.');
+            String packageName = lastDot >= 0 ? sourceQualifiedName.substring(0, lastDot) : "";
+            String simpleName = lastDot >= 0 ? sourceQualifiedName.substring(lastDot + 1) : sourceQualifiedName;
+            invokeMethod(requiredType, "setDeclarationSignature", packageName.toCharArray());
+            invokeMethod(requiredType, "setPackageName", packageName.toCharArray());
+            invokeMethod(requiredType, "setTypeName", simpleName.toCharArray());
+            invokeMethod(requiredType, "setCompletion", sourceQualifiedName.toCharArray());
+            invokeMethod(requiredType, "setName", simpleName.toCharArray());
+            invokeMethod(requiredType, "setAdditionalFlags", ZIRCON_REQUIRED_IMPORT_PROPOSAL_FLAG);
+            invokeMethod(
+                    requiredType,
+                    "setSignature",
+                    ("L" + sourceQualifiedName + ";").toCharArray()
+            );
+            Object requiredArray = Array.newInstance(proposalClass, 1);
+            Array.set(requiredArray, 0, requiredType);
+            invokeMethod(proposal, "setRequiredProposals", requiredArray);
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] completion import attached: selector=" + selector
+                        + ", owner=" + sourceQualifiedName);
+            }
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconCore] completion import attachment failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    /** Removes the synthetic type replacement while retaining ImportRewrite's edit. */
+    public static void sanitizeJdtExtensionCompletionEdits(Object proposal, Object completionItem) {
+        if (proposal == null || completionItem == null) {
+            return;
+        }
+        try {
+            Object requiredValue = invokeMethod(proposal, "getRequiredProposals");
+            if (!(requiredValue instanceof Object[])) {
+                return;
+            }
+            Set<String> syntheticTypeTexts = new LinkedHashSet<>();
+            for (Object required : (Object[]) requiredValue) {
+                Object flagsValue = invokeMethod(required, "getAdditionalFlags");
+                int flags = flagsValue instanceof Integer ? (Integer) flagsValue : 0;
+                if ((flags & ZIRCON_REQUIRED_IMPORT_PROPOSAL_FLAG) == 0) {
+                    continue;
+                }
+                Object nameValue = invokeMethod(required, "getName");
+                if (nameValue instanceof char[]) {
+                    syntheticTypeTexts.add(new String((char[]) nameValue));
+                }
+            }
+            if (syntheticTypeTexts.isEmpty()) {
+                return;
+            }
+            Object editsValue = invokeMethod(completionItem, "getAdditionalTextEdits");
+            if (!(editsValue instanceof List<?>)) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            List<Object> edits = (List<Object>) editsValue;
+            edits.removeIf(edit -> {
+                try {
+                    Object newText = invokeMethod(edit, "getNewText");
+                    return newText != null && syntheticTypeTexts.contains(String.valueOf(newText));
+                } catch (Exception ignored) {
+                    return false;
+                }
+            });
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconCore] completion edit sanitization failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    private static List<JdtIndexedExtensionMethod> getJdtIndexedExtensionMethods(Object completionEngine) {
+        try {
+            Object javaProject = getFieldValue(completionEngine, "javaProject");
+            if (javaProject == null) {
+                return Collections.emptyList();
+            }
+            long now = System.currentTimeMillis();
+            long modificationStamp = readJavaProjectModificationStamp(javaProject);
+            JdtExtensionIndexSnapshot snapshot = JDT_EXTENSION_INDEX_CACHE.get(javaProject);
+            boolean fresh = snapshot != null
+                    && now - snapshot.createdAtMillis < JDT_EXTENSION_INDEX_CACHE_MILLIS
+                    && (modificationStamp < 0 || snapshot.projectModificationStamp == modificationStamp);
+            if (!fresh) {
+                CompletableFuture<JdtExtensionIndexSnapshot> refresh =
+                        scheduleJdtExtensionIndexRefresh(javaProject, modificationStamp);
+                if (snapshot == null && refresh != null) {
+                    try {
+                        snapshot = refresh.get(JDT_EXTENSION_INDEX_COLD_WAIT_MILLIS, TimeUnit.MILLISECONDS);
+                    } catch (TimeoutException ignored) {
+                        // SearchEngine can be waiting for a workspace build.
+                        // Keep it in the background rather than stalling JDT
+                        // completion indefinitely.
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+            return snapshot != null ? snapshot.methods : Collections.emptyList();
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconCore] JDT extension index lookup failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+            return Collections.emptyList();
+        }
+    }
+
+    private static CompletableFuture<JdtExtensionIndexSnapshot> scheduleJdtExtensionIndexRefresh(
+            Object javaProject,
+            long modificationStamp
+    ) {
+        final CompletableFuture<JdtExtensionIndexSnapshot> refresh;
+        synchronized (JDT_EXTENSION_INDEX_REFRESHES) {
+            CompletableFuture<JdtExtensionIndexSnapshot> running =
+                    JDT_EXTENSION_INDEX_REFRESHES.get(javaProject);
+            if (running != null && !running.isDone()) {
+                return running;
+            }
+            refresh = new CompletableFuture<>();
+            JDT_EXTENSION_INDEX_REFRESHES.put(javaProject, refresh);
+        }
+        JDT_EXTENSION_INDEX_EXECUTOR.execute(() -> {
+            try {
+                long startedAt = System.nanoTime();
+                List<JdtIndexedExtensionMethod> methods = searchJdtExMethodIndex(javaProject);
+                JdtExtensionIndexSnapshot snapshot = new JdtExtensionIndexSnapshot(
+                        System.currentTimeMillis(),
+                        modificationStamp,
+                        methods
+                );
+                JDT_EXTENSION_INDEX_CACHE.put(javaProject, snapshot);
+                refresh.complete(snapshot);
+                if (Util.isTraceEnabled()) {
+                    long elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000L;
+                    Util.log("[ZirconCore] JDT @ExMethod index refreshed: project="
+                            + describeJavaProject(javaProject)
+                            + ", methods=" + methods.size()
+                            + ", elapsedMs=" + elapsedMillis);
+                    for (JdtIndexedExtensionMethod method : methods) {
+                        Util.log("[ZirconCore]   indexed @ExMethod "
+                                + method.ownerQualifiedName + "#" + method.selector);
+                    }
+                }
+            } catch (Throwable error) {
+                refresh.completeExceptionally(error);
+                Util.log("[ZirconCore] JDT @ExMethod index refresh failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+                if (Util.isTraceEnabled()) {
+                    Util.log(Util.stackTrace(error));
+                }
+            } finally {
+                synchronized (JDT_EXTENSION_INDEX_REFRESHES) {
+                    if (JDT_EXTENSION_INDEX_REFRESHES.get(javaProject) == refresh) {
+                        JDT_EXTENSION_INDEX_REFRESHES.remove(javaProject);
+                    }
+                }
+            }
+        });
+        return refresh;
+    }
+
+    private static List<JdtIndexedExtensionMethod> searchJdtExMethodIndex(Object javaProject) throws Exception {
+        Object annotationType = invokeMethod(javaProject, "findType", EX_METHOD_ANNOTATION);
+        if (annotationType == null || !Boolean.TRUE.equals(invokeMethod(annotationType, "exists"))) {
+            return Collections.emptyList();
+        }
+
+        Class<?> iJavaElementClass = loadClass("org.eclipse.jdt.core.IJavaElement", javaProject);
+        Object projectElements = Array.newInstance(iJavaElementClass, 1);
+        Array.set(projectElements, 0, javaProject);
+        Class<?> searchEngineClass = loadClass("org.eclipse.jdt.core.search.SearchEngine", javaProject);
+        // Source annotation references are persisted by JDT. System libraries
+        // cannot depend on Zircon, so leave them outside the scope.
+        Object searchScope = invokeStaticMethod(searchEngineClass, "createJavaSearchScope", projectElements, 11);
+        if (searchScope == null) {
+            return Collections.emptyList();
+        }
+
+        Class<?> constantsClass = loadClass("org.eclipse.jdt.core.search.IJavaSearchConstants", javaProject);
+        int references = readStaticIntField(constantsClass, "REFERENCES", 1);
+        Class<?> searchPatternClass = loadClass("org.eclipse.jdt.core.search.SearchPattern", javaProject);
+        Object pattern = invokeStaticMethod(searchPatternClass, "createPattern", annotationType, references);
+        if (pattern == null) {
+            return Collections.emptyList();
+        }
+
+        Object participant = invokeStaticMethod(searchEngineClass, "getDefaultSearchParticipant");
+        Class<?> participantClass = loadClass("org.eclipse.jdt.core.search.SearchParticipant", javaProject);
+        Object participants = Array.newInstance(participantClass, 1);
+        Array.set(participants, 0, participant);
+
+        List<JdtIndexedExtensionMethod> collected = Collections.synchronizedList(new ArrayList<>());
+        Class<?> requestorClass = ensureJdtSearchRequestorClass(javaProject);
+        Object searchEngine = searchEngineClass.getDeclaredConstructor().newInstance();
+        long requestId = JDT_SEARCH_REQUEST_IDS.incrementAndGet();
+        JDT_SEARCH_RESULTS.put(requestId, collected);
+        try {
+            Object requestor = requestorClass.getDeclaredConstructor(long.class).newInstance(requestId);
+            invokeMethod(searchEngine, "search", pattern, participants, searchScope, requestor, null);
+        } finally {
+            JDT_SEARCH_RESULTS.remove(requestId);
+        }
+
+        // JDT's annotation-reference index does not expose method annotations
+        // from every binary jar. Search only application-library declarations
+        // and inspect their IMethod annotation handles; this remains an indexed
+        // SearchEngine query and never scans dependency files ourselves.
+        Object applicationLibraryScope =
+                invokeStaticMethod(searchEngineClass, "createJavaSearchScope", projectElements, 2);
+        int methodKind = readStaticIntField(constantsClass, "METHOD", 1);
+        int declarations = readStaticIntField(constantsClass, "DECLARATIONS", 0);
+        int patternMatch = readStaticIntField(searchPatternClass, "R_PATTERN_MATCH", 1);
+        Object binaryMethodPattern = invokeStaticMethod(
+                searchPatternClass,
+                "createPattern",
+                "*",
+                methodKind,
+                declarations,
+                patternMatch
+        );
+        if (applicationLibraryScope != null && binaryMethodPattern != null) {
+            long binaryRequestId = JDT_SEARCH_REQUEST_IDS.incrementAndGet();
+            JDT_SEARCH_RESULTS.put(binaryRequestId, collected);
+            JDT_METHOD_DECLARATION_SEARCH_REQUESTS.add(binaryRequestId);
+            try {
+                Object requestor = requestorClass.getDeclaredConstructor(long.class).newInstance(binaryRequestId);
+                invokeMethod(
+                        searchEngine,
+                        "search",
+                        binaryMethodPattern,
+                        participants,
+                        applicationLibraryScope,
+                        requestor,
+                        null
+                );
+            } finally {
+                JDT_METHOD_DECLARATION_SEARCH_REQUESTS.remove(binaryRequestId);
+                JDT_SEARCH_RESULTS.remove(binaryRequestId);
+            }
+        }
+
+        Map<String, JdtIndexedExtensionMethod> unique = new LinkedHashMap<>();
+        synchronized (collected) {
+            for (JdtIndexedExtensionMethod method : collected) {
+                unique.put(method.key(), method);
+            }
+        }
+        return Collections.unmodifiableList(new ArrayList<>(unique.values()));
+    }
+
+    /** Called by the requestor class defined inside JDT Core's OSGi class loader. */
+    public static void acceptJdtExMethodSearchMatch(long requestId, Object searchMatch) {
+        List<JdtIndexedExtensionMethod> results = JDT_SEARCH_RESULTS.get(requestId);
+        if (results == null || searchMatch == null) {
+            return;
+        }
+        try {
+            boolean filterMethodDeclaration = JDT_METHOD_DECLARATION_SEARCH_REQUESTS.contains(requestId);
+            Object element = invokeMethod(searchMatch, "getElement");
+            for (int depth = 0; depth < 8 && element != null; depth++) {
+                Object declaringType = invokeMethod(element, "getDeclaringType");
+                Object elementName = invokeMethod(element, "getElementName");
+                if (declaringType != null && elementName != null) {
+                    if (filterMethodDeclaration && !hasJdtModelExMethodAnnotation(element)) {
+                        return;
+                    }
+                    Object qualifiedName = invokeMethod(declaringType, "getFullyQualifiedName", '$');
+                    if (qualifiedName == null) {
+                        qualifiedName = invokeMethod(declaringType, "getFullyQualifiedName");
+                    }
+                    String owner = qualifiedName == null ? "" : String.valueOf(qualifiedName);
+                    String selector = String.valueOf(elementName);
+                    if (!owner.isEmpty() && !selector.isEmpty()) {
+                        rememberJdtBinaryTypeLocation(element, owner);
+                        results.add(new JdtIndexedExtensionMethod(owner, selector));
+                    }
+                    return;
+                }
+                element = invokeMethod(element, "getParent");
+            }
+        } catch (Throwable error) {
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] ignored malformed JDT annotation search match: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    private static boolean hasJdtModelExMethodAnnotation(Object methodElement) {
+        try {
+            Object annotations = invokeMethod(methodElement, "getAnnotations");
+            if (!(annotations instanceof Object[])) {
+                return false;
+            }
+            for (Object annotation : (Object[]) annotations) {
+                Object name = invokeMethod(annotation, "getElementName");
+                String annotationName = name == null ? "" : String.valueOf(name);
+                if ("ExMethod".equals(annotationName)
+                        || EX_METHOD_ANNOTATION.equals(annotationName)
+                        || annotationName.endsWith(".ExMethod")) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    private static void rememberJdtBinaryTypeLocation(Object methodElement, String ownerQualifiedName) {
+        try {
+            Object binary = invokeMethod(methodElement, "isBinary");
+            if (!Boolean.TRUE.equals(binary)) {
+                return;
+            }
+            // IJavaElement.PACKAGE_FRAGMENT_ROOT == 3. The returned IPath is
+            // JDT's resolved classpath location, so no filesystem discovery is
+            // needed for later classfile metadata hydration.
+            Object root = invokeMethod(methodElement, "getAncestor", 3);
+            Object rootPath = root == null ? null : invokeMethod(root, "getPath");
+            Object osPath = rootPath == null ? null : invokeMethod(rootPath, "toOSString");
+            String location = osPath == null ? "" : String.valueOf(osPath);
+            Object resource = root == null ? null : invokeMethod(root, "getResource");
+            Object resourceLocation = resource == null ? null : invokeMethod(resource, "getLocation");
+            Object resourceOsPath =
+                    resourceLocation == null ? null : invokeMethod(resourceLocation, "toOSString");
+            if (resourceOsPath != null && !String.valueOf(resourceOsPath).isEmpty()) {
+                location = String.valueOf(resourceOsPath);
+            }
+            if (!location.isEmpty()) {
+                putBoundedConcurrentMap(JDT_BINARY_TYPE_LOCATIONS, ownerQualifiedName, location);
+                JDT_APPLICATION_LIBRARY_LOCATIONS.add(location);
+                if (Util.isTraceEnabled()) {
+                    Util.log("[ZirconCore] JDT binary type location: owner="
+                            + ownerQualifiedName + ", location=" + location);
+                }
+            }
+        } catch (Exception ignored) {
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] JDT binary type location unavailable: owner="
+                        + ownerQualifiedName + ", error="
+                        + ignored.getClass().getName() + ": " + ignored.getMessage());
+            }
+        }
+    }
+
+    private static Class<?> ensureJdtSearchRequestorClass(Object anchor) throws Exception {
+        Class<?> searchRequestorClass = loadClass("org.eclipse.jdt.core.search.SearchRequestor", anchor);
+        ClassLoader targetLoader = searchRequestorClass.getClassLoader();
+        Class<?> cached = JDT_SEARCH_REQUESTOR_CLASSES.get(targetLoader);
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (JDT_SEARCH_REQUESTOR_CLASSES) {
+            cached = JDT_SEARCH_REQUESTOR_CLASSES.get(targetLoader);
+            if (cached != null) {
+                return cached;
+            }
+            byte[] classBytes;
+            try (InputStream input = ZirconCore.class.getResourceAsStream(JDT_SEARCH_REQUESTOR_RESOURCE)) {
+                if (input == null) {
+                    throw new IOException("missing bridge resource " + JDT_SEARCH_REQUESTOR_RESOURCE);
+                }
+                classBytes = readAllBytes(input);
+            }
+            try {
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(
+                        searchRequestorClass,
+                        MethodHandles.lookup()
+                );
+                cached = lookup.defineClass(classBytes);
+            } catch (LinkageError alreadyDefined) {
+                cached = Class.forName(JDT_SEARCH_REQUESTOR_CLASS, false, targetLoader);
+            }
+            JDT_SEARCH_REQUESTOR_CLASSES.put(targetLoader, cached);
+            return cached;
+        }
+    }
+
+    private static byte[] readAllBytes(InputStream input) throws IOException {
+        byte[] buffer = new byte[8_192];
+        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+        for (int count = input.read(buffer); count >= 0; count = input.read(buffer)) {
+            if (count > 0) {
+                output.write(buffer, 0, count);
+            }
+        }
+        return output.toByteArray();
+    }
+
+    private static long readJavaProjectModificationStamp(Object javaProject) {
+        try {
+            Object project = invokeMethod(javaProject, "getProject");
+            Object stamp = project == null ? null : invokeMethod(project, "getModificationStamp");
+            return stamp instanceof Long ? (Long) stamp : -1L;
+        } catch (Exception ignored) {
+            return -1L;
+        }
+    }
+
+    private static String describeJavaProject(Object javaProject) {
+        try {
+            Object name = invokeMethod(javaProject, "getElementName");
+            return name == null ? javaProject.getClass().getSimpleName() : String.valueOf(name);
+        } catch (Exception ignored) {
+            return javaProject.getClass().getSimpleName();
+        }
+    }
+
+    private static int readStaticIntField(Class<?> type, String fieldName, int fallback) {
+        try {
+            Field field = type.getField(fieldName);
+            field.setAccessible(true);
+            return field.getInt(null);
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static boolean matchesCompletionPrefix(String selector, String prefix) {
+        if (selector == null || selector.isEmpty() || prefix == null || prefix.isEmpty()) {
+            return selector != null && !selector.isEmpty();
+        }
+        if (selector.regionMatches(true, 0, prefix, 0, Math.min(selector.length(), prefix.length()))) {
+            return prefix.length() <= selector.length();
+        }
+        // JDT also supports camel-case and subsequence matching. Passing a slightly
+        // broader candidate set lets findLocalMethods apply the configured JDT rules.
+        int selectorIndex = 0;
+        for (int prefixIndex = 0; prefixIndex < prefix.length() && selectorIndex < selector.length(); prefixIndex++) {
+            char wanted = Character.toLowerCase(prefix.charAt(prefixIndex));
+            while (selectorIndex < selector.length()
+                    && Character.toLowerCase(selector.charAt(selectorIndex)) != wanted) {
+                selectorIndex++;
+            }
+            if (selectorIndex >= selector.length()) {
+                return false;
+            }
+            selectorIndex++;
+        }
+        return true;
+    }
+
     private static List<Object> collectPotentialExtensionMethods(
             Object compilationUnitScope,
             String methodName,
@@ -7765,7 +9169,14 @@ public class ZirconCore {
         if (!staticMethod) {
             return false;
         }
-        return hasAnnotation(methodBinding, EX_METHOD_ANNOTATION);
+        boolean annotated = hasAnnotation(methodBinding, EX_METHOD_ANNOTATION);
+        if (shouldTraceSelector(getSelectorName(methodBinding))) {
+            Util.log("[ZirconCore] extension annotation check: selector="
+                    + getSelectorName(methodBinding)
+                    + ", annotated=" + annotated
+                    + ", binding=" + describeMethodBindingDetailed(methodBinding));
+        }
+        return annotated;
     }
 
     private static boolean matchesExtensionCandidate(Object methodBinding, Object receiverType, Object scope) throws Exception {
@@ -8284,6 +9695,7 @@ public class ZirconCore {
             CandidateBinding facadeCompatible = computeCompatibleFacadeCandidate(
                     scope,
                     candidate,
+                    receiverType,
                     argumentTypes,
                     invocationSite,
                     true
@@ -8343,11 +9755,18 @@ public class ZirconCore {
             return deferredReceiverRewrite;
         }
         if (isReferenceInvocation(invocationSite) || isImplicitInvocation(invocationSite)) {
-            return computeCompatibleFacadeCandidate(scope, candidate, argumentTypes, invocationSite, false);
+            return computeCompatibleFacadeCandidate(scope, candidate, receiverType, argumentTypes, invocationSite, false);
         }
         if (shouldPreferFacadeCompatibility(scope, invocationSite, candidate.binding)) {
             try {
-                CandidateBinding facadeCompatible = computeCompatibleFacadeCandidate(scope, candidate, argumentTypes, invocationSite, false);
+                CandidateBinding facadeCompatible = computeCompatibleFacadeCandidate(
+                        scope,
+                        candidate,
+                        receiverType,
+                        argumentTypes,
+                        invocationSite,
+                        false
+                );
                 if (facadeCompatible != null) {
                     return facadeCompatible;
                 }
@@ -8361,7 +9780,7 @@ public class ZirconCore {
             Object[] invocationArgumentTypes = buildInvocationArgumentTypes(candidate.originalMethod, receiverType, scope, argumentTypes);
             Object compatible = invokeMethod(scope, "computeCompatibleMethod", candidate.originalMethod, invocationArgumentTypes, invocationSite);
             if (isProblem(compatible)) {
-                return computeCompatibleFacadeCandidate(scope, candidate, argumentTypes, invocationSite, false);
+                return computeCompatibleFacadeCandidate(scope, candidate, receiverType, argumentTypes, invocationSite, false);
             }
             if (rewriteReceiverStyleInvocationToStaticCall(scope, invocationSite, compatible, receiverType)) {
                 compatible = resynchronizeRewrittenStaticInvocation(scope, invocationSite, compatible);
@@ -8375,7 +9794,7 @@ public class ZirconCore {
             }
             return createCandidateBinding(compatible, candidate.originalMethod, receiverType, scope, invocationSite);
         } catch (Exception ignored) {
-            return computeCompatibleFacadeCandidate(scope, candidate, argumentTypes, invocationSite, false);
+            return computeCompatibleFacadeCandidate(scope, candidate, receiverType, argumentTypes, invocationSite, false);
         }
     }
 
@@ -8558,8 +9977,17 @@ public class ZirconCore {
                 : emptyTypeBindingArray(scope);
         Object[] rewrittenArguments;
         Object[] rewrittenArgumentTypes;
-        Object preservedActualReceiverType = resolveRewrittenInvocationActualReceiverType(invocationSite, receiverExpression, receiverType);
-        Object rewrittenReceiverArgumentType = resolveConcreteInvocationArgumentType(preservedActualReceiverType, receiverExpression);
+        Object preservedActualReceiverType = receiverType != null
+                ? receiverType
+                : resolveRewrittenInvocationActualReceiverType(
+                        scope,
+                        invocationSite,
+                        receiverExpression,
+                        null
+                );
+        Object rewrittenReceiverArgumentType = preservedActualReceiverType != null && !isProblem(preservedActualReceiverType)
+                ? preservedActualReceiverType
+                : resolveConcreteInvocationArgumentType(null, receiverExpression);
         if (explicitTargetInvocation) {
             rewrittenArguments = newTypedFieldArray(invocationSite, "arguments", originalArguments.length, receiverExpression);
             if (originalArguments.length > 0) {
@@ -8619,6 +10047,9 @@ public class ZirconCore {
                     + ", args=" + rewrittenArguments.length
                     + ", params=" + parameters.length
                     + ", receiverType=" + describeTypeDebug(receiverType)
+                    + ", preservedReceiverType=" + describeTypeDebug(preservedActualReceiverType)
+                    + ", rewrittenReceiverArgumentType=" + describeTypeDebug(rewrittenArgumentTypes.length > 0 ? rewrittenArgumentTypes[0] : null)
+                    + ", storedActualReceiverType=" + describeTypeDebug(getFieldValue(invocationSite, "actualReceiverType"))
                     + ", declaringClass=" + describeTypeDebug(declaringClass));
         }
         refreshPostRewriteFunctionalArguments(scope, invocationSite, compatibleBinding);
@@ -8662,9 +10093,18 @@ public class ZirconCore {
                 ? (Object[]) getFieldValue(compatibleBinding, "parameters")
                 : new Object[0];
         Object[] rewrittenArgumentTypes = newTypedFieldArray(invocationSite, "argumentTypes", rewrittenArguments.length, receiverType);
-        Object preservedActualReceiverType = resolveRewrittenInvocationActualReceiverType(invocationSite, hiddenReceiverExpression, receiverType);
+        Object preservedActualReceiverType = receiverType != null
+                ? receiverType
+                : resolveRewrittenInvocationActualReceiverType(
+                        scope,
+                        invocationSite,
+                        hiddenReceiverExpression,
+                        null
+                );
         Object hiddenReceiverType = resolveConcreteInvocationArgumentType(getFieldValue(hiddenReceiverExpression, "resolvedType"), hiddenReceiverExpression);
-        Object rewrittenReceiverArgumentType = resolveConcreteInvocationArgumentType(preservedActualReceiverType, hiddenReceiverExpression);
+        Object rewrittenReceiverArgumentType = preservedActualReceiverType != null && !isProblem(preservedActualReceiverType)
+                ? preservedActualReceiverType
+                : resolveConcreteInvocationArgumentType(null, hiddenReceiverExpression);
         rewrittenArgumentTypes[0] = hiddenReceiverType != null
                 ? hiddenReceiverType
                 : rewrittenReceiverArgumentType != null
@@ -8759,6 +10199,13 @@ public class ZirconCore {
         }
         try {
             rewriteElvisConditionalExpression(conditionalExpression, currentScope);
+            rebindProblemFieldLocalReferences(
+                    conditionalExpression,
+                    currentScope,
+                    currentScope,
+                    new IdentityHashMap<>(),
+                    0
+            );
             ensureElvisConditionBindingResolved(conditionalExpression, currentScope);
             ensureElvisConditionalOriginalBranchTypes(conditionalExpression, currentScope);
             ensureNestedLambdaCaptureStates(conditionalExpression, currentScope, new IdentityHashMap<>(), 0);
@@ -8775,6 +10222,7 @@ public class ZirconCore {
                 repairMessageSendResolvedTypes(conditionalExpression, currentScope, new IdentityHashMap<>(), 0);
                 repairBinaryExpressionResolvedTypes(conditionalExpression, currentScope, new IdentityHashMap<>(), 0);
             }
+            rememberSemanticTypeVariableTargetRange(currentScope, conditionalExpression);
             logConditionalExpressionRepairState(conditionalExpression, currentScope, "prepare");
         } catch (Exception e) {
             if (Util.isDebugEnabled()) {
@@ -8789,10 +10237,18 @@ public class ZirconCore {
             return null;
         }
         try {
-            if (!rewriteElvisConditionalExpression(conditionalExpression, currentScope)
+            boolean rewritten = rewriteElvisConditionalExpression(conditionalExpression, currentScope);
+            if (!rewritten
                     && !isElvisConditionalExpression(conditionalExpression)) {
                 return null;
             }
+            rebindProblemFieldLocalReferences(
+                    conditionalExpression,
+                    currentScope,
+                    currentScope,
+                    new IdentityHashMap<>(),
+                    0
+            );
             ensureElvisConditionBindingResolved(conditionalExpression, currentScope);
             ensureElvisConditionalOriginalBranchTypes(conditionalExpression, currentScope);
             rebindProblemFieldLocalReferences(conditionalExpression, currentScope, currentScope, new IdentityHashMap<>(), 0);
@@ -8816,6 +10272,7 @@ public class ZirconCore {
             }
             copyConditionalResolutionState(syntheticConditional, conditionalExpression);
             ensureElvisConditionBindingResolved(conditionalExpression, currentScope);
+            rememberSemanticTypeVariableTargetRange(currentScope, conditionalExpression);
             return resolvedType;
         } catch (Exception e) {
             try {
@@ -8851,6 +10308,13 @@ public class ZirconCore {
                     && !isElvisConditionalExpression(conditionalExpression)) {
                 return null;
             }
+            rebindProblemFieldLocalReferences(
+                    conditionalExpression,
+                    currentScope,
+                    currentScope,
+                    new IdentityHashMap<>(),
+                    0
+            );
             ensureElvisConditionalOriginalBranchTypes(conditionalExpression, currentScope);
             Object fallbackType = tryResolveConditionalExpressionTypeFallback(conditionalExpression, currentScope);
             if (fallbackType != null) {
@@ -9743,6 +11207,12 @@ public class ZirconCore {
             if (resolvedType != null && !isProblem(resolvedType)) {
                 return resolvedType;
             }
+            Object expectedType = findField(branch.getClass(), "expectedType") != null
+                    ? getFieldValue(branch, "expectedType")
+                    : null;
+            if (expectedType != null && !isProblem(expectedType)) {
+                return expectedType;
+            }
             Object directResolvedType = invokeMethod(branch, "resolveType", scope);
             return isProblem(directResolvedType) ? null : directResolvedType;
         } catch (Exception error) {
@@ -9751,12 +11221,6 @@ public class ZirconCore {
                     : null;
             if (resolvedType != null && !isProblem(resolvedType)) {
                 return resolvedType;
-            }
-            Object expectedType = findField(branch.getClass(), "expectedType") != null
-                    ? getFieldValue(branch, "expectedType")
-                    : null;
-            if (expectedType != null && !isProblem(expectedType)) {
-                return expectedType;
             }
             if (Util.isDebugEnabled()) {
                 Util.log("[ZirconCore] resolveConditionalBranchType failed: "
@@ -9908,23 +11372,97 @@ public class ZirconCore {
     }
 
     private static Object resolveRewrittenInvocationActualReceiverType(
+            Object scope,
             Object invocationSite,
             Object originalReceiverExpression,
             Object fallbackReceiverType
     ) throws Exception {
+        // The receiver type passed into extension lookup is captured by Scope before any
+        // facade or static-holder rewrite. It is therefore the earliest and most reliable
+        // type for generic inference. In particular, a chained MessageSend can have its
+        // AST state revisited by JDT while candidates are probed, whereas this value still
+        // carries List<E> (or another parameterized receiver) from the original lookup.
+        if (fallbackReceiverType != null && !isProblem(fallbackReceiverType)) {
+            return fallbackReceiverType;
+        }
+        // MessageSend.actualReceiverType is owned by JDT's lookup path. During extension
+        // lookup it may already contain the synthetic facade/holder type. The receiver
+        // expression, however, has been resolved before method lookup and therefore keeps
+        // the parameterized result of a chained call (for example List<E> from findAll()).
+        // Preserve that type before replacing the receiver with the static extension holder;
+        // it is the leading argument used by JDT generic inference for later lambdas.
+        Object expressionReceiverType = resolveRecoverableReceiverType(originalReceiverExpression);
+        if (expressionReceiverType != null && !isProblem(expressionReceiverType)) {
+            return expressionReceiverType;
+        }
+        if (scope != null && originalReceiverExpression != null && originalReceiverExpression != invocationSite) {
+            tryResolveReceiverExpressionBeforeStaticRewrite(originalReceiverExpression, scope);
+            expressionReceiverType = resolveRecoverableReceiverType(originalReceiverExpression);
+            if (expressionReceiverType != null && !isProblem(expressionReceiverType)) {
+                return expressionReceiverType;
+            }
+        }
         if (invocationSite != null && findField(invocationSite.getClass(), "actualReceiverType") != null) {
             Object actualReceiverType = getFieldValue(invocationSite, "actualReceiverType");
             if (actualReceiverType != null && !isProblem(actualReceiverType)) {
                 return actualReceiverType;
             }
         }
-        if (originalReceiverExpression != null && findField(originalReceiverExpression.getClass(), "resolvedType") != null) {
-            Object resolvedType = getFieldValue(originalReceiverExpression, "resolvedType");
-            if (resolvedType != null && !isProblem(resolvedType)) {
-                return resolvedType;
-            }
-        }
         return fallbackReceiverType;
+    }
+
+    public static Object filterResolvedExtensionProblems(Object compilationResult, Object problems) {
+        if (compilationResult == null || problems == null || !problems.getClass().isArray()) {
+            return problems;
+        }
+        try {
+            int length = Array.getLength(problems);
+            if (length == 0) {
+                return problems;
+            }
+            List<Object> retained = new ArrayList<>(length);
+            for (int index = 0; index < length; index++) {
+                Object problem = Array.get(problems, index);
+                boolean suppress = problem != null
+                        && (shouldSuppressOptionalFunctionalRecordedProblem(compilationResult, problem)
+                        || shouldSuppressSuccessfulClassTargetRecordedProblem(compilationResult, problem)
+                        || shouldSuppressSuccessfulFunctionalLocalFieldRecordedProblem(compilationResult, problem)
+                        || shouldSuppressResolvableLocalReferenceRecordedProblem(compilationResult, problem)
+                        || shouldSuppressSuccessfulExtensionFunctionalReturnRecordedProblem(compilationResult, problem)
+                        || shouldSuppressSuccessfulExtensionUndefinedRecordedProblem(compilationResult, problem)
+                        || shouldSuppressSuccessfulFunctionalWrapperRecordedProblem(compilationResult, problem));
+                if (problem != null && !suppress) {
+                    retained.add(problem);
+                }
+            }
+            if (retained.size() == length) {
+                return problems;
+            }
+            Object filtered = Array.newInstance(problems.getClass().getComponentType(), retained.size());
+            for (int index = 0; index < retained.size(); index++) {
+                Array.set(filtered, index, retained.get(index));
+            }
+            return filtered;
+        } catch (Exception ignored) {
+            return problems;
+        }
+    }
+
+    private static void tryResolveReceiverExpressionBeforeStaticRewrite(Object receiverExpression, Object scope) {
+        if (receiverExpression == null || scope == null) {
+            return;
+        }
+        try {
+            Object currentType = resolveRecoverableReceiverType(receiverExpression);
+            if (currentType != null && !isProblem(currentType)) {
+                return;
+            }
+            // Resolve only the already-parsed receiver subtree. This runs before the outer
+            // invocation is rewritten, so JDT never sees a synthetic holder as the receiver
+            // from which it should infer the extension method's type variables.
+            tryResolveAstNode(receiverExpression, scope);
+        } catch (Exception ignored) {
+        }
     }
 
     private static void logReceiverRewriteIfGenericReceiverType(
@@ -9982,7 +11520,9 @@ public class ZirconCore {
             Object[] parameters,
             Object[] argumentTypes
     ) throws Exception {
-        if (expectedType == null || shouldUseConcreteArgumentTypeForSubstitution(expectedType)) {
+        if (!Util.isDebugEnabled()
+                || expectedType == null
+                || shouldUseConcreteArgumentTypeForSubstitution(expectedType)) {
             return;
         }
         String key = selectorName + "|" + describeSourceRange(invocationSite) + "|" + argumentIndex;
@@ -10025,6 +11565,18 @@ public class ZirconCore {
                         : null,
                 arguments
         );
+        Object preservedReceiverType = findField(invocationSite.getClass(), "actualReceiverType") != null
+                ? getFieldValue(invocationSite, "actualReceiverType")
+                : null;
+        if (preservedReceiverType != null
+                && !isProblem(preservedReceiverType)
+                && argumentTypes.length == parameters.length
+                && argumentTypes.length > 0) {
+            // A parameterized receiver such as List<E> is useful even though E is not a
+            // fully concrete type. Do not let generic argument normalization replace it
+            // with the synthetic static holder stored on the rewritten receiver AST.
+            argumentTypes[0] = preservedReceiverType;
+        }
         if (debugProblemFile) {
             Util.log("[ZirconCore] functionalRefreshStart"
                     + ": file=" + fileName
@@ -10051,6 +11603,40 @@ public class ZirconCore {
                     expectedType,
                     parameters
             );
+            if (parameters.length > 0
+                    && argumentTypes.length > 0
+                    && argumentTypes[0] != null
+                    && !isProblem(argumentTypes[0])) {
+                Object receiverSpecializedType = substituteReceiverTypeVariables(
+                        scope,
+                        parameters[0],
+                        argumentTypes[0],
+                        expectedType
+                );
+                if (receiverSpecializedType != null && !isProblem(receiverSpecializedType)) {
+                    expectedType = receiverSpecializedType;
+                }
+            }
+            Object returnSpecializedType = resolveConcreteFunctionalArgumentTypeFromBody(
+                    scope,
+                    expectedType,
+                    argument
+            );
+            if (returnSpecializedType != null && !isProblem(returnSpecializedType)) {
+                expectedType = returnSpecializedType;
+            }
+            // The extension binding and its specialized SAM are already proven at this
+            // point. Register them before entering JDT's lambda resolver, because JDT may
+            // report a transient target-type problem from inside resolveExpressionExpecting
+            // before returning the successfully resolved lambda.
+            rememberSuccessfulFunctionalArgumentRange(
+                    scope,
+                    expectedType,
+                    argument,
+                    invocationSite,
+                    binding
+            );
+            rememberProvenExtensionFunctionalTargetRange(scope, expectedType, argument);
             // Static receiver rewrites keep the original receiver in slot 0, and that slot
             // often carries the concrete type arguments needed by later lambda parameters.
             Object specializedExpectedType = specializeFunctionalExpectedTypeFromArgumentTypes(
@@ -10216,6 +11802,27 @@ public class ZirconCore {
         }
     }
 
+    private static void rememberProvenExtensionFunctionalTargetRange(
+            Object scope,
+            Object expectedType,
+            Object argument
+    ) throws Exception {
+        if (scope == null || expectedType == null || argument == null || !isFunctionalInvocationArgument(argument)) {
+            return;
+        }
+        Object descriptor = invokeMethod(expectedType, "getSingleAbstractMethod", scope, true);
+        if (descriptor == null || isProblem(descriptor)) {
+            return;
+        }
+        Object compilationResult = resolveCompilationResultFromScope(scope);
+        String fileName = describeCompilationUnitFileName(compilationResult);
+        int start = readIntField(argument, "sourceStart");
+        int end = readIntField(argument, "sourceEnd");
+        if (fileName != null && start >= 0 && end >= start) {
+            PROVEN_EXTENSION_FUNCTIONAL_TARGET_RANGES.add(fileName + "|" + start + "|" + end);
+        }
+    }
+
     private static boolean shouldDeferComplexPostRewriteFunctionalRefresh(Object argument, Object expectedType) throws Exception {
         if (!isLambdaExpression(argument)
                 || expectedType == null
@@ -10346,13 +11953,26 @@ public class ZirconCore {
             if (returnExpression == null) {
                 continue;
             }
-            tryResolveAstNode(returnExpression, scope);
-            Object actualReturnType = resolveConcreteInvocationArgumentType(
-                    findField(returnExpression.getClass(), "resolvedType") != null
-                            ? getFieldValue(returnExpression, "resolvedType")
-                            : null,
-                    returnExpression
-            );
+            Object actualReturnType = null;
+            if (returnExpression.getClass().getName().endsWith("CastExpression")) {
+                Object castTypeReference = getFieldValue(returnExpression, "type");
+                if (castTypeReference != null) {
+                    actualReturnType = getFieldValue(castTypeReference, "resolvedType");
+                    if (actualReturnType == null || isProblem(actualReturnType)) {
+                        try {
+                            actualReturnType = invokeMethod(castTypeReference, "resolveType", scope);
+                        } catch (Exception ignored) {
+                            actualReturnType = null;
+                        }
+                    }
+                }
+            }
+            if (actualReturnType == null || isProblem(actualReturnType)) {
+                Object existingReturnType = findField(returnExpression.getClass(), "resolvedType") != null
+                        ? getFieldValue(returnExpression, "resolvedType")
+                        : null;
+                actualReturnType = resolveConcreteInvocationArgumentType(existingReturnType, returnExpression);
+            }
             if (actualReturnType == null || isProblem(actualReturnType)) {
                 continue;
             }
@@ -10999,15 +12619,25 @@ public class ZirconCore {
         if (invocationSite == null) {
             return null;
         }
+        Object receiver = findField(invocationSite.getClass(), "receiver") != null
+                ? getFieldValue(invocationSite, "receiver")
+                : null;
+        // Before a receiver-style extension invocation is rewritten, the receiver AST is
+        // the authoritative source for parameterized chain results. After rewriting, the
+        // receiver is the static holder and actualReceiverType intentionally preserves the
+        // original type instead.
+        if (receiver != null && !isTypeAccessInvocation(invocationSite)) {
+            Object recoveredReceiverType = resolveRecoverableReceiverType(receiver);
+            if (recoveredReceiverType != null) {
+                return recoveredReceiverType;
+            }
+        }
         Object actualReceiverType = findField(invocationSite.getClass(), "actualReceiverType") != null
                 ? getFieldValue(invocationSite, "actualReceiverType")
                 : null;
         if (actualReceiverType != null && !isProblem(actualReceiverType)) {
             return actualReceiverType;
         }
-        Object receiver = findField(invocationSite.getClass(), "receiver") != null
-                ? getFieldValue(invocationSite, "receiver")
-                : null;
         if (receiver != null) {
             Object recoveredReceiverType = resolveRecoverableReceiverType(receiver);
             if (recoveredReceiverType != null) {
@@ -11263,20 +12893,34 @@ public class ZirconCore {
     private static CandidateBinding computeCompatibleFacadeCandidate(
             Object scope,
             CandidateBinding candidate,
+            Object receiverType,
             Object[] argumentTypes,
             Object invocationSite
     ) throws Exception {
-        return computeCompatibleFacadeCandidate(scope, candidate, argumentTypes, invocationSite, false);
+        return computeCompatibleFacadeCandidate(scope, candidate, receiverType, argumentTypes, invocationSite, false);
     }
 
     private static CandidateBinding computeCompatibleFacadeCandidate(
             Object scope,
             CandidateBinding candidate,
+            Object receiverType,
             Object[] argumentTypes,
             Object invocationSite,
             boolean probeOnly
     ) throws Exception {
         String selectorName = getSelectorName(candidate.binding);
+        // Snapshot the original receiver before asking JDT to test the synthetic facade.
+        // computeCompatibleMethod may update MessageSend.actualReceiverType to the facade
+        // holder, which is too late to use as the hidden leading argument of the static
+        // extension method and loses receiver type arguments needed by lambda inference.
+        Object facadeReceiverType = receiverType;
+        Object facadeReceiverExpression = getFieldValue(invocationSite, "receiver");
+        if (facadeReceiverType == null || isProblem(facadeReceiverType)) {
+            facadeReceiverType = resolveRecoverableReceiverType(facadeReceiverExpression);
+        }
+        if (facadeReceiverType == null || isProblem(facadeReceiverType)) {
+            facadeReceiverType = resolveInvocationReceiverType(scope, invocationSite);
+        }
         Object compatible;
         try {
             compatible = invokeMethod(scope, "computeCompatibleMethod", candidate.binding, argumentTypes, invocationSite);
@@ -11340,8 +12984,10 @@ public class ZirconCore {
                     candidate.cover
             );
         }
-        Object facadeReceiverType = getFieldValue(invocationSite, "actualReceiverType");
-        if (facadeReceiverType == null) {
+        if (facadeReceiverType == null || isProblem(facadeReceiverType)) {
+            facadeReceiverType = getFieldValue(invocationSite, "actualReceiverType");
+        }
+        if (facadeReceiverType == null || isProblem(facadeReceiverType)) {
             Object receiverExpression = getFieldValue(invocationSite, "receiver");
             if (receiverExpression != null) {
                 facadeReceiverType = getFieldValue(receiverExpression, "resolvedType");
@@ -11596,6 +13242,282 @@ public class ZirconCore {
         }
     }
 
+    public static int prepareJdtSearchReportRange(Object locator, Object messageSend) {
+        if (locator == null || messageSend == null) {
+            return Integer.MIN_VALUE;
+        }
+        try {
+            Object pattern = getFieldValue(locator, "pattern");
+            if (pattern == null || !isExMethodSearchPattern(pattern)) {
+                if (Util.isTraceEnabled()) {
+                    Util.log("[ZirconSearch] report-range skipped: non-extension pattern");
+                }
+                return Integer.MIN_VALUE;
+            }
+            Object namePositionValue = getFieldValue(messageSend, "nameSourcePosition");
+            if (!(namePositionValue instanceof Long)) {
+                return Integer.MIN_VALUE;
+            }
+            long namePosition = (Long) namePositionValue;
+            int selectorStart = (int) (namePosition >>> 32);
+            int selectorEnd = (int) namePosition;
+            int originalSourceEnd = readIntField(messageSend, "sourceEnd", -1);
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconSearch] report-range selector="
+                        + getSelectorName(messageSend)
+                        + ", name=" + selectorStart + "-" + selectorEnd
+                        + ", sourceEnd=" + originalSourceEnd);
+            }
+            if (selectorStart < 0 || selectorEnd < selectorStart || originalSourceEnd == selectorEnd) {
+                return Integer.MIN_VALUE;
+            }
+            setFieldValue(messageSend, "sourceEnd", selectorEnd);
+            return originalSourceEnd;
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] report-range normalization failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+            return Integer.MIN_VALUE;
+        }
+    }
+
+    public static void restoreJdtSearchReportRange(Object messageSend, int originalSourceEnd) {
+        if (messageSend == null || originalSourceEnd == Integer.MIN_VALUE) {
+            return;
+        }
+        try {
+            setFieldValue(messageSend, "sourceEnd", originalSourceEnd);
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] report-range restoration failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    /**
+     * MethodLocator resolves extension-style calls from a fresh search AST. In
+     * that AST JDT can retain a ProblemMethodBinding on the receiver even though
+     * normal reconciliation already linked the call to the @ExMethod method.
+     * The syntactic candidate was deliberately admitted by
+     * expandJdtSearchCandidate; validate its receiver and visible argument
+     * types against the focused declaration before promoting it to an accurate
+     * match. This keeps SearchEngine, rename, CodeLens and call hierarchy on one
+     * native path without a workspace text scan.
+     */
+    public static int repairJdtSearchResolution(Object locator, Object node, int currentLevel) {
+        if (currentLevel != 0 || locator == null || node == null) {
+            return currentLevel;
+        }
+        try {
+            Object pattern = getFieldValue(locator, "pattern");
+            if (pattern == null || !isExMethodSearchPattern(pattern)) {
+                return currentLevel;
+            }
+            char[] patternSelector = (char[]) getFieldValue(pattern, "selector");
+            char[] nodeSelector = (char[]) getFieldValue(node, "selector");
+            if (patternSelector == null || nodeSelector == null
+                    || !java.util.Arrays.equals(patternSelector, nodeSelector)) {
+                return currentLevel;
+            }
+
+            Object[] parameterNames = (Object[]) getFieldValue(pattern, "parameterSimpleNames");
+            Object[] arguments = (Object[]) getFieldValue(node, "arguments");
+            int declarationArity = parameterNames == null ? -1 : parameterNames.length;
+            int invocationArity = arguments == null ? 0 : arguments.length;
+            if (declarationArity != invocationArity + 1) {
+                return currentLevel;
+            }
+
+            Object invocationBinding = getFieldValue(node, "binding");
+            if (invocationBinding != null && getFieldValue(invocationBinding, "returnType") != null) {
+                // A fully resolved ordinary instance method can share the same
+                // selector and visible arity. It is not an extension facade and
+                // must never be promoted merely because an @ExMethod exists.
+                return currentLevel;
+            }
+
+            Object receiverType = getFieldValue(node, "actualReceiverType");
+            if (receiverType == null) {
+                Object receiver = getFieldValue(node, "receiver");
+                receiverType = receiver == null ? null : getFieldValue(receiver, "resolvedType");
+            }
+            if (!searchTypeMatchesPattern(receiverType, pattern, 0)) {
+                return currentLevel;
+            }
+            for (int index = 0; index < invocationArity; index++) {
+                Object argumentType = arguments[index] == null
+                        ? null
+                        : getFieldValue(arguments[index], "resolvedType");
+                if (!searchTypeMatchesPattern(argumentType, pattern, index + 1)) {
+                    return currentLevel;
+                }
+            }
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconSearch] repaired accurate match selector=" + new String(nodeSelector)
+                        + ", declarationArity=" + declarationArity
+                        + ", invocationArity=" + invocationArity
+                        + ", receiver=" + getReadableTypeName(receiverType));
+            }
+            return 3;
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] accurate-match repair failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+            return currentLevel;
+        }
+    }
+
+    private static boolean searchTypeMatchesPattern(Object typeBinding, Object pattern, int parameterIndex)
+            throws Exception {
+        String declaredType = getSearchFocusParameterType(pattern, parameterIndex);
+        if (declaredType != null) {
+            if (declaredType.isEmpty()) {
+                return true;
+            }
+            int separator = declaredType.lastIndexOf('.');
+            String simple = separator < 0 ? declaredType : declaredType.substring(separator + 1);
+            return searchTypeHierarchyContains(typeBinding, declaredType, simple, new java.util.IdentityHashMap<>());
+        }
+        Object[] simpleNames = (Object[]) getFieldValue(pattern, "parameterSimpleNames");
+        Object[] qualifications = (Object[]) getFieldValue(pattern, "parameterQualifications");
+        if (simpleNames == null || parameterIndex < 0 || parameterIndex >= simpleNames.length) {
+            return true;
+        }
+        String simpleName = simpleNames[parameterIndex] instanceof char[]
+                ? new String((char[]) simpleNames[parameterIndex])
+                : "";
+        String qualification = qualifications != null
+                && parameterIndex < qualifications.length
+                && qualifications[parameterIndex] instanceof char[]
+                ? new String((char[]) qualifications[parameterIndex])
+                : "";
+        if (simpleName.isEmpty() || simpleName.length() == 1 && Character.isUpperCase(simpleName.charAt(0))) {
+            return true;
+        }
+        String expected = qualification.isEmpty() ? simpleName : qualification + "." + simpleName;
+        return searchTypeHierarchyContains(typeBinding, expected, simpleName, new java.util.IdentityHashMap<>());
+    }
+
+    /**
+     * SearchPattern parameter names can describe the synthetic receiver facade
+     * (and therefore degrade to Object). The Java-model focus still owns the
+     * declaration signatures, so use those as the authoritative source.
+     */
+    private static String getSearchFocusParameterType(Object pattern, int parameterIndex) throws Exception {
+        Object focus = getFieldValue(pattern, "focus");
+        if (focus == null) {
+            return null;
+        }
+        Method getParameterTypes = findMethod(focus.getClass(), "getParameterTypes");
+        if (getParameterTypes == null) {
+            return null;
+        }
+        Object value = getParameterTypes.invoke(focus);
+        if (!(value instanceof String[]) || parameterIndex < 0 || parameterIndex >= ((String[]) value).length) {
+            return null;
+        }
+        return eraseJavaModelTypeSignature(((String[]) value)[parameterIndex]);
+    }
+
+    private static String eraseJavaModelTypeSignature(String signature) {
+        if (signature == null || signature.isEmpty()) {
+            return "";
+        }
+        String value = signature;
+        while (value.startsWith("[")) {
+            value = value.substring(1);
+        }
+        if (value.isEmpty() || value.charAt(0) == 'T' || value.charAt(0) == '*'
+                || value.charAt(0) == '+' || value.charAt(0) == '-') {
+            return "";
+        }
+        if (value.length() == 1) {
+            switch (value.charAt(0)) {
+                case 'Z': return "boolean";
+                case 'B': return "byte";
+                case 'C': return "char";
+                case 'D': return "double";
+                case 'F': return "float";
+                case 'I': return "int";
+                case 'J': return "long";
+                case 'S': return "short";
+                case 'V': return "void";
+                default: return "";
+            }
+        }
+        if ((value.charAt(0) == 'L' || value.charAt(0) == 'Q') && value.endsWith(";")) {
+            value = value.substring(1, value.length() - 1);
+        }
+        StringBuilder erased = new StringBuilder(value.length());
+        int genericDepth = 0;
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            if (character == '<') {
+                genericDepth++;
+            } else if (character == '>') {
+                genericDepth = Math.max(0, genericDepth - 1);
+            } else if (genericDepth == 0) {
+                erased.append(character == '/' || character == '$' ? '.' : character);
+            }
+        }
+        return erased.toString();
+    }
+
+    private static boolean searchTypeHierarchyContains(
+            Object typeBinding,
+            String expectedQualifiedName,
+            String expectedSimpleName,
+            Map<Object, Boolean> visited
+    ) throws Exception {
+        if (typeBinding == null) {
+            // An unresolved argument is not evidence of incompatibility. JDT's
+            // normal overload resolution will report the real type error.
+            return true;
+        }
+        if (visited.put(typeBinding, Boolean.TRUE) != null) {
+            return false;
+        }
+        String actualQualified = eraseSearchTypeName(getQualifiedTypeName(typeBinding));
+        String actualReadable = eraseSearchTypeName(getReadableTypeName(typeBinding));
+        String expectedQualified = eraseSearchTypeName(expectedQualifiedName);
+        String expectedSimple = eraseSearchTypeName(expectedSimpleName);
+        if (actualQualified.equals(expectedQualified)
+                || actualReadable.equals(expectedQualified)
+                || actualQualified.endsWith("." + expectedSimple)
+                || actualReadable.equals(expectedSimple)
+                || "java.lang.Object".equals(expectedQualified)) {
+            return true;
+        }
+        Object superclass = invokeOptionalMethod(typeBinding, "superclass");
+        if (searchTypeHierarchyContains(superclass, expectedQualified, expectedSimple, visited)) {
+            return true;
+        }
+        Object interfaces = invokeOptionalMethod(typeBinding, "superInterfaces");
+        if (interfaces instanceof Object[]) {
+            for (Object interfaceType : (Object[]) interfaces) {
+                if (searchTypeHierarchyContains(interfaceType, expectedQualified, expectedSimple, visited)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static String eraseSearchTypeName(String value) {
+        if (value == null) {
+            return "";
+        }
+        String normalized = value.replace('$', '.');
+        int generic = normalized.indexOf('<');
+        if (generic >= 0) {
+            normalized = normalized.substring(0, generic);
+        }
+        return normalized.trim();
+    }
+
     private static boolean isExMethodSearchPattern(Object pattern) throws Exception {
         Object focus = getFieldValue(pattern, "focus");
         if (focus == null) {
@@ -11739,6 +13661,13 @@ public class ZirconCore {
             return;
         }
         Object actual = actualType;
+        if (templateType.getClass().getName().endsWith("WildcardBinding")) {
+            Object bound = getFieldValue(templateType, "bound");
+            if (bound != null && bound != templateType) {
+                collectReceiverSubstitutions(bound, actual, substitutions);
+            }
+            return;
+        }
         if (isTypeVariable(templateType)) {
             substitutions.putIfAbsent(templateType, actual);
             return;
@@ -13153,7 +15082,33 @@ public class ZirconCore {
         if (findSourceTypeAnnotation(typeBinding, annotationTypeName) != null) {
             return true;
         }
+        for (Object annotation : getBinaryTypeAnnotations(typeBinding)) {
+            if (annotation != null
+                    && matchesTypeName(getBinaryAnnotationTypeName(annotation), annotationTypeName)) {
+                return true;
+            }
+        }
         return false;
+    }
+
+    private static Object[] getBinaryTypeAnnotations(Object typeBinding) throws Exception {
+        String qualifiedName = getQualifiedTypeName(typeBinding);
+        if (qualifiedName == null || qualifiedName.isEmpty()) {
+            return new Object[0];
+        }
+        Object[] cached = BINARY_TYPE_ANNOTATION_CACHE.get(qualifiedName);
+        if (cached != null) {
+            return cached;
+        }
+        Object binaryType = findBinaryTypeInJdtEnvironment(typeBinding);
+        if (binaryType == null) {
+            putBoundedConcurrentMap(BINARY_TYPE_ANNOTATION_CACHE, qualifiedName, new Object[0]);
+            return new Object[0];
+        }
+        Object annotations = invokeMethod(binaryType, "getAnnotations");
+        Object[] resolved = annotations instanceof Object[] ? (Object[]) annotations : new Object[0];
+        putBoundedConcurrentMap(BINARY_TYPE_ANNOTATION_CACHE, qualifiedName, resolved);
+        return resolved;
     }
 
     private static List<Object> getAnnotationClassTargets(Object methodBinding, String memberName) throws Exception {
@@ -13249,28 +15204,22 @@ public class ZirconCore {
             return cached;
         }
 
-        String entryName = ownerClassName.replace('.', '/') + ".class";
-        String location = DISK_BINARY_LOCATION_CACHE.get(ownerClassName);
-        if (location == null && !DISK_BINARY_LOOKUP_MISSES.contains(ownerClassName)) {
-            Path locatedPath = locateBinaryTypeOnDisk(entryName);
-            if (locatedPath != null) {
-                location = locatedPath.toString();
-                DISK_BINARY_LOCATION_CACHE.put(ownerClassName, location);
-            }
-        }
-        if (location == null || location.isEmpty()) {
-            BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, new Object[0]);
-            return new Object[0];
-        }
-
-        Object binaryType = readBinaryType(Paths.get(location), entryName, methodBinding);
+        // The declaring BinaryTypeBinding already belongs to JDT's configured classpath.
+        // Ask its name environment for the IBinaryType instead of recursively walking the
+        // workspace, parent directories and every dependency jar for each method lookup.
+        Object binaryType = findBinaryTypeInJdtEnvironment(declaringClass);
         if (binaryType == null) {
-            BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, new Object[0]);
+            if (shouldTraceSelector(selector)) {
+                Util.log("[ZirconCore] binary annotation metadata unavailable: owner="
+                        + ownerClassName + ", selector=" + selector
+                        + ", path=" + String.valueOf(getFieldValue(declaringClass, "path")));
+            }
+            putBoundedConcurrentMap(BINARY_METHOD_ANNOTATION_CACHE, cacheKey, new Object[0]);
             return new Object[0];
         }
         Object methods = invokeMethod(binaryType, "getMethods");
         if (!(methods instanceof Object[])) {
-            BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, new Object[0]);
+            putBoundedConcurrentMap(BINARY_METHOD_ANNOTATION_CACHE, cacheKey, new Object[0]);
             return new Object[0];
         }
         char[] selectorChars = selector.toCharArray();
@@ -13298,15 +15247,112 @@ public class ZirconCore {
             }
             Object annotations = invokeMethod(binaryMethod, "getAnnotations");
             Object[] resolved = annotations instanceof Object[] ? (Object[]) annotations : new Object[0];
-            BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, resolved);
+            putBoundedConcurrentMap(BINARY_METHOD_ANNOTATION_CACHE, cacheKey, resolved);
             return resolved;
         }
         if (parameterCountMatchedAnnotations != null) {
-            BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, parameterCountMatchedAnnotations);
+            putBoundedConcurrentMap(BINARY_METHOD_ANNOTATION_CACHE, cacheKey, parameterCountMatchedAnnotations);
             return parameterCountMatchedAnnotations;
         }
-        BINARY_METHOD_ANNOTATION_CACHE.put(cacheKey, new Object[0]);
+        putBoundedConcurrentMap(BINARY_METHOD_ANNOTATION_CACHE, cacheKey, new Object[0]);
         return new Object[0];
+    }
+
+    private static Object findBinaryTypeInJdtEnvironment(Object declaringClass) {
+        if (declaringClass == null) {
+            return null;
+        }
+        try {
+            Object environment = getFieldValue(declaringClass, "environment");
+            if (environment == null) {
+                return readBinaryTypeAtJdtBindingPath(declaringClass);
+            }
+            Object nameEnvironment = getFieldValue(environment, "nameEnvironment");
+            Object rawCompoundName = getFieldValue(declaringClass, "compoundName");
+            if (nameEnvironment == null || !(rawCompoundName instanceof char[][])) {
+                return readBinaryTypeAtJdtBindingPath(declaringClass);
+            }
+            char[][] compoundName = (char[][]) rawCompoundName;
+            if (compoundName.length == 0) {
+                return readBinaryTypeAtJdtBindingPath(declaringClass);
+            }
+            char[][] packageName = compoundName.length > 1
+                    ? Arrays.copyOf(compoundName, compoundName.length - 1)
+                    : new char[0][];
+            char[] simpleName = compoundName[compoundName.length - 1];
+            Object answer = invokeMethod(nameEnvironment, "findType", simpleName, packageName);
+            if (answer == null || isProblem(answer)) {
+                answer = invokeMethod(nameEnvironment, "findType", (Object) compoundName);
+            }
+            if (answer == null || isProblem(answer)) {
+                return readBinaryTypeAtJdtBindingPath(declaringClass);
+            }
+            Object isBinaryType = invokeMethod(answer, "isBinaryType");
+            if (!(isBinaryType instanceof Boolean) || !((Boolean) isBinaryType)) {
+                return readBinaryTypeAtJdtBindingPath(declaringClass);
+            }
+            return invokeMethod(answer, "getBinaryType");
+        } catch (Exception ignored) {
+            return readBinaryTypeAtJdtBindingPath(declaringClass);
+        }
+    }
+
+    private static Object readBinaryTypeAtJdtBindingPath(Object declaringClass) {
+        try {
+            Object rawPath = getFieldValue(declaringClass, "path");
+            Object rawCompoundName = getFieldValue(declaringClass, "compoundName");
+            if (!(rawCompoundName instanceof char[][])) {
+                return null;
+            }
+            String ownerQualifiedName = toQualifiedName((char[][]) rawCompoundName);
+            String indexedLocation = JDT_BINARY_TYPE_LOCATIONS.get(ownerQualifiedName);
+            if (rawPath == null
+                    && (indexedLocation == null || indexedLocation.isEmpty())
+                    && JDT_APPLICATION_LIBRARY_LOCATIONS.isEmpty()) {
+                return null;
+            }
+            List<Path> binaryRoots = new ArrayList<>();
+            if (rawPath == null) {
+                if (indexedLocation != null && !indexedLocation.isEmpty()) {
+                    binaryRoots.add(Paths.get(indexedLocation));
+                }
+            } else if (rawPath instanceof URI) {
+                binaryRoots.add(Paths.get((URI) rawPath));
+            } else {
+                String pathText = String.valueOf(rawPath);
+                binaryRoots.add(pathText.startsWith("file:")
+                        ? Paths.get(URI.create(pathText))
+                        : Paths.get(pathText));
+            }
+            String entryName = ownerQualifiedName.replace('.', '/') + ".class";
+            for (String libraryLocation : JDT_APPLICATION_LIBRARY_LOCATIONS) {
+                Path candidate = Paths.get(libraryLocation);
+                if (!binaryRoots.contains(candidate)) {
+                    binaryRoots.add(candidate);
+                }
+            }
+            for (Path binaryRoot : binaryRoots) {
+                Path binaryPath = Files.isDirectory(binaryRoot)
+                        ? binaryRoot.resolve(entryName)
+                        : binaryRoot;
+                Object binaryType = readBinaryType(binaryPath, entryName, declaringClass);
+                if (binaryType != null) {
+                    putBoundedConcurrentMap(
+                            JDT_BINARY_TYPE_LOCATIONS,
+                            ownerQualifiedName,
+                            binaryRoot.toString()
+                    );
+                    return binaryType;
+                }
+            }
+            return null;
+        } catch (Exception ignored) {
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconCore] direct binary metadata read failed: "
+                        + ignored.getClass().getName() + ": " + ignored.getMessage());
+            }
+            return null;
+        }
     }
 
     private static Object readBinaryType(Path binaryPath, String entryName, Object anchor) throws Exception {
@@ -13431,10 +15477,12 @@ public class ZirconCore {
         if (actualTypeName == null || expectedTypeName == null) {
             return false;
         }
-        if (actualTypeName.equals(expectedTypeName)) {
+        String normalizedActual = actualTypeName.replace('$', '.');
+        String normalizedExpected = expectedTypeName.replace('$', '.');
+        if (normalizedActual.equals(normalizedExpected)) {
             return true;
         }
-        return getSimpleTypeName(actualTypeName).equals(getSimpleTypeName(expectedTypeName));
+        return getSimpleTypeName(normalizedActual).equals(getSimpleTypeName(normalizedExpected));
     }
 
     private static Object findSourceTypeAnnotation(Object typeBinding, String annotationTypeName) throws Exception {
@@ -14001,7 +16049,7 @@ public class ZirconCore {
                 return null;
             }
             location = locatedPath.toString();
-            DISK_BINARY_LOCATION_CACHE.put(qualifiedName, location);
+            putBoundedConcurrentMap(DISK_BINARY_LOCATION_CACHE, qualifiedName, location);
         }
         Path binaryPath = Paths.get(location);
         if (!Files.isRegularFile(binaryPath)) {
@@ -14489,9 +16537,20 @@ public class ZirconCore {
 
     public static final class Util {
         private static final java.nio.file.Path LOG_PATH = resolveLogPath();
+        private static final long MAX_LOG_BYTES = 8L * 1024L * 1024L;
 
-        public static void log(String msg) {
+        public static synchronized void log(String msg) {
             try {
+                if (java.nio.file.Files.exists(LOG_PATH)
+                        && java.nio.file.Files.size(LOG_PATH) >= MAX_LOG_BYTES) {
+                    java.nio.file.Files.write(
+                            LOG_PATH,
+                            "[Zircon] log truncated after reaching 8 MiB\n"
+                                    .getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            java.nio.file.StandardOpenOption.TRUNCATE_EXISTING,
+                            java.nio.file.StandardOpenOption.WRITE
+                    );
+                }
                 java.nio.file.Files.write(
                         LOG_PATH,
                         (msg + System.lineSeparator()).getBytes(java.nio.charset.StandardCharsets.UTF_8),

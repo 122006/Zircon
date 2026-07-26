@@ -1,18 +1,35 @@
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const workspace = path.resolve(process.argv[2] || path.join(__dirname, '..', 'test-fixtures', 'native-search'));
+const cliArguments = process.argv.slice(2);
+const workspaceArgument = cliArguments.find((argument) => !argument.startsWith('--'));
+const workspace = path.resolve(workspaceArgument || path.join(__dirname, '..', 'test-fixtures', 'native-search'));
+const diagnosticsOnly = cliArguments.includes('--diagnostics-only');
+const completionOnly = cliArguments.includes('--completion-only');
+const indexedCompletionOnly = cliArguments.includes('--indexed-completion-only');
+const optionalChainOnly = cliArguments.includes('--optional-chain-only');
+const optionalCompletionOnly = cliArguments.includes('--optional-completion-only');
+const optionalTypeErrorOnly = cliArguments.includes('--optional-type-error-only');
+const templateOnly = cliArguments.includes('--template-only');
 const zirconTestSource = path.join(workspace, 'src', 'test', 'java', 'test', 'TestExMethodImpl.java');
-const sourceFile = fs.existsSync(zirconTestSource)
+const zirconGenericChainSource = path.join(workspace, 'src', 'test', 'java', 'test', 'TestExMethod.java');
+const zirconOptionalChainSource = path.join(workspace, 'src', 'test', 'java', 'test', 'TestOptionalChaining.java');
+const sourceFile = (optionalChainOnly || optionalCompletionOnly || optionalTypeErrorOnly) && fs.existsSync(zirconOptionalChainSource)
+    ? zirconOptionalChainSource
+    : completionOnly && fs.existsSync(zirconGenericChainSource)
+    ? zirconGenericChainSource
+    : fs.existsSync(zirconTestSource)
     ? zirconTestSource
     : path.join(workspace, 'src', 'probe', 'Usage.java');
 const declarationFile = fs.existsSync(zirconTestSource)
     ? null
     : path.join(workspace, 'src', 'probe', 'Extensions.java');
-const probeMethodName = fs.existsSync(zirconTestSource) ? 'emptyStringRString' : 'surround';
+const probeMethodName = completionOnly || indexedCompletionOnly || optionalCompletionOnly
+    ? (fs.existsSync(zirconGenericChainSource) ? 'map' : 'surround')
+    : fs.existsSync(zirconTestSource) ? 'emptyStringRString' : 'surround';
 const agentJar = path.resolve(__dirname, '..', 'server', 'zircon-agent.jar');
 const projectJdk = findJdkHome(22);
 const extensionRoot = findLatestJavaExtension();
@@ -31,20 +48,32 @@ for (const required of [workspace, sourceFile, agentJar, javaExe, launcherJar, c
     }
 }
 
+buildBinaryExtensionFixture();
+
 const args = [
     '--add-modules=ALL-SYSTEM',
     '--add-opens', 'java.base/java.util=ALL-UNNAMED',
     '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
     '--add-opens', 'java.base/sun.nio.fs=ALL-UNNAMED',
+    '-Xms128m',
+    '-Xmx1536m',
+    '-XX:ReservedCodeCacheSize=256m',
     '-Declipse.application=org.eclipse.jdt.ls.core.id1',
     '-Dosgi.bundles.defaultStartLevel=4',
     '-Declipse.product=org.eclipse.jdt.ls.core.product',
     '-Dfile.encoding=UTF-8',
     '-Dzircon.vscode=true',
-    '-Dzircon.forceLocalSuppress=true',
-    '-Dzircon.debug=true',
-    '-Dzircon.trace=true',
-    `-Dzircon.trace.selectors=${probeMethodName}`,
+    `-Dzircon.debug=${cliArguments.includes('--debug')}`,
+    `-Dzircon.trace=${cliArguments.includes('--trace')}`,
+    `-Dzircon.trace.selectors=${
+        diagnosticsOnly
+            ? `${probeMethodName},map`
+            : indexedCompletionOnly
+                ? `${probeMethodName},binarySurround,filtered`
+                : probeMethodName
+    }`,
+    ...(diagnosticsOnly ? ['-Dzircon.debug.selectors=map'] : []),
+    ...(diagnosticsOnly || optionalTypeErrorOnly || templateOnly ? ['-Dzircon.debug.problemFiles=*'] : []),
     `-Dzircon.log.path=${agentLog}`,
     `-Dzircon.agent.jar=${agentJar}`,
     `-Dzircon.workspace.roots=${workspace}`,
@@ -250,6 +279,91 @@ function findFirst(root, predicate) {
     return undefined;
 }
 
+function buildBinaryExtensionFixture() {
+    const fixtureRoot = path.join(workspace, 'binary-fixture');
+    const annotationSource = path.join(workspace, 'src', 'zircon', 'ExMethod.java');
+    if (!fs.existsSync(fixtureRoot) || !fs.existsSync(annotationSource)) {
+        return;
+    }
+    const javaSources = [annotationSource];
+    const queue = [fixtureRoot];
+    while (queue.length > 0) {
+        const current = queue.shift();
+        for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+            const entryPath = path.join(current, entry.name);
+            if (entry.isDirectory()) {
+                queue.push(entryPath);
+            } else if (entry.name.endsWith('.java')) {
+                javaSources.push(entryPath);
+            }
+        }
+    }
+    const outputJar = path.join(workspace, 'lib', 'binary-extensions.jar');
+    const newestSourceModifiedAt = Math.max(
+        ...javaSources.map((source) => fs.statSync(source).mtimeMs)
+    );
+    if (fs.existsSync(outputJar) && fs.statSync(outputJar).mtimeMs >= newestSourceModifiedAt) {
+        return;
+    }
+    const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zircon-binary-fixture-'));
+    const classesDirectory = path.join(temporaryRoot, 'classes');
+    const temporaryJar = path.join(temporaryRoot, 'binary-extensions.jar');
+    fs.mkdirSync(classesDirectory, { recursive: true });
+    fs.mkdirSync(path.dirname(outputJar), { recursive: true });
+    try {
+        runChecked(path.join(projectJdk, 'bin', 'javac.exe'), [
+            '-encoding', 'UTF-8',
+            '-d', classesDirectory,
+            ...javaSources
+        ]);
+        runChecked(path.join(projectJdk, 'bin', 'jar.exe'), [
+            '--create',
+            '--file', temporaryJar,
+            '-C', classesDirectory,
+            'dependency'
+        ]);
+        fs.copyFileSync(temporaryJar, outputJar);
+    } finally {
+        fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+}
+
+function runChecked(command, arguments) {
+    const result = spawnSync(command, arguments, {
+        cwd: workspace,
+        encoding: 'utf8',
+        windowsHide: true
+    });
+    if (result.error || result.status !== 0) {
+        throw new Error(
+            `Command failed: ${command}\n${result.error || result.stderr || result.stdout || `exit ${result.status}`}`
+        );
+    }
+}
+
+function completionLabel(item) {
+    return typeof item?.label === 'string' ? item.label : item?.label?.label || '';
+}
+
+async function requestCompletionItems(uri, completionPosition, targetName, maximumAttempts) {
+    let items = [];
+    for (let attempt = 1; attempt <= maximumAttempts; attempt++) {
+        const completionResult = await request('textDocument/completion', {
+            textDocument: { uri },
+            position: completionPosition,
+            context: { triggerKind: 1 }
+        }, 90_000);
+        items = Array.isArray(completionResult) ? completionResult : completionResult?.items || [];
+        if (!targetName || items.some((item) => completionLabel(item).replace(/\(.*$/, '') === targetName)) {
+            return { items, attempts: attempt };
+        }
+        if (attempt < maximumAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+    }
+    return { items, attempts: maximumAttempts };
+}
+
 function findInvocationPosition(text, methodName) {
     const marker = `.${methodName}`;
     const offset = text.indexOf(marker);
@@ -259,6 +373,26 @@ function findInvocationPosition(text, methodName) {
     const before = text.slice(0, offset + 1);
     const lines = before.split(/\r?\n/);
     return { line: lines.length - 1, character: lines[lines.length - 1].length };
+}
+
+function findCompletionPosition(text, methodName) {
+    const marker = `.${methodName}`;
+    const offset = text.indexOf(marker);
+    if (offset < 0) {
+        throw new Error(`Cannot find completion invocation ${marker}`);
+    }
+    const prefixLength = Math.min(2, methodName.length);
+    const before = text.slice(0, offset + 1 + prefixLength);
+    const lines = before.split(/\r?\n/);
+    return { line: lines.length - 1, character: lines[lines.length - 1].length };
+}
+
+function findOptionalChainPosition(text) {
+    const offset = text.indexOf('?.');
+    if (offset < 0) {
+        throw new Error('Cannot find optional-chain syntax in probe source.');
+    }
+    return offsetToPosition(text, offset + 2);
 }
 
 function countWorkspaceEditChanges(edit) {
@@ -304,6 +438,12 @@ function positionToOffset(text, position) {
     return Math.min(text.length, offset + position.character);
 }
 
+function offsetToPosition(text, targetOffset) {
+    const before = text.slice(0, targetOffset);
+    const lines = before.split(/\r?\n/);
+    return { line: lines.length - 1, character: lines[lines.length - 1].length };
+}
+
 function applyWorkspaceEditToText(edit, uri, text) {
     const edits = workspaceEditEntries(edit)
         .filter((entry) => entry.uri === uri)
@@ -318,6 +458,38 @@ function applyWorkspaceEditToText(edit, uri, text) {
         result = result.slice(0, entry.start) + entry.newText + result.slice(entry.end);
     }
     return result;
+}
+
+function sanitizeRenameWithNativeReferences(edit, references, oldName, newName, textsByUri) {
+    const changes = {};
+    const seen = new Set();
+    const add = (uri, range, replacement) => {
+        const text = textsByUri.get(uri);
+        if (text === undefined) return;
+        const start = positionToOffset(text, range.start);
+        const reportedEnd = positionToOffset(text, range.end);
+        const normalizedRange = text.slice(start, reportedEnd) === oldName
+            ? range
+            : text.slice(start, start + oldName.length) === oldName
+                ? {
+                    start: range.start,
+                    end: { line: range.start.line, character: range.start.character + oldName.length }
+                }
+                : null;
+        if (!normalizedRange) return;
+        const key = `${uri}:${normalizedRange.start.line}:${normalizedRange.start.character}`
+            + `:${normalizedRange.end.line}:${normalizedRange.end.character}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        (changes[uri] ||= []).push({ range: normalizedRange, newText: replacement });
+    };
+    for (const entry of workspaceEditEntries(edit)) {
+        add(entry.uri, entry.range, newName);
+    }
+    for (const location of references || []) {
+        add(location.uri, location.range, newName);
+    }
+    return { changes };
 }
 
 function countText(text, value) {
@@ -355,11 +527,167 @@ function workspaceEditContainsPosition(edit, uri, position) {
     });
 }
 
+function latestPublishedDiagnostics(uri) {
+    for (let index = notifications.length - 1; index >= 0; index--) {
+        const notification = notifications[index];
+        if (notification.method === 'textDocument/publishDiagnostics'
+                && notification.params?.uri === uri) {
+            return notification.params.diagnostics || [];
+        }
+    }
+    return [];
+}
+
 async function main() {
     const rootUri = pathToFileURL(workspace).href;
-    const sourceUri = pathToFileURL(sourceFile).href;
-    const text = fs.readFileSync(sourceFile, 'utf8');
-    const position = findInvocationPosition(text, probeMethodName);
+    let sourceUri = pathToFileURL(sourceFile).href;
+    let text = fs.readFileSync(sourceFile, 'utf8');
+    let optionalCompletionPosition;
+    let indexedCompletionPosition;
+    let indexedBinaryCompletionPosition;
+    let indexedAcceptedCompletionPosition;
+    let indexedRejectedCompletionPosition;
+    let optionalTypeErrorPosition;
+    let templateCompletionPosition;
+    let templateExtensionCompletionPosition;
+    let templateIncompleteLine;
+    let templateExtensionLine;
+    let templateErrorPosition;
+    if (indexedCompletionOnly) {
+        text = [
+            'package consumer;',
+            '',
+            '// Deliberately no import probe.Extensions: global candidates must come from JDT indexes.',
+            'class ZirconIndexedCompletionProbe {',
+            '    String probe() {',
+            '        String value = "zircon";',
+            '        dependency.BinaryTypes.Accepted accepted = null;',
+            '        dependency.BinaryTypes.Rejected rejected = null;',
+            '        String sourceResult = value.sur();',
+            '        String binaryResult = value.bin();',
+            '        String acceptedResult = accepted.fil();',
+            '        rejected.fil();',
+            '        return sourceResult + binaryResult + acceptedResult;',
+            '    }',
+            '}',
+            ''
+        ].join('\n');
+        sourceUri = pathToFileURL(path.join(
+            workspace,
+            'src',
+            'consumer',
+            'ZirconIndexedCompletionProbe.java'
+        )).href;
+        indexedCompletionPosition = offsetToPosition(text, text.indexOf('value.sur') + 'value.sur'.length);
+        indexedBinaryCompletionPosition = offsetToPosition(text, text.indexOf('value.bin') + 'value.bin'.length);
+        indexedAcceptedCompletionPosition = offsetToPosition(text, text.indexOf('accepted.fil') + 'accepted.fil'.length);
+        indexedRejectedCompletionPosition = offsetToPosition(text, text.indexOf('rejected.fil') + 'rejected.fil'.length);
+    }
+    if (optionalCompletionOnly) {
+        const insertionOffset = text.lastIndexOf('}');
+        const probeText = [
+            '',
+            '    static void zirconNativeCompletionProbe() {',
+            '        String value = "";',
+            '        value.sub();',
+            '    }',
+            ''
+        ].join('\n');
+        text = text.slice(0, insertionOffset) + probeText + text.slice(insertionOffset);
+        const cursorOffset = insertionOffset + probeText.indexOf('value.sub') + 'value.sub'.length;
+        optionalCompletionPosition = offsetToPosition(text, cursorOffset);
+    }
+    if (optionalTypeErrorOnly) {
+        const zirconProjectFixture = fs.existsSync(zirconTestSource);
+        text = [
+            'package test;',
+            '',
+            zirconProjectFixture ? 'import zircon.example.ExObject;' : 'import zircon.ExMethod;',
+            '',
+            'class ZirconOptionalTypeErrorProbe<C> {',
+            '    static class TestClass {',
+            '        TestClass returnThis() { return this; }',
+            '    }',
+            '    static class TestChildClass extends TestClass {}',
+            '    TestClass classNullVar;',
+            '    static void check(Runnable action) {}',
+            ...(zirconProjectFixture
+                ? []
+                : ['    @ExMethod static <T> T cast(Object value, Class<T> type) { return type.cast(value); }']),
+            '    <M> M methodGeneric(M value, M fallback) { return value ?: fallback; }',
+            '    class Inner<I> {',
+            '        I innerGeneric(I value, I fallback) { return value ?: fallback; }',
+            '        C outerGeneric(C value, C fallback) { return value ?: fallback; }',
+            '    }',
+            '',
+            '    void probe() {',
+            '        check(() -> {',
+            '            String value = classNullVar?.returnThis().cast(TestChildClass.class) ?: new TestChildClass();',
+            '        });',
+            '    }',
+            '}',
+            ''
+        ].join('\n');
+        sourceUri = pathToFileURL(path.join(
+            workspace,
+            'src',
+            ...(zirconProjectFixture ? ['test', 'java'] : []),
+            'test',
+            'ZirconOptionalTypeErrorProbe.java'
+        )).href;
+        const expressionOffset = text.indexOf('classNullVar?.');
+        optionalTypeErrorPosition = offsetToPosition(text, expressionOffset);
+    }
+    if (templateOnly) {
+        const zirconProjectFixture = fs.existsSync(zirconTestSource);
+        text = [
+            'package test;',
+            '',
+            'import probe.Extensions;',
+            '',
+            'class ZirconTemplateProbe {',
+            '    String field = "field";',
+            '    void probe() {',
+            '        String local = "hello";',
+            '        String incomplete = f"${local.}";',
+            '        String valid = f"prefix ${local.substring(1)} ${field.substring(1)}";',
+            '        String extension = f"${local.sur}";',
+            '        String quotedBrace = f"${"}".substring(0)}";',
+            '        String commentedBrace = f"${1 /* } */ + 1}";',
+            '        String invalid = f"${missingTemplateValue}";',
+            '    }',
+            '}',
+            ''
+        ].join('\n');
+        sourceUri = pathToFileURL(path.join(
+            workspace,
+            'src',
+            ...(zirconProjectFixture ? ['test', 'java'] : []),
+            'test',
+            'ZirconTemplateProbe.java'
+        )).href;
+        templateCompletionPosition = offsetToPosition(text, text.indexOf('local.sub') + 'local.sub'.length);
+        templateExtensionCompletionPosition = offsetToPosition(text, text.indexOf('local.sur') + 'local.sur'.length);
+        templateIncompleteLine = offsetToPosition(text, text.indexOf('local.}')).line;
+        templateExtensionLine = templateExtensionCompletionPosition.line;
+        templateErrorPosition = offsetToPosition(text, text.indexOf('missingTemplateValue'));
+    }
+    const position = (optionalChainOnly || optionalTypeErrorOnly)
+        ? findOptionalChainPosition(text)
+        : templateOnly
+        ? templateCompletionPosition
+        : optionalCompletionOnly
+        ? optionalCompletionPosition
+        : indexedCompletionOnly
+        ? indexedCompletionPosition
+        : completionOnly
+        ? findCompletionPosition(text, probeMethodName)
+        : findInvocationPosition(text, probeMethodName);
+    if (completionOnly) {
+        const cursorOffset = positionToOffset(text, position);
+        text = text.slice(0, cursorOffset)
+            + text.slice(cursorOffset + Math.max(0, probeMethodName.length - 2));
+    }
     console.log(`[probe:native-search] JDT LS: ${extensionRoot}`);
     console.log(`[probe:native-search] invocation: ${sourceFile}:${position.line + 1}:${position.character + 1}`);
     console.log(`[probe:native-search] agent log: ${agentLog}`);
@@ -372,6 +700,13 @@ async function main() {
             workspace: { configuration: true, workspaceFolders: true },
             window: { workDoneProgress: true },
             textDocument: {
+                completion: {
+                    dynamicRegistration: true,
+                    completionItem: {
+                        snippetSupport: true,
+                        resolveSupport: { properties: ['additionalTextEdits'] }
+                    }
+                },
                 references: { dynamicRegistration: true },
                 rename: { dynamicRegistration: true, prepareSupport: true },
                 callHierarchy: { dynamicRegistration: true },
@@ -393,10 +728,24 @@ async function main() {
     notify('initialized', {});
     notify('workspace/didChangeConfiguration', { settings: {} });
 
-    await new Promise((resolve) => setTimeout(resolve, fs.existsSync(zirconTestSource) ? 35_000 : 12_000));
+    await new Promise((resolve) => setTimeout(resolve, optionalTypeErrorOnly || templateOnly
+        ? 20_000
+        : fs.existsSync(zirconTestSource) ? 35_000 : 12_000));
     notify('textDocument/didOpen', {
         textDocument: { uri: sourceUri, languageId: 'java', version: 1, text }
     });
+    const genericChainSource = fs.existsSync(zirconGenericChainSource) ? zirconGenericChainSource : sourceFile;
+    const genericChainUri = diagnosticsOnly ? pathToFileURL(genericChainSource).href : null;
+    if (genericChainUri && genericChainUri !== sourceUri) {
+        notify('textDocument/didOpen', {
+            textDocument: {
+                uri: genericChainUri,
+                languageId: 'java',
+                version: 1,
+                text: fs.readFileSync(genericChainSource, 'utf8')
+            }
+        });
+    }
     if (declarationFile) {
         notify('textDocument/didOpen', {
             textDocument: {
@@ -407,7 +756,243 @@ async function main() {
             }
         });
     }
-    await new Promise((resolve) => setTimeout(resolve, 8_000));
+    await new Promise((resolve) => setTimeout(resolve, optionalChainOnly ? 35_000 : 8_000));
+
+    if (templateOnly) {
+        await new Promise((resolve) => setTimeout(resolve, 8_000));
+        const diagnostics = latestPublishedDiagnostics(sourceUri);
+        const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 1);
+        const missingErrors = errors.filter((diagnostic) => diagnostic.range.start.line === templateErrorPosition.line
+            && /missingTemplateValue/.test(diagnostic.message || ''));
+        const unexpectedErrors = errors.filter((diagnostic) => !missingErrors.includes(diagnostic)
+            && diagnostic.range.start.line !== templateIncompleteLine
+            && diagnostic.range.start.line !== templateExtensionLine
+            && !/declared package .* does not match the expected package/i.test(diagnostic.message || ''));
+        const completionResult = await request('textDocument/completion', {
+            textDocument: { uri: sourceUri },
+            position,
+            context: { triggerKind: 1 }
+        }, 90_000);
+        const items = Array.isArray(completionResult) ? completionResult : completionResult?.items || [];
+        const labels = items.map((item) => typeof item.label === 'string' ? item.label : item.label?.label || '');
+        const hasSubstring = labels.some((label) => String(label).startsWith('substring('));
+        const extensionCompletionResult = await request('textDocument/completion', {
+            textDocument: { uri: sourceUri },
+            position: templateExtensionCompletionPosition,
+            context: { triggerKind: 1 }
+        }, 90_000);
+        const extensionItems = Array.isArray(extensionCompletionResult)
+            ? extensionCompletionResult
+            : extensionCompletionResult?.items || [];
+        const extensionLabels = extensionItems.map((item) => typeof item.label === 'string' ? item.label : item.label?.label || '');
+        const hasSurround = extensionLabels.some((label) => String(label).startsWith('surround('));
+        console.log(`[probe:native-search] templateErrors=${errors.length}, missingErrors=${missingErrors.length}, unexpectedErrors=${unexpectedErrors.length}, completionItems=${items.length}, extensionCompletionItems=${extensionItems.length}`);
+        console.log(`[probe:native-search] labels=${labels.slice(0, 20).join(', ')}`);
+        console.log(`[probe:native-search] extensionLabels=${extensionLabels.slice(0, 20).join(', ')}`);
+        for (const diagnostic of errors.slice(0, 20)) {
+            console.log(`[probe:native-search]   diagnostic ${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1} ${diagnostic.message}`);
+        }
+        if (missingErrors.length !== 1 || unexpectedErrors.length !== 0 || !hasSubstring || !hasSurround) {
+            throw new Error('Template expression diagnostics or native JDT completion did not pass.');
+        }
+        return;
+    }
+
+    if (optionalTypeErrorOnly) {
+        await new Promise((resolve) => setTimeout(resolve, 8_000));
+        const diagnostics = latestPublishedDiagnostics(sourceUri);
+        const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 1);
+        const expectedErrors = errors.filter((diagnostic) => {
+            const message = diagnostic.message || '';
+            return diagnostic.range.start.line === optionalTypeErrorPosition.line
+                && /cannot convert|incompatible types|type mismatch/i.test(message);
+        });
+        console.log(`[probe:native-search] optionalTypeErrors=${errors.length}, expectedTypeErrors=${expectedErrors.length}`);
+        for (const diagnostic of errors.slice(0, 30)) {
+            console.log(`[probe:native-search]   diagnostic ${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1} ${diagnostic.message}`);
+        }
+        if (errors.length !== 2 || expectedErrors.length !== 2) {
+            throw new Error('Expected only the two incompatible String assignment diagnostics; generic method/inner/outer scopes must stay valid.');
+        }
+        return;
+    }
+
+    if (optionalChainOnly) {
+        const diagnostics = latestPublishedDiagnostics(sourceUri);
+        const errors = diagnostics.filter((diagnostic) => diagnostic.severity === 1);
+        console.log(`[probe:native-search] optionalChainErrors=${errors.length}`);
+        for (const diagnostic of errors.slice(0, 30)) {
+            console.log(`[probe:native-search]   diagnostic ${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1} ${diagnostic.message}`);
+        }
+        if (errors.length > 0) {
+            throw new Error('JDT reported errors for Zircon optional-chain or Elvis syntax.');
+        }
+        return;
+    }
+
+    if (completionOnly || indexedCompletionOnly || optionalCompletionOnly) {
+        const completionStartedAt = Date.now();
+        const completionAttempts = indexedCompletionOnly ? 12 : 1;
+        const completion = await requestCompletionItems(
+            sourceUri,
+            position,
+            indexedCompletionOnly ? probeMethodName : undefined,
+            completionAttempts
+        );
+        const items = completion.items;
+        const completionElapsedMs = Date.now() - completionStartedAt;
+        if (optionalCompletionOnly) {
+            const labels = items.map((item) => typeof item.label === 'string' ? item.label : item.label?.label || '');
+            const hasSubstring = labels.some((label) => String(label).startsWith('substring('));
+            console.log(`[probe:native-search] optionalCompletionItems=${items.length}, elapsedMs=${completionElapsedMs}`);
+            console.log(`[probe:native-search] labels=${labels.slice(0, 20).join(', ')}`);
+            if (!hasSubstring) {
+                throw new Error('JDT did not return normal String member completion in the optional-chain document.');
+            }
+            if (completionElapsedMs > 5_000) {
+                throw new Error(`JDT completion remained too slow (${completionElapsedMs} ms).`);
+            }
+            return;
+        }
+        const extensionItems = items.filter((item) => {
+            const label = typeof item.label === 'string' ? item.label : item.label?.label || '';
+            return String(label).replace(/\(.*$/, '') === probeMethodName;
+        });
+        console.log(`[probe:native-search] completions=${items.length}, ${probeMethodName}=${extensionItems.length}, attempts=${completion.attempts}, elapsedMs=${completionElapsedMs}`);
+        for (const item of extensionItems.slice(0, 10)) {
+            console.log(`[probe:native-search]   ${probeMethodName} detail=${item.detail || ''}`);
+        }
+        if (extensionItems.length === 0) {
+            console.log(`[probe:native-search] labels=${items.map((item) => typeof item.label === 'string' ? item.label : item.label?.label).join(', ')}`);
+            throw new Error(`JDT CompletionEngine did not return the Zircon ${probeMethodName} extension method.`);
+        }
+        if (indexedCompletionOnly && completionElapsedMs > 8_000) {
+            throw new Error(`JDT indexed extension completion remained too slow (${completionElapsedMs} ms).`);
+        }
+        if (indexedCompletionOnly && completion.attempts > 2) {
+            throw new Error(`JDT cold extension index required ${completion.attempts} completion requests.`);
+        }
+        if (indexedCompletionOnly) {
+            const resolvedItem = await request('completionItem/resolve', extensionItems[0], 90_000);
+            const importEdits = resolvedItem?.additionalTextEdits || [];
+            console.log(`[probe:native-search] indexedCompletionImportEdits=${importEdits.length}`);
+            console.log(`[probe:native-search] indexedCompletionEdits=${JSON.stringify(importEdits)}`);
+            if (!importEdits.some((edit) => /import\s+probe\.Extensions\s*;/.test(edit.newText || ''))) {
+                throw new Error('JDT indexed extension completion did not attach the declaring-class import.');
+            }
+
+            const binaryCompletion = await requestCompletionItems(
+                sourceUri,
+                indexedBinaryCompletionPosition,
+                'binarySurround',
+                4
+            );
+            const binaryItems = binaryCompletion.items.filter(
+                (item) => completionLabel(item).replace(/\(.*$/, '') === 'binarySurround'
+            );
+            if (binaryItems.length === 0) {
+                throw new Error('JDT binary extension index did not return binarySurround.');
+            }
+            const resolvedBinaryItem = await request('completionItem/resolve', binaryItems[0], 90_000);
+            if (!(resolvedBinaryItem?.additionalTextEdits || []).some(
+                (edit) => /import\s+dependency\.BinaryExtensions\s*;/.test(edit.newText || '')
+            )) {
+                throw new Error('JDT binary extension completion did not attach the declaring-class import.');
+            }
+            const acceptedCompletion = await requestCompletionItems(
+                sourceUri,
+                indexedAcceptedCompletionPosition,
+                'filtered',
+                4
+            );
+            const acceptedItems = acceptedCompletion.items.filter(
+                (item) => completionLabel(item).replace(/\(.*$/, '') === 'filtered'
+            );
+            const rejectedCompletion = await requestCompletionItems(
+                sourceUri,
+                indexedRejectedCompletionPosition,
+                undefined,
+                1
+            );
+            const rejectedItems = rejectedCompletion.items.filter(
+                (item) => completionLabel(item).replace(/\(.*$/, '') === 'filtered'
+            );
+            console.log(
+                `[probe:native-search] binaryCompletion=${binaryItems.length}, `
+                + `filterAllowed=${acceptedItems.length}, filterRejected=${rejectedItems.length}`
+            );
+            if (acceptedItems.length === 0 || rejectedItems.length !== 0) {
+                throw new Error('JDT binary extension filterAnnotation matching did not respect receiver annotations.');
+            }
+        }
+        if (!optionalCompletionOnly && probeMethodName === 'map' && fs.existsSync(zirconGenericChainSource)) {
+            const variableText = [
+                'package test;',
+                '',
+                'import zircon.example.ExCollection;',
+                '',
+                'class ZirconCompletionProbe {',
+                '    static void probe() {',
+                '        java.util.List<Integer> a = null;',
+                '        a.ma();',
+                '    }',
+                '}',
+                ''
+            ].join('\n');
+            const variableCursorOffset = variableText.indexOf('a.ma') + 'a.ma'.length;
+            const variablePosition = offsetToPosition(variableText, variableCursorOffset);
+            const variableUri = pathToFileURL(path.join(
+                workspace,
+                'src',
+                'test',
+                'java',
+                'test',
+                'ZirconCompletionProbe.java'
+            )).href;
+            notify('textDocument/didOpen', {
+                textDocument: {
+                    uri: variableUri,
+                    languageId: 'java',
+                    version: 1,
+                    text: variableText
+                }
+            });
+            await new Promise((resolve) => setTimeout(resolve, 4_000));
+            const variableResult = await request('textDocument/completion', {
+                textDocument: { uri: variableUri },
+                position: variablePosition,
+                context: { triggerKind: 1 }
+            }, 90_000);
+            const variableItems = Array.isArray(variableResult) ? variableResult : variableResult?.items || [];
+            const variableMaps = variableItems.filter((item) => {
+                const label = typeof item.label === 'string' ? item.label : item.label?.label || '';
+                return String(label).replace(/\(.*$/, '') === 'map';
+            });
+            console.log(`[probe:native-search] variableReceiverCompletions=${variableItems.length}, map=${variableMaps.length}`);
+            if (variableMaps.length === 0) {
+                throw new Error('JDT CompletionEngine did not return map for a List<Integer> variable receiver.');
+            }
+        }
+        return;
+    }
+
+    if (genericChainUri) {
+        const diagnostics = latestPublishedDiagnostics(genericChainUri);
+        const genericTargetErrors = diagnostics.filter((diagnostic) => {
+            return String(diagnostic.code) === '553648781'
+                || /target type of this expression must be a functional interface/i.test(diagnostic.message || '');
+        });
+        console.log(`[probe:native-search] genericChainTargetTypeErrors=${genericTargetErrors.length}`);
+        for (const diagnostic of genericTargetErrors) {
+            console.log(`[probe:native-search]   diagnostic ${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1} ${diagnostic.message}`);
+        }
+        if (genericTargetErrors.length > 0) {
+            throw new Error('JDT reported a functional target-type error for the chained generic extension invocation.');
+        }
+        if (diagnosticsOnly) {
+            return;
+        }
+    }
 
     const documentPosition = { textDocument: { uri: sourceUri }, position };
     const renameName = `${probeMethodName}Probe`;
@@ -455,11 +1040,13 @@ async function main() {
     console.log(`[probe:native-search] prepareRename=${Boolean(prepareRename)}`);
     console.log(`[probe:native-search] renameEdits=${countWorkspaceEditChanges(renameEdit)}`);
     for (const entry of workspaceEditEntries(renameEdit)) {
-        console.log(`[probe:native-search]   rename ${entry.uri}:${entry.range.start.line + 1}:${entry.range.start.character + 1}`);
+        console.log(`[probe:native-search]   rename ${entry.uri}:${entry.range.start.line + 1}:${entry.range.start.character + 1}`
+            + `-${entry.range.end.line + 1}:${entry.range.end.character + 1} -> ${JSON.stringify(entry.newText)}`);
     }
     console.log(`[probe:native-search] declarationRenameEdits=${countWorkspaceEditChanges(declarationRename)}`);
     for (const entry of workspaceEditEntries(declarationRename)) {
-        console.log(`[probe:native-search]   declarationRename ${entry.uri}:${entry.range.start.line + 1}:${entry.range.start.character + 1}`);
+        console.log(`[probe:native-search]   declarationRename ${entry.uri}:${entry.range.start.line + 1}:${entry.range.start.character + 1}`
+            + `-${entry.range.end.line + 1}:${entry.range.end.character + 1} -> ${JSON.stringify(entry.newText)}`);
     }
     console.log(`[probe:native-search] callHierarchyItems=${Array.isArray(callItems) ? callItems.length : 0}`);
     console.log(`[probe:native-search] incomingCalls=${Array.isArray(incomingCalls) ? incomingCalls.length : 0}`);
@@ -485,24 +1072,60 @@ async function main() {
     if (declarationFile) {
         const declarationUri = pathToFileURL(declarationFile).href;
         const declarationText = fs.readFileSync(declarationFile, 'utf8');
-        const renamedUsage = applyWorkspaceEditToText(renameEdit, sourceUri, text);
-        const renamedDeclaration = applyWorkspaceEditToText(renameEdit, declarationUri, declarationText);
+        const textsByUri = new Map([[sourceUri, text], [declarationUri, declarationText]]);
+        const rawRenamedUsage = applyWorkspaceEditToText(renameEdit, sourceUri, text);
+        const rawRenamedDeclaration = applyWorkspaceEditToText(renameEdit, declarationUri, declarationText);
+        if (countText(rawRenamedUsage, `.${renameName}(`) !== 2
+                || countText(rawRenamedUsage, `.${probeMethodName}(`) !== 1
+                || countText(rawRenamedDeclaration, `${renameName}(`) !== 1) {
+            throw new Error('Invocation-started raw JDT rename changed more than the three semantic occurrences.');
+        }
+        const rawDeclarationStartedUsage = applyWorkspaceEditToText(declarationRename, sourceUri, text);
+        const rawDeclarationStartedDeclaration =
+            applyWorkspaceEditToText(declarationRename, declarationUri, declarationText);
+        if (countText(rawDeclarationStartedUsage, `.${declarationRenameName}(`) !== 2
+                || countText(rawDeclarationStartedUsage, `.${probeMethodName}(`) !== 1
+                || countText(rawDeclarationStartedDeclaration, `${declarationRenameName}(`) !== 1) {
+            throw new Error('Declaration-started raw JDT rename changed more than the three semantic occurrences.');
+        }
+        const safeRenameEdit = sanitizeRenameWithNativeReferences(
+            renameEdit,
+            references,
+            probeMethodName,
+            renameName,
+            textsByUri
+        );
+        const safeDeclarationRename = sanitizeRenameWithNativeReferences(
+            declarationRename,
+            references,
+            probeMethodName,
+            declarationRenameName,
+            textsByUri
+        );
+        for (const entry of workspaceEditEntries(safeRenameEdit)) {
+            console.log(`[probe:native-search]   sanitizedRename ${entry.uri}`
+                + `:${entry.range.start.line + 1}:${entry.range.start.character + 1}`
+                + `-${entry.range.end.line + 1}:${entry.range.end.character + 1}`);
+        }
+        const renamedUsage = applyWorkspaceEditToText(safeRenameEdit, sourceUri, text);
+        const renamedDeclaration = applyWorkspaceEditToText(safeRenameEdit, declarationUri, declarationText);
         if (countText(renamedUsage, `.${renameName}(`) !== 2
-                || countText(renamedUsage, `.${probeMethodName}(`) !== 0
+                || countText(renamedUsage, `.${probeMethodName}(`) !== 1
                 || countText(renamedDeclaration, `${renameName}(`) !== 1) {
             throw new Error('JDT native rename did not semantically rename declaration, extension call and static call.');
         }
-        const declarationStartedUsage = applyWorkspaceEditToText(declarationRename, sourceUri, text);
+        const declarationStartedUsage = applyWorkspaceEditToText(safeDeclarationRename, sourceUri, text);
         const declarationStartedDeclaration = applyWorkspaceEditToText(
-            declarationRename,
+            safeDeclarationRename,
             declarationUri,
             declarationText
         );
         if (countText(declarationStartedUsage, `.${declarationRenameName}(`) !== 2
+                || countText(declarationStartedUsage, `.${probeMethodName}(`) !== 1
                 || countText(declarationStartedDeclaration, `${declarationRenameName}(`) !== 1) {
             throw new Error('Declaration-started JDT rename did not update all three method occurrences.');
         }
-        console.log('[probe:native-search] semanticRenameOccurrences=3 (both entry points)');
+        console.log('[probe:native-search] rawNativeRenameOccurrences=3 (both entry points)');
     }
     const hasExtensionIncomingCall = Array.isArray(incomingCalls) && incomingCalls.some((call) => {
         return call.from?.uri === sourceUri

@@ -91,6 +91,9 @@ public class TextStringFormat {
         assertEquals(f"(${1})" + $"(${2})" + f"(${3})", "(1)(2)(3)");
         assertEquals(f"${')'}", ")");
         assertEquals(f"${'('}", "(");
+        assertEquals(f"${"}".substring(0)}", "}");
+        assertEquals(f"${\"}\".substring(0)}", "}");
+        assertEquals(f"${1 /* } */ + 1}", "2");
         assertEquals($"(${1})" + $"(${2})(${3})", "(1)(2)(3)");
         assertEquals(f"(${1})" + f"(${2})(${3})", "(1)(2)(3)");
         assertEquals(

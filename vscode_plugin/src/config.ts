@@ -9,6 +9,8 @@ export interface ZirconExtensionConfig {
     enableDiagnostics: boolean;
     enableSemanticHighlighting: boolean;
     enableStatusBar: boolean;
+    enableCodeActions: boolean;
+    enableEditorExperience: boolean;
     debug: boolean;
     additionalAgentVmArgs: string[];
     additionalJdtVmArgs: string[];
@@ -20,13 +22,15 @@ export function getZirconConfig(): ZirconExtensionConfig {
     const config = vscode.workspace.getConfiguration(SECTION);
     return {
         enable: config.get<boolean>('enable', true),
-        enableExperimentalJavaAgent: config.get<boolean>('enableExperimentalJavaAgent', false),
+        enableExperimentalJavaAgent: config.get<boolean>('enableExperimentalJavaAgent', true),
         autoInjectJavaAgent: config.get<boolean>('autoInjectJavaAgent', true),
         onlyInjectWhenProjectUsesZircon: config.get<boolean>('onlyInjectWhenProjectUsesZircon', true),
         javaAgentConfigurationTarget: config.get<'workspace' | 'global'>('javaAgentConfigurationTarget', 'workspace'),
         enableDiagnostics: config.get<boolean>('enableDiagnostics', true),
         enableSemanticHighlighting: config.get<boolean>('enableSemanticHighlighting', true),
         enableStatusBar: config.get<boolean>('enableStatusBar', true),
+        enableCodeActions: config.get<boolean>('enableCodeActions', true),
+        enableEditorExperience: config.get<boolean>('enableEditorExperience', true),
         debug: config.get<boolean>('debug', false),
         additionalAgentVmArgs: config.get<string[]>('additionalAgentVmArgs', []),
         additionalJdtVmArgs: config.get<string[]>('additionalJdtVmArgs', [])

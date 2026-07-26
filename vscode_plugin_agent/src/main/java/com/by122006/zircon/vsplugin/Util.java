@@ -17,6 +17,7 @@ import java.nio.file.StandardOpenOption;
  */
 public class Util {
     private static final Path LOG_PATH = resolveLogPath();
+    private static final long MAX_LOG_BYTES = 8L * 1024L * 1024L;
 
     private static Path resolveLogPath() {
         final String explicit = getProperty("zircon.log.path", "").trim();
@@ -27,13 +28,27 @@ public class Util {
         return Paths.get(tempDir, "zircon_vscode_agent.log");
     }
 
-    public static void log(String msg) {
+    public static synchronized void log(String msg) {
         try {
+            rotateLogIfNeeded();
             Files.write(LOG_PATH, (msg + System.lineSeparator()).getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
         } catch (IOException e) {
             System.err.println("[Zircon] 写入日志失败: " + e.getMessage());
         }
+    }
+
+    private static void rotateLogIfNeeded() throws IOException {
+        if (!Files.exists(LOG_PATH) || Files.size(LOG_PATH) < MAX_LOG_BYTES) {
+            return;
+        }
+        Files.write(
+                LOG_PATH,
+                ("[Zircon] log truncated after reaching 8 MiB" + System.lineSeparator())
+                        .getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE
+        );
     }
 
     public static boolean isDebugEnabled() {

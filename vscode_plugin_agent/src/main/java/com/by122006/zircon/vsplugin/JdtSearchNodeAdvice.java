@@ -10,9 +10,11 @@ public class JdtSearchNodeAdvice {
 
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void exit(
+            @Advice.This Object locator,
             @Advice.Argument(0) Object node,
-            @Advice.Return int level
+            @Advice.Return(readOnly = false) int level
     ) {
+        level = ZirconCore.repairJdtSearchResolution(locator, node, level);
         ZirconCore.traceJdtSearchResolution(node, level);
     }
 }

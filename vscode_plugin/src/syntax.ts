@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+import { findTemplateLiterals, TemplateLiteral } from './stringConversions';
+import { TEMPLATE_CODE, TEMPLATE_FORMAT } from './templateStringSplitter';
 
-const TEMPLATE_PREFIXES = ['STR.', 'f', 'j', '$'] as const;
 const SCAN_CACHE = new Map<string, { version: number; result: ZirconScanResult }>();
 
 export interface ZirconScanResult {
@@ -10,19 +11,11 @@ export interface ZirconScanResult {
     templateStringCount: number;
 }
 
-interface TemplateParseResult {
-    endIndex: number;
-    isClosed: boolean;
-    diagnostics: vscode.Diagnostic[];
-    operatorRanges: vscode.Range[];
-    prefixRange: vscode.Range;
-}
-
-interface NestedScanResult {
-    endIndex: number;
-    isClosed: boolean;
-}
-
+/**
+ * Diagnostics, semantic highlighting, conversions and editor input now all
+ * consume the TypeScript port of base TemplateStringSplitter. Do not add a
+ * second template-string state machine here.
+ */
 export function scanDocument(document: vscode.TextDocument): ZirconScanResult {
     const cacheKey = document.uri.toString();
     const cached = SCAN_CACHE.get(cacheKey);
@@ -31,49 +24,31 @@ export function scanDocument(document: vscode.TextDocument): ZirconScanResult {
     }
 
     const text = document.getText();
+    const literals = findTemplateLiterals(text);
     const diagnostics: vscode.Diagnostic[] = [];
     const prefixRanges: vscode.Range[] = [];
     const operatorRanges: vscode.Range[] = [];
-    let templateStringCount = 0;
 
-    for (let index = 0; index < text.length; index++) {
-        if (text[index] === '/' && text[index + 1] === '/') {
-            index = skipLineComment(text, index);
-            continue;
+    for (const literal of literals) {
+        prefixRanges.push(toRange(document, literal.start, literal.openingQuote));
+        if (!literal.closed) {
+            diagnostics.push(new vscode.Diagnostic(
+                toRange(document, literal.start, Math.max(literal.start + literal.prefix.length + 1, literal.end)),
+                `未闭合的 Zircon 模板字符串：${literal.prefix}"..."`,
+                vscode.DiagnosticSeverity.Error
+            ));
         }
-        if (text[index] === '/' && text[index + 1] === '*') {
-            index = skipBlockComment(text, index);
-            continue;
-        }
-        if (text[index] === '"' || text[index] === '\'') {
-            index = skipQuotedSegment(text, index, text.length);
-            continue;
-        }
-        const prefix = matchTemplatePrefix(text, index);
-        if (!prefix) {
-            continue;
-        }
-
-        const parseResult = parseTemplateString(document, text, index, prefix);
-        templateStringCount += 1;
-        diagnostics.push(...parseResult.diagnostics);
-        prefixRanges.push(parseResult.prefixRange);
-        operatorRanges.push(...parseResult.operatorRanges);
-        index = Math.max(index, parseResult.endIndex);
+        addTemplateOperatorRanges(document, text, literal, operatorRanges, diagnostics);
     }
-
-    operatorRanges.push(...scanOperators(document, text));
+    addLanguageOperatorRanges(document, text, literals, operatorRanges);
 
     const result = {
         diagnostics,
         prefixRanges,
         operatorRanges,
-        templateStringCount
+        templateStringCount: literals.length
     };
-    SCAN_CACHE.set(cacheKey, {
-        version: document.version,
-        result
-    });
+    SCAN_CACHE.set(cacheKey, { version: document.version, result });
     return result;
 }
 
@@ -85,334 +60,92 @@ export function clearScanCache(uri?: vscode.Uri): void {
     SCAN_CACHE.delete(uri.toString());
 }
 
-function matchTemplatePrefix(text: string, index: number): string | undefined {
-    for (const prefix of TEMPLATE_PREFIXES) {
-        if (!text.startsWith(prefix, index)) {
-            continue;
-        }
-        if (!isValidTemplatePrefixBoundary(text, index, prefix)) {
-            continue;
-        }
-        const quoteIndex = index + prefix.length;
-        if (quoteIndex >= text.length || text[quoteIndex] !== '"') {
-            continue;
-        }
-        return prefix;
-    }
-    return undefined;
-}
-
-function parseTemplateString(
+function addTemplateOperatorRanges(
     document: vscode.TextDocument,
     text: string,
-    prefixStart: number,
-    prefix: string
-): TemplateParseResult {
-    const openingQuoteIndex = prefixStart + prefix.length;
-    let cursor = openingQuoteIndex + 1;
-    let closed = false;
-    const diagnostics: vscode.Diagnostic[] = [];
-    const operatorRanges: vscode.Range[] = [];
-
-    while (cursor < text.length) {
-        const current = text[cursor];
-        if (current === '\r' || current === '\n') {
-            break;
-        }
-        if (current === '"') {
-            closed = true;
-            break;
-        }
-        if (prefix === 'STR.') {
-            if (current === '\\') {
-                if (text[cursor + 1] === '{' && !isEscaped(text, cursor)) {
-                    const nested = scanBracedInterpolation(text, cursor + 2);
-                    cursor = nested.isClosed ? nested.endIndex + 1 : nested.endIndex;
-                    continue;
-                }
-                cursor += 2;
-                continue;
-            }
-            cursor += 1;
-            continue;
-        }
-        if (current === '\\') {
-            cursor += 2;
-            continue;
-        }
-        if (current === '$' && !isDollarEscaped(text, cursor)) {
-            const next = text[cursor + 1];
-            if (next === '{') {
-                const nested = scanBracedInterpolation(text, cursor + 2);
-                cursor = nested.isClosed ? nested.endIndex + 1 : nested.endIndex;
-                continue;
-            }
-            if (isIdentifierStart(next)) {
-                cursor = scanSimpleInterpolation(text, cursor + 1);
-                continue;
-            }
-        }
-        cursor += 1;
-    }
-
-    if (!closed) {
-        diagnostics.push(new vscode.Diagnostic(
-            new vscode.Range(document.positionAt(prefixStart), document.positionAt(Math.min(cursor, text.length))),
-            `未闭合的 Zircon 模板字符串：${prefix}"..."`,
-            vscode.DiagnosticSeverity.Error
-        ));
-    } else {
-        if (prefix === 'STR.') {
-            scanStrTemplateOperators(document, text, openingQuoteIndex + 1, cursor, operatorRanges, diagnostics);
-        } else {
-            scanDollarTemplateOperators(document, text, openingQuoteIndex + 1, cursor, operatorRanges, diagnostics);
-        }
-    }
-
-    return {
-        endIndex: cursor,
-        isClosed: closed,
-        diagnostics,
-        operatorRanges,
-        prefixRange: new vscode.Range(document.positionAt(prefixStart), document.positionAt(openingQuoteIndex))
-    };
-}
-
-function scanDollarTemplateOperators(
-    document: vscode.TextDocument,
-    text: string,
-    contentStart: number,
-    contentEnd: number,
-    operatorRanges: vscode.Range[],
+    literal: TemplateLiteral,
+    ranges: vscode.Range[],
     diagnostics: vscode.Diagnostic[]
 ): void {
-    for (let index = contentStart; index < contentEnd; index++) {
-        if (text[index] !== '$' || isDollarEscaped(text, index)) {
+    for (const range of literal.ranges) {
+        if (range.style === TEMPLATE_FORMAT) {
+            ranges.push(toRange(document, range.startIndex, range.endIndex));
             continue;
         }
-        const next = text[index + 1];
-        if (next === '{') {
-            operatorRanges.push(new vscode.Range(document.positionAt(index), document.positionAt(index + 2)));
-            const end = findBalancedClosing(text, index + 2, contentEnd, '{', '}');
-            if (end === -1) {
-                diagnostics.push(new vscode.Diagnostic(
-                    new vscode.Range(document.positionAt(index), document.positionAt(Math.min(index + 2, contentEnd))),
-                    '`${...}` 插值表达式未闭合。',
-                    vscode.DiagnosticSeverity.Error
-                ));
-                continue;
-            }
-            operatorRanges.push(new vscode.Range(document.positionAt(end), document.positionAt(end + 1)));
-            index = end;
+        if (range.style !== TEMPLATE_CODE) {
             continue;
         }
-        if (isIdentifierStart(next)) {
-            operatorRanges.push(new vscode.Range(document.positionAt(index), document.positionAt(index + 1)));
+        if (literal.prefix === 'STR.' && text.slice(range.startIndex - 2, range.startIndex) === '\\{') {
+            ranges.push(toRange(document, range.startIndex - 2, range.startIndex));
+        } else if (text.slice(range.startIndex - 2, range.startIndex) === '${') {
+            ranges.push(toRange(document, range.startIndex - 2, range.startIndex));
+        } else if (text[range.startIndex - 1] === '$') {
+            ranges.push(toRange(document, range.startIndex - 1, range.startIndex));
         }
-    }
-}
-
-function scanStrTemplateOperators(
-    document: vscode.TextDocument,
-    text: string,
-    contentStart: number,
-    contentEnd: number,
-    operatorRanges: vscode.Range[],
-    diagnostics: vscode.Diagnostic[]
-): void {
-    for (let index = contentStart; index < contentEnd - 1; index++) {
-        if (text[index] !== '\\' || text[index + 1] !== '{' || isEscaped(text, index)) {
-            continue;
-        }
-        operatorRanges.push(new vscode.Range(document.positionAt(index), document.positionAt(index + 2)));
-        const end = findBalancedClosing(text, index + 2, contentEnd, '{', '}');
-        if (end === -1) {
+        if (text[range.endIndex] === '}') {
+            ranges.push(toRange(document, range.endIndex, range.endIndex + 1));
+        } else if (literal.closed && range.endIndex >= literal.endQuote) {
             diagnostics.push(new vscode.Diagnostic(
-                new vscode.Range(document.positionAt(index), document.positionAt(index + 2)),
-                '`\\{...}` 插值表达式未闭合。',
+                toRange(document, Math.max(literal.openingQuote + 1, range.startIndex - 2), literal.endQuote),
+                literal.prefix === 'STR.' ? '`\\{...}` 插值表达式未闭合。' : '`${...}` 插值表达式未闭合。',
                 vscode.DiagnosticSeverity.Error
             ));
-            continue;
         }
-        operatorRanges.push(new vscode.Range(document.positionAt(end), document.positionAt(end + 1)));
-        index = end;
     }
 }
 
-function scanOperators(document: vscode.TextDocument, text: string): vscode.Range[] {
-    const ranges: vscode.Range[] = [];
-    const operatorPattern = /\?\.|\?:/g;
-    for (let match = operatorPattern.exec(text); match !== null; match = operatorPattern.exec(text)) {
-        const start = match.index;
-        ranges.push(new vscode.Range(document.positionAt(start), document.positionAt(start + match[0].length)));
-    }
-    return ranges;
-}
-
-function findBalancedClosing(
+function addLanguageOperatorRanges(
+    document: vscode.TextDocument,
     text: string,
-    from: number,
-    limit: number,
-    open: string,
-    close: string
-): number {
-    let depth = 0;
-    for (let index = from; index < limit; index++) {
-        const current = text[index];
-        if (current === '\'' || current === '"') {
-            index = skipQuotedSegment(text, index, limit);
-            continue;
+    templates: TemplateLiteral[],
+    ranges: vscode.Range[]
+): void {
+    let templateIndex = 0;
+    for (let index = 0; index < text.length; index += 1) {
+        while (templateIndex < templates.length && index >= templates[templateIndex].end) {
+            templateIndex += 1;
         }
-        if (current === '\\') {
-            index += 1;
-            continue;
-        }
-        if (current === open) {
-            depth += 1;
-            continue;
-        }
-        if (current === close) {
-            if (depth === 0) {
-                return index;
+        const template = templates[templateIndex];
+        if (template && index >= template.start && index < template.end) {
+            const codeRange = template.ranges.find((range) => range.style === TEMPLATE_CODE
+                && index >= range.startIndex && index < range.endIndex);
+            if (!codeRange) {
+                index = Math.max(index, template.end - 1);
+                continue;
             }
-            depth -= 1;
+        } else if (text[index] === '/' && text[index + 1] === '/') {
+            const newline = text.indexOf('\n', index + 2);
+            index = newline < 0 ? text.length : newline;
+            continue;
+        } else if (text[index] === '/' && text[index + 1] === '*') {
+            const closing = text.indexOf('*/', index + 2);
+            index = closing < 0 ? text.length : closing + 1;
+            continue;
+        } else if (text[index] === '"' || text[index] === '\'') {
+            index = skipQuoted(text, index) - 1;
+            continue;
+        }
+
+        const operator = text.slice(index, index + 2);
+        if (operator === '?.' || operator === '?:') {
+            ranges.push(toRange(document, index, index + 2));
+            index += 1;
         }
     }
-    return -1;
 }
 
-function skipQuotedSegment(text: string, start: number, limit: number): number {
+function skipQuoted(text: string, start: number): number {
     const quote = text[start];
-    for (let index = start + 1; index < limit; index++) {
+    for (let index = start + 1; index < text.length; index += 1) {
         if (text[index] === '\\') {
             index += 1;
-            continue;
-        }
-        if (text[index] === quote) {
-            return index;
-        }
-    }
-    return limit - 1;
-}
-
-function skipLineComment(text: string, start: number): number {
-    for (let index = start + 2; index < text.length; index++) {
-        if (text[index] === '\r' || text[index] === '\n') {
-            return index - 1;
-        }
-    }
-    return text.length - 1;
-}
-
-function skipBlockComment(text: string, start: number): number {
-    for (let index = start + 2; index < text.length - 1; index++) {
-        if (text[index] === '*' && text[index + 1] === '/') {
+        } else if (text[index] === quote) {
             return index + 1;
         }
     }
-    return text.length - 1;
+    return text.length;
 }
 
-function scanBracedInterpolation(text: string, from: number): NestedScanResult {
-    let depth = 1;
-    for (let index = from; index < text.length; index++) {
-        const current = text[index];
-        if (current === '\r' || current === '\n') {
-            return {
-                endIndex: index,
-                isClosed: false
-            };
-        }
-        if (current === '\'' || current === '"') {
-            index = skipQuotedSegment(text, index, text.length);
-            continue;
-        }
-        if (current === '\\') {
-            index += 1;
-            continue;
-        }
-        if (current === '{') {
-            depth += 1;
-            continue;
-        }
-        if (current !== '}') {
-            continue;
-        }
-        depth -= 1;
-        if (depth === 0) {
-            return {
-                endIndex: index,
-                isClosed: true
-            };
-        }
-    }
-    return {
-        endIndex: text.length,
-        isClosed: false
-    };
-}
-
-function scanSimpleInterpolation(text: string, from: number): number {
-    let parenDepth = 0;
-    for (let index = from; index < text.length; index++) {
-        const current = text[index];
-        if (current === '\r' || current === '\n') {
-            return index;
-        }
-        if (current === '\\') {
-            index += 1;
-            continue;
-        }
-        if (parenDepth > 0) {
-            if (current === '\'' || current === '"') {
-                index = skipQuotedSegment(text, index, text.length);
-                continue;
-            }
-            if (current === '(') {
-                parenDepth += 1;
-                continue;
-            }
-            if (current === ')') {
-                parenDepth -= 1;
-            }
-            continue;
-        }
-        if (isSimpleInterpolationChar(current)) {
-            continue;
-        }
-        if (current === '(') {
-            parenDepth = 1;
-            continue;
-        }
-        return index - 1;
-    }
-    return text.length - 1;
-}
-
-function isSimpleInterpolationChar(value: string): boolean {
-    return /[A-Za-z0-9_\u4e00-\u9fa5.$]/.test(value);
-}
-
-function isEscaped(text: string, index: number): boolean {
-    let slashCount = 0;
-    for (let cursor = index - 1; cursor >= 0 && text[cursor] === '\\'; cursor--) {
-        slashCount += 1;
-    }
-    return slashCount % 2 === 1;
-}
-
-function isDollarEscaped(text: string, index: number): boolean {
-    return index > 0 && text[index - 1] === '\\';
-}
-
-function isIdentifierStart(value: string | undefined): boolean {
-    return value !== undefined && /[A-Za-z_\u4e00-\u9fa5$]/.test(value);
-}
-
-function isValidTemplatePrefixBoundary(text: string, index: number, prefix: string): boolean {
-    const previous = index > 0 ? text[index - 1] : undefined;
-    if (prefix === '$') {
-        return previous === undefined || !/[A-Za-z0-9_\u4e00-\u9fa5$."')\]]/.test(previous);
-    }
-    return previous === undefined || !/[A-Za-z0-9_\u4e00-\u9fa5$]/.test(previous);
+function toRange(document: vscode.TextDocument, start: number, end: number): vscode.Range {
+    return new vscode.Range(document.positionAt(start), document.positionAt(Math.max(start, end)));
 }

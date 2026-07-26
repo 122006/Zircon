@@ -1,10 +1,12 @@
 import * as vscode from 'vscode';
+import { getZirconConfig } from './config';
 import { ExMethodDescriptor } from './exMethodModel';
 import { ExMethodIndex } from './exMethodIndex';
 import { resolveDefinitionTargets, resolveMethodTargets } from './exMethodUsage';
 
 const SEARCH_EXCLUDE = '**/{node_modules,build,out,.git,.gradle}/**';
 let suppressCustomReferenceProvider = false;
+let suppressZirconRenameProvider = false;
 
 export function registerExMethodNavigation(
     context: vscode.ExtensionContext,
@@ -18,7 +20,8 @@ export function registerExMethodNavigation(
 
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(selector, {
-            provideHover(document, position) {
+            async provideHover(document, position) {
+                await index.ensureImportedDependencies(document);
                 const targets = resolveMethodTargets(index, document, position);
                 if (targets.length === 0) {
                     return undefined;
@@ -32,7 +35,8 @@ export function registerExMethodNavigation(
             }
         }),
         vscode.languages.registerDefinitionProvider(selector, {
-            provideDefinition(document, position) {
+            async provideDefinition(document, position) {
+                await index.ensureImportedDependencies(document);
                 const targets = resolveDefinitionTargets(index, document, position);
                 return targets.map((descriptor) => toDefinitionLink(descriptor));
             }
@@ -42,6 +46,13 @@ export function registerExMethodNavigation(
                 if (suppressCustomReferenceProvider) {
                     return [];
                 }
+                // The JDT agent now makes extension invocations accurate native
+                // SearchEngine matches. Keep the source scan only as a
+                // fallback for users who explicitly disable the agent.
+                if (getZirconConfig().enableExperimentalJavaAgent) {
+                    return [];
+                }
+                await index.ensureImportedDependencies(document);
                 const targets = resolveMethodTargets(index, document, position);
                 if (targets.length === 0) {
                     return [];
@@ -49,8 +60,113 @@ export function registerExMethodNavigation(
                 const locations = await findReferences(targets, index, output, options.includeDeclaration);
                 return dedupeLocations(locations);
             }
+        }),
+        vscode.languages.registerRenameProvider(selector, {
+            async provideRenameEdits(document, position, newName) {
+                if (suppressZirconRenameProvider || !getZirconConfig().enableExperimentalJavaAgent) {
+                    return undefined;
+                }
+                await index.ensureImportedDependencies(document);
+                const targets = resolveMethodTargets(index, document, position);
+                if (targets.length === 0) {
+                    return undefined;
+                }
+
+                // Let JDT build the authoritative refactoring first. Its
+                // RenameMethodProcessor currently drops explicit static calls
+                // after an extension facade participates in the search, even
+                // though SearchEngine returns those exact references. Merge
+                // only those native SearchEngine locations back into the edit.
+                suppressZirconRenameProvider = true;
+                let nativeEdit: vscode.WorkspaceEdit | undefined;
+                try {
+                    nativeEdit = await vscode.commands.executeCommand<vscode.WorkspaceEdit>(
+                        'vscode.executeDocumentRenameProvider',
+                        document.uri,
+                        position,
+                        newName
+                    );
+                } finally {
+                    suppressZirconRenameProvider = false;
+                }
+                const references = await probeNativeJavaReferences(document, position);
+                return await mergeNativeRenameReferences(
+                    nativeEdit ?? new vscode.WorkspaceEdit(),
+                    references,
+                    targets[0].methodName,
+                    newName
+                );
+            }
         })
     );
+}
+
+export async function mergeNativeRenameReferences(
+    edit: vscode.WorkspaceEdit,
+    references: readonly vscode.Location[],
+    oldName: string,
+    newName: string
+): Promise<vscode.WorkspaceEdit> {
+    const merged = new vscode.WorkspaceEdit();
+    const existing = new Set<string>();
+    const documents = new Map<string, vscode.TextDocument>();
+    const openDocument = async (uri: vscode.Uri): Promise<vscode.TextDocument> => {
+        const key = uri.toString();
+        const cached = documents.get(key);
+        if (cached) {
+            return cached;
+        }
+        const document = await vscode.workspace.openTextDocument(uri);
+        documents.set(key, document);
+        return document;
+    };
+    for (const [uri, textEdits] of edit.entries()) {
+        const editedDocument = await openDocument(uri);
+        for (const textEdit of textEdits) {
+            // A facade MethodReferenceMatch can currently carry a range from
+            // the extension selector through the following direct static
+            // selector. Never forward such a destructive multi-token edit.
+            const normalizedRange = normalizeRenameRange(editedDocument, textEdit.range, oldName);
+            if (!normalizedRange) {
+                continue;
+            }
+            merged.replace(uri, normalizedRange, newName);
+            existing.add(locationKey(uri, normalizedRange));
+        }
+    }
+    for (const location of dedupeLocations([...references])) {
+        const referencedDocument = await openDocument(location.uri);
+        const normalizedRange = normalizeRenameRange(referencedDocument, location.range, oldName);
+        if (!normalizedRange) {
+            continue;
+        }
+        const key = locationKey(location.uri, normalizedRange);
+        if (existing.has(key)) {
+            continue;
+        }
+        merged.replace(location.uri, normalizedRange, newName);
+        existing.add(key);
+    }
+    return merged;
+}
+
+function normalizeRenameRange(
+    document: vscode.TextDocument,
+    range: vscode.Range,
+    methodName: string
+): vscode.Range | undefined {
+    if (document.getText(range) === methodName) {
+        return range;
+    }
+    const selectorRange = new vscode.Range(
+        range.start,
+        range.start.translate(0, methodName.length)
+    );
+    return document.getText(selectorRange) === methodName ? selectorRange : undefined;
+}
+
+function locationKey(uri: vscode.Uri, range: vscode.Range): string {
+    return `${uri.toString()}:${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
 }
 
 export async function probeNativeJavaReferences(
@@ -83,7 +199,7 @@ async function findReferences(
     output: vscode.OutputChannel,
     includeDeclaration: boolean
 ): Promise<vscode.Location[]> {
-    const javaFiles = await vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE, 1000);
+    const javaFiles = await vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE);
     const targetNames = new Set(targets.map((target) => target.methodName));
     const locations: vscode.Location[] = [];
 

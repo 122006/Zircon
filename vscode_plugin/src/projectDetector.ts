@@ -37,14 +37,14 @@ export async function detectWorkspaceInfo(output: vscode.OutputChannel): Promise
     }
 
     const [javaFiles, gradleFiles, pomFiles] = await Promise.all([
-        vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE, 200),
-        vscode.workspace.findFiles('**/*.{gradle,gradle.kts}', SEARCH_EXCLUDE, 50),
-        vscode.workspace.findFiles('**/pom.xml', SEARCH_EXCLUDE, 50)
+        vscode.workspace.findFiles('**/*.java', SEARCH_EXCLUDE),
+        vscode.workspace.findFiles('**/*.{gradle,gradle.kts}', SEARCH_EXCLUDE),
+        vscode.workspace.findFiles('**/pom.xml', SEARCH_EXCLUDE)
     ]);
 
     const buildFiles = [...gradleFiles, ...pomFiles];
     const markers = new Set<string>();
-    const filesToInspect = [...buildFiles, ...javaFiles.slice(0, 40)];
+    const filesToInspect = [...buildFiles, ...javaFiles];
 
     for (const uri of filesToInspect) {
         const content = await readText(uri);
@@ -56,7 +56,9 @@ export async function detectWorkspaceInfo(output: vscode.OutputChannel): Promise
                 markers.add(marker.label);
             }
         }
-        if (markers.size === ZIRCON_MARKERS.length) {
+        // One reliable marker is enough to enable Zircon. Stop early without
+        // making project detection depend on filesystem enumeration order.
+        if (markers.size > 0) {
             break;
         }
     }

@@ -38,8 +38,14 @@ repositories {
 dependencies {
     annotationProcessor project(":javac")
     testAnnotationProcessor project(":javac")
+    compileOnly project(":base")
     implementation 'net.bytebuddy:byte-buddy:1.14.3'
     compileOnly 'org.eclipse.jdt:org.eclipse.jdt.core:3.35.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+test {
+    useJUnitPlatform()
 }
 
 
@@ -54,11 +60,16 @@ tasks.withType(JavaCompile) {
 }
 
 shadowJar {
+    dependsOn project(":base").tasks.named("classes")
     archiveClassifier.set('') //
     mergeServiceFiles() //
 
     // 将 Byte Buddy 移入你自己的包空间下
     relocate 'net.bytebuddy', 'com.by122006.zircon.repackaged.bytebuddy'
+
+    from(project(":base").sourceSets.main.output) {
+        include 'com/sun/tools/javac/parser/TemplateStringSplitter*.class'
+    }
 
     manifest {
         attributes(
@@ -71,6 +82,7 @@ shadowJar {
 
 tasks.register('bootstrapHelperJar', Jar) {
     dependsOn classes
+    dependsOn project(":base").tasks.named("classes")
     archiveClassifier.set('bootstrap')
     from(sourceSets.main.output) {
         include 'com/by122006/zircon/vsplugin/ScopeAdvice*.class'
@@ -80,6 +92,14 @@ tasks.register('bootstrapHelperJar', Jar) {
         include 'com/by122006/zircon/vsplugin/TemplateScannerAccessorAdvice*.class'
         include 'com/by122006/zircon/vsplugin/TemplateScannerResetAdvice*.class'
         include 'com/by122006/zircon/vsplugin/TemplateStringSupport*.class'
+    }
+    from(project(":base").sourceSets.main.output) {
+        include 'com/sun/tools/javac/parser/TemplateStringSplitter*.class'
+    }
+    // ZirconCore reads these bytes as a resource and defines the requestor in
+    // JDT Core's OSGi class loader. It must not be resolved by bootstrap itself.
+    from(sourceSets.main.output) {
+        include 'org/eclipse/jdt/core/search/ZirconExMethodSearchRequestor.class'
     }
 }
 

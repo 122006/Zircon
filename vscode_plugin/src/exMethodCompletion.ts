@@ -9,7 +9,8 @@ import { buildExMethodImportTextEdits } from './javaImports';
 export function registerExMethodCompletion(
     context: vscode.ExtensionContext,
     index: ExMethodIndex,
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    nativeAgentAvailable: () => boolean = () => false
 ): void {
     const provider: vscode.CompletionItemProvider = {
         async provideCompletionItems(
@@ -19,7 +20,14 @@ export function registerExMethodCompletion(
             if (document.languageId !== 'java') {
                 return [];
             }
-
+            if (isMemberCompletion(document, position) && !nativeAgentAvailable()) {
+                await index.ensureAllDependenciesIndexed();
+            } else {
+                // The Agent obtains global candidates from JDT's persistent
+                // annotation index. TypeScript stays import-scoped and acts as
+                // the full-scan fallback only when the Agent is unavailable.
+                await index.ensureImportedDependencies(document);
+            }
             const completion = resolveCompletionContext(index, document, position);
             if (!completion) {
                 return [];
@@ -38,6 +46,19 @@ export function registerExMethodCompletion(
         '.',
         ':'
     ));
+}
+
+function isMemberCompletion(document: vscode.TextDocument, position: vscode.Position): boolean {
+    const text = document.getText();
+    let offset = document.offsetAt(position);
+    while (offset > 0 && /[\w$]/.test(text[offset - 1])) {
+        offset--;
+    }
+    while (offset > 0 && /\s/.test(text[offset - 1])) {
+        offset--;
+    }
+    return offset > 0 && text[offset - 1] === '.'
+        || offset > 1 && text.slice(offset - 2, offset) === '::';
 }
 
 function toCompletionItem(

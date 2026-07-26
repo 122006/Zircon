@@ -1,0 +1,67 @@
+name: VS Code plugin
+
+on:
+  push:
+    paths:
+      - "base/**"
+      - "javac/**"
+      - "vscode_plugin/**"
+      - "vscode_plugin_agent/**"
+      - "build.gradle"
+      - "settings.gradle"
+      - "gradle/**"
+      - "gradlew*"
+      - ".github/workflows/vscode-plugin.yml"
+  pull_request:
+    paths:
+      - "base/**"
+      - "javac/**"
+      - "vscode_plugin/**"
+      - "vscode_plugin_agent/**"
+      - "build.gradle"
+      - "settings.gradle"
+      - "gradle/**"
+      - "gradlew*"
+      - ".github/workflows/vscode-plugin.yml"
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 8 toolchain
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: vscode_plugin/package-lock.json
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate extension
+        working-directory: vscode_plugin
+        run: |
+          npm ci
+          npm test
+
+      - name: Validate JDT agent
+        run: .\gradlew.bat :vscode_plugin_agent:test :vscode_plugin_agent:shadowJar :vscode_plugin_agent:bootstrapHelperJar
+
+      - name: Assemble extension artifacts
+        run: .\gradlew.bat :vscode_plugin_agent:buildZirconVsCodePlugin
+
+      - name: Validate VSIX packaging
+        working-directory: vscode_plugin
+        run: npx vsce package --allow-missing-repository

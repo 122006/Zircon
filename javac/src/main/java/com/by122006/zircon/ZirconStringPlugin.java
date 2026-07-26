@@ -24,6 +24,10 @@ public class ZirconStringPlugin extends ZirconPlugin {
     @Override
     @SuppressWarnings("unchecked")
     public void startTask(Context context, JavaCompiler compiler, ClassLoader pcl, ClassLoader classLoader) throws Exception {
+        reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Syntax", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Range", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Result", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);

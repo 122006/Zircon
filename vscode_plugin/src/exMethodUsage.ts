@@ -36,6 +36,61 @@ export interface ExMethodCompletionContext {
     targets: ExMethodDescriptor[];
 }
 
+export interface ExMethodInvocationSource {
+    receiverExpression: string;
+    receiverStart: number;
+    methodName: string;
+    methodStart: number;
+    methodEnd: number;
+    argumentsText: string;
+    callStart: number;
+    callEnd: number;
+}
+
+export function findExMethodInvocationSource(
+    document: vscode.TextDocument,
+    position: vscode.Position
+): ExMethodInvocationSource | undefined {
+    const wordRange = document.getWordRangeAtPosition(position);
+    if (!wordRange) {
+        return undefined;
+    }
+    const text = document.getText();
+    const methodStart = document.offsetAt(wordRange.start);
+    const methodEnd = document.offsetAt(wordRange.end);
+    const operator = findReceiverOperator(text, methodStart);
+    if (!operator || operator.kind !== 'member') {
+        return undefined;
+    }
+    const receiverExpression = readExpressionBackward(text, operator.operatorStart);
+    if (!receiverExpression) {
+        return undefined;
+    }
+    let receiverEnd = operator.operatorStart;
+    while (receiverEnd > 0 && /\s/.test(text[receiverEnd - 1])) {
+        receiverEnd -= 1;
+    }
+    const receiverStart = Math.max(0, receiverEnd - receiverExpression.length);
+    const openParen = skipWhitespaceForward(text, methodEnd);
+    if (text[openParen] !== '(') {
+        return undefined;
+    }
+    const closeParen = findMatchingClose(text, openParen, '(', ')');
+    if (closeParen < 0) {
+        return undefined;
+    }
+    return {
+        receiverExpression,
+        receiverStart,
+        methodName: text.slice(methodStart, methodEnd),
+        methodStart,
+        methodEnd,
+        argumentsText: text.slice(openParen + 1, closeParen),
+        callStart: receiverStart,
+        callEnd: closeParen + 1
+    };
+}
+
 interface IdentifierMatch {
     value: string;
     startOffset: number;
@@ -71,7 +126,9 @@ export function resolveMethodTargets(
     if (!invocation) {
         return [];
     }
-    return findMatchingDescriptors(index, invocation.methodName, invocation.receiverTypes, invocation.allowDirectOnly);
+    const context = buildDocumentContext(document, position);
+    return findMatchingDescriptors(index, invocation.methodName, invocation.receiverTypes, invocation.allowDirectOnly)
+        .filter((descriptor) => isDescriptorVisibleToContext(descriptor, context));
 }
 
 export function resolveDefinitionTargets(
@@ -114,13 +171,14 @@ export function resolveCallContext(
         return undefined;
     }
 
+    const context = buildDocumentContext(document, position);
     const targets = findMatchingDescriptors(
         index,
         raw.methodName,
         raw.receiverTypes,
         raw.allowDirectOnly,
         raw.activeParameter !== undefined ? raw.activeParameter + 1 : undefined
-    );
+    ).filter((descriptor) => isDescriptorVisibleToContext(descriptor, context));
     if (targets.length === 0) {
         return undefined;
     }
@@ -393,6 +451,14 @@ function isDescriptorVisibleToContext(descriptor: ExMethodDescriptor, context: I
     }
 
     return false;
+}
+
+export function isExMethodDescriptorVisible(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    descriptor: ExMethodDescriptor
+): boolean {
+    return isDescriptorVisibleToContext(descriptor, buildDocumentContext(document, position));
 }
 
 function selectPreferredDefinitionTargets(

@@ -17,7 +17,8 @@ export function registerExMethodSignatureHelp(
 
     context.subscriptions.push(
         vscode.languages.registerSignatureHelpProvider(selector, {
-            provideSignatureHelp(document, position) {
+            async provideSignatureHelp(document, position) {
+                await index.ensureImportedDependencies(document);
                 const call = resolveCallContext(index, document, position);
                 if (!call) {
                     return undefined;

@@ -7,9 +7,16 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ScopeAdvice {
     public static int implicitTraceCount = 0;
+    private static final Map<Class<?>, Map<String, Field>> FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Set<String>> FIELD_MISSES = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<String, Method>> METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Set<String>> METHOD_MISSES = new ConcurrentHashMap<>();
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
     public static void exit(
@@ -21,9 +28,12 @@ public class ScopeAdvice {
         boolean implicitLookup = "getImplicitMethod".equals(origin.getName());
         String selector = extractSelector(args, implicitLookup);
         boolean problem = result == null || result.getClass().getSimpleName().startsWith("Problem");
-        Object[] implicitReceivers = implicitLookup ? resolveImplicitReceivers(scope) : null;
         boolean traceEnabled = isTraceEnabled();
         boolean trace = traceEnabled && isSelectorTraceEnabled(selector);
+        if (!problem && !trace) {
+            return;
+        }
+        Object[] implicitReceivers = implicitLookup ? resolveImplicitReceivers(scope) : null;
         if (traceEnabled && implicitLookup && implicitTraceCount < 200) {
             implicitTraceCount++;
             System.err.println("[ScopeAdvice] implicit selector=" + selector
@@ -116,7 +126,10 @@ public class ScopeAdvice {
             return null;
         }
         try {
-            Method method = scope.getClass().getMethod(methodName);
+            Method method = findMethod(scope.getClass(), methodName);
+            if (method == null) {
+                return null;
+            }
             return method.invoke(scope);
         } catch (ReflectiveOperationException ignored) {
             return null;
@@ -124,16 +137,67 @@ public class ScopeAdvice {
     }
 
     private static Object readField(Object target, String fieldName) {
-        Class<?> current = target == null ? null : target.getClass();
+        if (target == null) {
+            return null;
+        }
+        Field field = findField(target.getClass(), fieldName);
+        if (field == null) {
+            return null;
+        }
+        try {
+            return field.get(target);
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
+    }
+
+    private static Field findField(Class<?> type, String fieldName) {
+        Map<String, Field> fields = FIELD_CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Field cached = fields.get(fieldName);
+        if (cached != null) {
+            return cached;
+        }
+        Set<String> misses = FIELD_MISSES.computeIfAbsent(type, ignored -> ConcurrentHashMap.newKeySet());
+        if (misses.contains(fieldName)) {
+            return null;
+        }
+        Class<?> current = type;
         while (current != null) {
             try {
                 Field field = current.getDeclaredField(fieldName);
                 field.setAccessible(true);
-                return field.get(target);
-            } catch (ReflectiveOperationException ignored) {
+                fields.put(fieldName, field);
+                return field;
+            } catch (NoSuchFieldException ignored) {
                 current = current.getSuperclass();
             }
         }
+        misses.add(fieldName);
+        return null;
+    }
+
+    private static Method findMethod(Class<?> type, String methodName) {
+        Map<String, Method> methods = METHOD_CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Method cached = methods.get(methodName);
+        if (cached != null) {
+            return cached;
+        }
+        Set<String> misses = METHOD_MISSES.computeIfAbsent(type, ignored -> ConcurrentHashMap.newKeySet());
+        if (misses.contains(methodName)) {
+            return null;
+        }
+        Class<?> current = type;
+        while (current != null) {
+            try {
+                Method method = current.getDeclaredMethod(methodName);
+                method.setAccessible(true);
+                methods.put(methodName, method);
+                return method;
+            } catch (NoSuchMethodException ignored) {
+                current = current.getSuperclass();
+            }
+        }
+        misses.add(methodName);
         return null;
     }
 

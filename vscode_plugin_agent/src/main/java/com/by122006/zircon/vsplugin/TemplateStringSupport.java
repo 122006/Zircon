@@ -1,5 +1,7 @@
 package com.by122006.zircon.vsplugin;
 
+import com.sun.tools.javac.parser.TemplateStringSplitter;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -13,6 +15,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Stack;
 import java.util.WeakHashMap;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class TemplateStringSupport {
     private static final Map<Object, TemplateScannerState> TEMPLATE_STATES =
@@ -26,6 +30,10 @@ public final class TemplateStringSupport {
                 }
             });
     private static final ThreadLocal<Integer> DISABLED_DEPTH = ThreadLocal.withInitial(() -> 0);
+    private static final Map<Class<?>, Map<String, Field>> FIELD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Set<String>> FIELD_MISSES = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Map<String, Method>> METHOD_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Set<String>> METHOD_MISSES = new ConcurrentHashMap<>();
     private static final List<TemplateFormatter> FORMATTERS = Arrays.asList(
             new STRStringFormatter(),
             new FStringFormatter(),
@@ -122,30 +130,71 @@ public final class TemplateStringSupport {
     }
 
     private static TemplateScannerState createState(Object scanner, TemplateTranslation translation) throws Exception {
-        Object syntheticScanner = createSyntheticScanner(scanner, translation.translatedExpression.toCharArray());
+        Object syntheticScanner = createSyntheticScanner(scanner, translation);
         List<SyntheticToken> tokens = new ArrayList<>();
+        boolean[] completionCaptured = {false};
         runWithoutInterception(() -> {
+            int previousPosition = -1;
+            int stalledCount = 0;
+            int tokenLimit = Math.max(64, translation.translatedExpression.length() * 4);
             while (true) {
                 Object token = invokeNoArgs(syntheticScanner, "getNextToken");
                 if (isTerminalToken(token, "TokenNameEOF")) {
                     return null;
                 }
-                tokens.add(snapshotSyntheticToken(syntheticScanner, token, translation));
+                SyntheticToken snapshot = snapshotSyntheticToken(
+                        syntheticScanner,
+                        token,
+                        translation,
+                        !completionCaptured[0]
+                );
+                tokens.add(snapshot);
+                if (snapshot.completionIdentifier != null) {
+                    completionCaptured[0] = true;
+                }
+                int currentPosition = readIntField(syntheticScanner, "currentPosition");
+                stalledCount = currentPosition <= previousPosition ? stalledCount + 1 : 0;
+                previousPosition = currentPosition;
+                if (stalledCount >= 2 || tokens.size() >= tokenLimit) {
+                    return null;
+                }
             }
         });
+        if (isTraceEnabled() && scanner.getClass().getName().endsWith("CompletionScanner")) {
+            StringBuilder trace = new StringBuilder("[TemplateScanner] completionTokens");
+            for (SyntheticToken token : tokens) {
+                trace.append(' ').append(token.token)
+                        .append('[').append(token.originalStart).append('-').append(token.originalEnd).append(']')
+                        .append('=').append(token.currentTokenSource == null ? "" : new String(token.currentTokenSource));
+                if (token.completionIdentifier != null) {
+                    trace.append("{assist=").append(new String(token.completionIdentifier))
+                            .append('@').append(token.completedIdentifierStart).append('-').append(token.completedIdentifierEnd)
+                            .append('}');
+                }
+            }
+            log(trace.toString());
+        }
         return tokens.isEmpty() ? null : new TemplateScannerState(tokens, translation.resumePosition);
     }
 
-    private static SyntheticToken snapshotSyntheticToken(Object syntheticScanner, Object token, TemplateTranslation translation) throws Exception {
+    private static SyntheticToken snapshotSyntheticToken(
+            Object syntheticScanner,
+            Object token,
+            TemplateTranslation translation,
+            boolean allowCompletion
+    ) throws Exception {
         int syntheticStart = ((Integer) invokeNoArgs(syntheticScanner, "getCurrentTokenStartPosition"));
         int syntheticEnd = ((Integer) invokeNoArgs(syntheticScanner, "getCurrentTokenEndPosition"));
-        int originalStart = Math.min(translation.originalEnd, translation.originalStart + Math.max(0, syntheticStart));
-        int originalEnd = Math.min(translation.originalEnd, translation.originalStart + Math.max(0, syntheticEnd));
+        int originalStart = translation.toOriginalPosition(syntheticStart);
+        int originalEnd = translation.toOriginalPosition(syntheticEnd);
         if (originalEnd < originalStart) {
             originalEnd = originalStart;
         }
         char[] directTokenSlice = readTokenSlice(syntheticScanner);
         char[] currentTokenSource = safeCharArrayAccessor(syntheticScanner, "getCurrentTokenSource", directTokenSlice);
+        if (allowCompletion && isTerminalToken(token, "TokenNameIdentifier")) {
+            currentTokenSource = safeCharArrayAccessor(syntheticScanner, "getCurrentIdentifierSource", currentTokenSource);
+        }
         char[] currentTokenSourceString = currentTokenSource;
         char[] rawTokenSource = currentTokenSource;
 
@@ -159,7 +208,12 @@ public final class TemplateStringSupport {
                 originalEnd,
                 cloneArray(readField(syntheticScanner, "lookBack")),
                 readField(syntheticScanner, "nextToken"),
-                readField(syntheticScanner, "scanContext")
+                readField(syntheticScanner, "scanContext"),
+                allowCompletion ? cloneCharArray(readOptionalField(syntheticScanner, "completionIdentifier")) : null,
+                allowCompletion ? mapOptionalPosition(syntheticScanner, "completedIdentifierStart", translation) : null,
+                allowCompletion ? mapOptionalPosition(syntheticScanner, "completedIdentifierEnd", translation) : null,
+                allowCompletion ? mapOptionalPosition(syntheticScanner, "endOfEmptyToken", translation) : null,
+                cloneCharArray(readOptionalField(syntheticScanner, "selectionIdentifier"))
         );
     }
 
@@ -203,17 +257,6 @@ public final class TemplateStringSupport {
             lineEnd++;
         }
         String rawTemplate = new String(source, cursor, lineEnd - cursor);
-        String cacheKey = (isVscodeMode() ? "vscode" : "default") + '\u0000' + formatter.prefix() + '\u0000' + rawTemplate;
-        CachedTemplateTranslation cached = TEMPLATE_TRANSLATION_CACHE.get(cacheKey);
-        if (cached != null) {
-            return new TemplateTranslation(
-                    formatter.prefix(),
-                    cached.translatedExpression,
-                    cursor,
-                    cursor + cached.endQuoteIndex,
-                    cursor + cached.endQuoteIndex + 1
-            );
-        }
         TemplateModel model = formatter.build(rawTemplate);
         if (model == null || model.endQuoteIndex < 0 || model.endQuoteIndex >= rawTemplate.length()) {
             return null;
@@ -222,17 +265,46 @@ public final class TemplateStringSupport {
             return null;
         }
 
-        String trimmedTemplate = rawTemplate.substring(0, model.endQuoteIndex + 1);
-        String translated = isVscodeMode()
-                ? toHostStringLiteral(trimmedTemplate, formatter.prefix())
-                : formatter.printOut(model.list, trimmedTemplate);
-        if (translated == null || translated.isEmpty()) {
-            translated = "\"\"";
+        int originalEnd = cursor + model.endQuoteIndex;
+        boolean activeCompletionTemplate = isActiveCompletionTemplate(scanner, cursor, originalEnd);
+        boolean stabilizeIncompleteAccess = !activeCompletionTemplate;
+        String cacheKey = (isVscodeMode() ? "vscode" : "default")
+                + '\u0000' + formatter.prefix()
+                + '\u0000' + (stabilizeIncompleteAccess ? "stable" : "completion")
+                + '\u0000' + rawTemplate;
+        CachedTemplateTranslation cached = TEMPLATE_TRANSLATION_CACHE.get(cacheKey);
+        if (cached != null) {
+            return new TemplateTranslation(
+                    formatter.prefix(),
+                    cached.translatedExpression,
+                    cached.generatedToTemplateOffset,
+                    cursor,
+                    cursor + cached.endQuoteIndex,
+                    cursor + cached.endQuoteIndex + 1
+            );
         }
-        TEMPLATE_TRANSLATION_CACHE.put(cacheKey, new CachedTemplateTranslation(translated, model.endQuoteIndex));
+
+        String trimmedTemplate = rawTemplate.substring(0, model.endQuoteIndex + 1);
+        MappedExpression mappedExpression = formatter.translate(model.list, trimmedTemplate);
+        if (stabilizeIncompleteAccess) {
+            mappedExpression = stabilizeIncompleteMemberAccesses(mappedExpression);
+        } else {
+            mappedExpression = completeTerminalMemberAccess(mappedExpression);
+        }
+        String translated = mappedExpression == null ? null : mappedExpression.text;
+        if (translated == null || translated.isEmpty()) {
+            mappedExpression = MappedExpression.synthetic("\"\"", 0, Math.max(0, trimmedTemplate.length() - 1));
+            translated = mappedExpression.text;
+        }
+        TEMPLATE_TRANSLATION_CACHE.put(cacheKey, new CachedTemplateTranslation(
+                translated,
+                mappedExpression.generatedToTemplateOffset,
+                model.endQuoteIndex
+        ));
         return new TemplateTranslation(
                 formatter.prefix(),
                 translated,
+                mappedExpression.generatedToTemplateOffset,
                 cursor,
                 cursor + model.endQuoteIndex,
                 cursor + model.endQuoteIndex + 1
@@ -249,6 +321,7 @@ public final class TemplateStringSupport {
         return new TemplateTranslation(
                 "?.",
                 ".",
+                new int[]{0},
                 cursor,
                 cursor + 1,
                 cursor + 2
@@ -265,6 +338,7 @@ public final class TemplateStringSupport {
         return new TemplateTranslation(
                 "?:",
                 "? zircon.BiOp.$$elvisExpr :",
+                createLinearOffsetMap("? zircon.BiOp.$$elvisExpr :".length(), 0, 1),
                 cursor,
                 cursor + 1,
                 cursor + 2
@@ -288,9 +362,62 @@ public final class TemplateStringSupport {
         return null;
     }
 
-    private static Object createSyntheticScanner(Object scanner, char[] translatedSource) throws Exception {
-        Class<?> scannerClass = Class.forName("org.eclipse.jdt.internal.compiler.parser.Scanner", false, scanner.getClass().getClassLoader());
-        Constructor<?> constructor = scannerClass.getDeclaredConstructor(
+    private static Object createSyntheticScanner(Object scanner, TemplateTranslation translation) throws Exception {
+        char[] translatedSource = translation.translatedExpression.toCharArray();
+        Class<?> scannerClass = scanner.getClass();
+        String scannerClassName = scannerClass.getName();
+        Object syntheticScanner;
+        if (scannerClassName.endsWith("CompletionScanner")) {
+            int cursorLocation = readIntField(scanner, "cursorLocation");
+            boolean activeCompletion = translation.containsOriginalPosition(cursorLocation);
+            int syntheticCursorLocation = -1;
+            if (!activeCompletion) {
+                // A CompletionScanner injects an assist token even at cursor -1.
+                // Non-active templates must therefore use a plain Scanner or an
+                // earlier incomplete template will hijack the whole request.
+                syntheticScanner = createBaseSyntheticScanner(scanner, translatedSource);
+            } else {
+                Constructor<?> constructor = scannerClass.getDeclaredConstructor(long.class, boolean.class);
+                constructor.setAccessible(true);
+                syntheticScanner = constructor.newInstance(
+                        readLongField(scanner, "sourceLevel"),
+                        readBooleanField(scanner, "previewEnabled")
+                );
+                copyFieldIfPresent(scanner, syntheticScanner, "completionIdentifier");
+                syntheticCursorLocation = translation.toSyntheticPosition(cursorLocation);
+                writeField(syntheticScanner, "cursorLocation", syntheticCursorLocation);
+            }
+            if (isTraceEnabled()) {
+                log("[TemplateScanner] completionCursor original=" + cursorLocation
+                        + ", synthetic=" + syntheticCursorLocation
+                        + ", template=" + translation.originalStart + "-" + translation.originalEnd);
+            }
+        } else if (scannerClassName.endsWith("SelectionScanner")) {
+            int selectionStart = readIntField(scanner, "selectionStart");
+            int selectionEnd = readIntField(scanner, "selectionEnd");
+            if (!translation.intersectsOriginalRange(selectionStart, selectionEnd)) {
+                syntheticScanner = createBaseSyntheticScanner(scanner, translatedSource);
+            } else {
+                Constructor<?> constructor = scannerClass.getDeclaredConstructor(long.class, boolean.class);
+                constructor.setAccessible(true);
+                syntheticScanner = constructor.newInstance(
+                        readLongField(scanner, "sourceLevel"),
+                        readBooleanField(scanner, "previewEnabled")
+                );
+                copyFieldIfPresent(scanner, syntheticScanner, "selectionIdentifier");
+                writeField(syntheticScanner, "selectionStart", translation.toSyntheticPosition(selectionStart));
+                writeField(syntheticScanner, "selectionEnd", translation.toSyntheticPosition(selectionEnd));
+            }
+        } else {
+            syntheticScanner = createBaseSyntheticScanner(scanner, translatedSource);
+        }
+        invokeSingleArg(syntheticScanner, "setSource", char[].class, translatedSource);
+        return syntheticScanner;
+    }
+
+    private static Object createBaseSyntheticScanner(Object scanner, char[] translatedSource) throws Exception {
+        Class<?> baseScannerClass = Class.forName("org.eclipse.jdt.internal.compiler.parser.Scanner", false, scanner.getClass().getClassLoader());
+        Constructor<?> constructor = baseScannerClass.getDeclaredConstructor(
                 boolean.class,
                 boolean.class,
                 boolean.class,
@@ -349,6 +476,21 @@ public final class TemplateStringSupport {
         if (token.scanContext != null) {
             writeField(scanner, "scanContext", token.scanContext);
         }
+        if (token.completionIdentifier != null) {
+            writeField(scanner, "completionIdentifier", token.completionIdentifier);
+        }
+        if (token.completedIdentifierStart != null) {
+            writeField(scanner, "completedIdentifierStart", token.completedIdentifierStart);
+        }
+        if (token.completedIdentifierEnd != null) {
+            writeField(scanner, "completedIdentifierEnd", token.completedIdentifierEnd);
+        }
+        if (token.endOfEmptyToken != null) {
+            writeField(scanner, "endOfEmptyToken", token.endOfEmptyToken);
+        }
+        if (token.selectionIdentifier != null) {
+            writeField(scanner, "selectionIdentifier", token.selectionIdentifier);
+        }
     }
 
     private static <T> T runWithoutInterception(TemplateCallable<T> callable) throws Exception {
@@ -379,6 +521,229 @@ public final class TemplateStringSupport {
             }
         }
         return true;
+    }
+
+    private static int[] createLinearOffsetMap(int length, int startOffset, int endOffset) {
+        if (length <= 0) {
+            return new int[0];
+        }
+        int safeStart = Math.max(0, startOffset);
+        int safeEnd = Math.max(safeStart, endOffset);
+        int[] mapping = new int[length];
+        if (length == 1) {
+            mapping[0] = safeStart;
+            return mapping;
+        }
+        for (int index = 0; index < length; index++) {
+            mapping[index] = safeStart + (int) (((long) (safeEnd - safeStart) * index) / (length - 1));
+        }
+        return mapping;
+    }
+
+    /**
+     * Builds the smallest Java expression JDT needs for type analysis. Literal text is
+     * represented by one empty String and every embedded Java expression is retained.
+     * Besides avoiding irrelevant formatter overloads during completion, this lets the
+     * generated punctuation occupy the template's own prefix, ${ and } characters so
+     * token source positions remain strictly ordered.
+     */
+    private static MappedExpression translateAsStringConcatenation(
+            List<StringRange> ranges,
+            String text,
+            int prefixLength
+    ) {
+        MappedTextBuilder builder = new MappedTextBuilder();
+        builder.appendSynthetic("(", 0, 0);
+        builder.appendSynthetic("\"\"", prefixLength, prefixLength);
+        for (StringRange range : ranges) {
+            if (range.codeStyle != 1) {
+                continue;
+            }
+            int plusOffset = Math.max(prefixLength + 1, range.startIndex - 2);
+            int openOffset = Math.max(plusOffset, range.startIndex - 1);
+            builder.appendSynthetic("+", plusOffset, plusOffset);
+            builder.appendSynthetic("(", openOffset, openOffset);
+            builder.appendOriginal(range.stringVal, range.startIndex, range.endIndex);
+            builder.appendSynthetic(")", range.endIndex, range.endIndex);
+        }
+        int endOffset = Math.max(0, text.length() - 1);
+        builder.appendSynthetic(")", endOffset, endOffset);
+        return builder.build();
+    }
+
+    private static boolean isActiveCompletionTemplate(Object scanner, int originalStart, int originalEnd) {
+        if (scanner == null || !scanner.getClass().getName().endsWith("CompletionScanner")) {
+            return false;
+        }
+        try {
+            int cursorLocation = readIntField(scanner, "cursorLocation");
+            return cursorLocation >= originalStart && cursorLocation <= originalEnd;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Keeps an unfinished member access local to its template during ordinary
+     * parsing. The active completion template is intentionally left untouched
+     * so JDT can still complete directly after the dot.
+     */
+    private static MappedExpression stabilizeIncompleteMemberAccesses(MappedExpression expression) {
+        if (expression == null || expression.text == null || expression.text.isEmpty()) {
+            return expression;
+        }
+        String text = expression.text;
+        String placeholder = "__zirconIncompleteMember";
+        StringBuilder stabilized = new StringBuilder(text.length() + placeholder.length());
+        List<Integer> offsets = new ArrayList<>();
+        int state = 0;
+        for (int index = 0; index < text.length(); index++) {
+            char current = text.charAt(index);
+            char next = index + 1 < text.length() ? text.charAt(index + 1) : '\0';
+            int offset = expression.generatedToTemplateOffset.length == 0
+                    ? 0
+                    : expression.generatedToTemplateOffset[Math.min(index, expression.generatedToTemplateOffset.length - 1)];
+            stabilized.append(current);
+            offsets.add(offset);
+
+            if (state == 1) {
+                if (current == '\\' && index + 1 < text.length()) {
+                    index++;
+                    stabilized.append(text.charAt(index));
+                    offsets.add(expression.generatedToTemplateOffset[Math.min(index, expression.generatedToTemplateOffset.length - 1)]);
+                } else if (current == '\'') {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 2) {
+                if (current == '\\' && index + 1 < text.length()) {
+                    index++;
+                    stabilized.append(text.charAt(index));
+                    offsets.add(expression.generatedToTemplateOffset[Math.min(index, expression.generatedToTemplateOffset.length - 1)]);
+                } else if (current == '"') {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 3) {
+                if (current == '\r' || current == '\n') {
+                    state = 0;
+                }
+                continue;
+            }
+            if (state == 4) {
+                if (current == '*' && next == '/') {
+                    index++;
+                    stabilized.append('/');
+                    offsets.add(expression.generatedToTemplateOffset[Math.min(index, expression.generatedToTemplateOffset.length - 1)]);
+                    state = 0;
+                }
+                continue;
+            }
+            if (current == '\'') {
+                state = 1;
+            } else if (current == '"') {
+                state = 2;
+            } else if (current == '/' && next == '/') {
+                state = 3;
+            } else if (current == '/' && next == '*') {
+                state = 4;
+            } else if (current == '.' && isFollowedByGeneratedClosingParenthesis(text, index + 1)) {
+                for (int placeholderIndex = 0; placeholderIndex < placeholder.length(); placeholderIndex++) {
+                    stabilized.append(placeholder.charAt(placeholderIndex));
+                    offsets.add(offset);
+                }
+            }
+        }
+        int[] mapping = new int[offsets.size()];
+        for (int index = 0; index < offsets.size(); index++) {
+            mapping[index] = offsets.get(index);
+        }
+        return new MappedExpression(stabilized.toString(), mapping);
+    }
+
+    /**
+     * CompletionParser does not dispatch a terminal {@code receiver.prefix}
+     * nested in the synthetic string-concatenation parentheses as a member
+     * completion when no Java field has that name. Supplying an empty argument
+     * list makes it a CompletionOnMessageSendName, which is JDT's native method
+     * completion path. The inserted characters map to the original identifier
+     * end and never reach the source document.
+     */
+    private static MappedExpression completeTerminalMemberAccess(MappedExpression expression) {
+        if (expression == null || expression.text == null || expression.text.isEmpty()) {
+            return expression;
+        }
+        String text = expression.text;
+        int closingStart = text.length();
+        while (closingStart > 0) {
+            char current = text.charAt(closingStart - 1);
+            if (Character.isWhitespace(current) || current == ')') {
+                closingStart--;
+                continue;
+            }
+            break;
+        }
+        int identifierEnd = closingStart;
+        int identifierStart = identifierEnd;
+        while (identifierStart > 0 && Character.isJavaIdentifierPart(text.charAt(identifierStart - 1))) {
+            identifierStart--;
+        }
+        if (identifierStart == identifierEnd || identifierStart <= 0 || text.charAt(identifierStart - 1) != '.') {
+            return expression;
+        }
+
+        int mappedOffset = expression.generatedToTemplateOffset.length == 0
+                ? 0
+                : expression.generatedToTemplateOffset[Math.min(
+                        identifierEnd - 1,
+                        expression.generatedToTemplateOffset.length - 1
+                )];
+        String completed = text.substring(0, identifierEnd) + "()" + text.substring(identifierEnd);
+        int[] mapping = new int[expression.generatedToTemplateOffset.length + 2];
+        System.arraycopy(expression.generatedToTemplateOffset, 0, mapping, 0, identifierEnd);
+        // Keep the synthetic cursor on the identifier. Mapping the generated
+        // parentheses to the next source offset prevents toSyntheticPosition
+        // from advancing the assist location past the requested prefix.
+        mapping[identifierEnd] = mappedOffset + 1;
+        mapping[identifierEnd + 1] = mappedOffset + 1;
+        System.arraycopy(
+                expression.generatedToTemplateOffset,
+                identifierEnd,
+                mapping,
+                identifierEnd + 2,
+                expression.generatedToTemplateOffset.length - identifierEnd
+        );
+        return new MappedExpression(completed, mapping);
+    }
+
+    private static boolean isFollowedByGeneratedClosingParenthesis(String text, int start) {
+        int cursor = start;
+        while (cursor < text.length() && Character.isWhitespace(text.charAt(cursor))) {
+            cursor++;
+        }
+        return cursor < text.length() && text.charAt(cursor) == ')';
+    }
+
+    private static TemplateModel buildFromSharedSplitter(
+            TemplateFormatter formatter,
+            String text,
+            TemplateStringSplitter.Syntax syntax
+    ) {
+        TemplateStringSplitter.Result split = TemplateStringSplitter.split(text, formatter.prefix(), syntax);
+        TemplateModel model = new TemplateModel();
+        for (TemplateStringSplitter.Range range : split.ranges) {
+            if (range.style == TemplateStringSplitter.CODE) {
+                model.list.add(StringRange.code(formatter, text, range.startIndex, range.endIndex));
+            } else if (range.style == TemplateStringSplitter.STRING) {
+                model.list.add(StringRange.string(formatter, text, range.startIndex, range.endIndex));
+            } else {
+                model.list.add(StringRange.of(range.style, range.startIndex, range.endIndex));
+            }
+        }
+        model.endQuoteIndex = split.endQuoteIndex;
+        return model;
     }
 
     private static boolean isWhitespace(char value) {
@@ -443,20 +808,28 @@ public final class TemplateStringSupport {
         return clone;
     }
 
-    private static String toJavaStringLiteral(String templateText) {
-        return escapeJavaString(materializeStringToken(templateText));
+    private static char[] cloneCharArray(Object value) {
+        return value instanceof char[] ? Arrays.copyOf((char[]) value, ((char[]) value).length) : null;
     }
 
-    private static String toHostStringLiteral(String templateText, String prefix) {
-        if (templateText == null || prefix == null) {
-            return "\"\"";
+    private static Object readOptionalField(Object target, String fieldName) throws Exception {
+        Field field = target == null ? null : findField(target.getClass(), fieldName);
+        if (field == null) {
+            return null;
         }
-        int contentStart = prefix.length() + 1;
-        int contentEnd = Math.max(contentStart, templateText.length() - 1);
-        if (contentStart >= contentEnd) {
-            return "\"\"";
-        }
-        return "\"" + escapeJavaString(templateText.substring(contentStart, contentEnd)) + "\"";
+        field.setAccessible(true);
+        return field.get(target);
+    }
+
+    private static Integer mapOptionalPosition(Object target, String fieldName, TemplateTranslation translation) throws Exception {
+        Object value = readOptionalField(target, fieldName);
+        return value instanceof Integer && (Integer) value >= 0
+                ? translation.toOriginalPosition((Integer) value)
+                : null;
+    }
+
+    private static String toJavaStringLiteral(String templateText) {
+        return escapeJavaString(materializeStringToken(templateText));
     }
 
     private static String materializeStringToken(String templateText) {
@@ -623,15 +996,43 @@ public final class TemplateStringSupport {
         field.set(target, value);
     }
 
+    private static void copyFieldIfPresent(Object source, Object target, String fieldName) throws Exception {
+        Field sourceField = source == null ? null : findField(source.getClass(), fieldName);
+        Field targetField = target == null ? null : findField(target.getClass(), fieldName);
+        if (sourceField == null || targetField == null) {
+            return;
+        }
+        sourceField.setAccessible(true);
+        targetField.setAccessible(true);
+        Object value = sourceField.get(source);
+        if (value instanceof char[]) {
+            value = Arrays.copyOf((char[]) value, ((char[]) value).length);
+        }
+        targetField.set(target, value);
+    }
+
     private static Field findField(Class<?> type, String fieldName) {
+        Map<String, Field> fields = FIELD_CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Field cached = fields.get(fieldName);
+        if (cached != null) {
+            return cached;
+        }
+        Set<String> misses = FIELD_MISSES.computeIfAbsent(type, ignored -> ConcurrentHashMap.newKeySet());
+        if (misses.contains(fieldName)) {
+            return null;
+        }
         Class<?> current = type;
         while (current != null) {
             try {
-                return current.getDeclaredField(fieldName);
+                Field field = current.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                fields.put(fieldName, field);
+                return field;
             } catch (NoSuchFieldException ignored) {
                 current = current.getSuperclass();
             }
         }
+        misses.add(fieldName);
         return null;
     }
 
@@ -654,14 +1055,28 @@ public final class TemplateStringSupport {
     }
 
     private static Method findMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
+        String key = methodName + Arrays.toString(parameterTypes);
+        Map<String, Method> methods = METHOD_CACHE.computeIfAbsent(type, ignored -> new ConcurrentHashMap<>());
+        Method cached = methods.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        Set<String> misses = METHOD_MISSES.computeIfAbsent(type, ignored -> ConcurrentHashMap.newKeySet());
+        if (misses.contains(key)) {
+            return null;
+        }
         Class<?> current = type;
         while (current != null) {
             try {
-                return current.getDeclaredMethod(methodName, parameterTypes);
+                Method method = current.getDeclaredMethod(methodName, parameterTypes);
+                method.setAccessible(true);
+                methods.put(key, method);
+                return method;
             } catch (NoSuchMethodException ignored) {
                 current = current.getSuperclass();
             }
         }
+        misses.add(key);
         return null;
     }
 
@@ -702,6 +1117,11 @@ public final class TemplateStringSupport {
         private final Object lookBack;
         private final Object nextToken;
         private final Object scanContext;
+        private final char[] completionIdentifier;
+        private final Integer completedIdentifierStart;
+        private final Integer completedIdentifierEnd;
+        private final Integer endOfEmptyToken;
+        private final char[] selectionIdentifier;
 
         private SyntheticToken(
                 Object token,
@@ -713,7 +1133,12 @@ public final class TemplateStringSupport {
                 int originalEnd,
                 Object lookBack,
                 Object nextToken,
-                Object scanContext
+                Object scanContext,
+                char[] completionIdentifier,
+                Integer completedIdentifierStart,
+                Integer completedIdentifierEnd,
+                Integer endOfEmptyToken,
+                char[] selectionIdentifier
         ) {
             this.token = token;
             this.currentTokenSource = currentTokenSource;
@@ -725,32 +1150,125 @@ public final class TemplateStringSupport {
             this.lookBack = lookBack;
             this.nextToken = nextToken;
             this.scanContext = scanContext;
+            this.completionIdentifier = completionIdentifier;
+            this.completedIdentifierStart = completedIdentifierStart;
+            this.completedIdentifierEnd = completedIdentifierEnd;
+            this.endOfEmptyToken = endOfEmptyToken;
+            this.selectionIdentifier = selectionIdentifier;
         }
     }
 
     private static final class TemplateTranslation {
         private final String prefix;
         private final String translatedExpression;
+        private final int[] generatedToTemplateOffset;
         private final int originalStart;
         private final int originalEnd;
         private final int resumePosition;
 
-        private TemplateTranslation(String prefix, String translatedExpression, int originalStart, int originalEnd, int resumePosition) {
+        private TemplateTranslation(
+                String prefix,
+                String translatedExpression,
+                int[] generatedToTemplateOffset,
+                int originalStart,
+                int originalEnd,
+                int resumePosition
+        ) {
             this.prefix = prefix;
             this.translatedExpression = translatedExpression;
+            this.generatedToTemplateOffset = generatedToTemplateOffset != null
+                    ? generatedToTemplateOffset
+                    : createLinearOffsetMap(translatedExpression == null ? 0 : translatedExpression.length(), 0, Math.max(0, originalEnd - originalStart));
             this.originalStart = originalStart;
             this.originalEnd = originalEnd;
             this.resumePosition = resumePosition;
+        }
+
+        private int toOriginalPosition(int generatedPosition) {
+            if (generatedToTemplateOffset.length == 0) {
+                return originalStart;
+            }
+            int safePosition = Math.max(0, Math.min(generatedToTemplateOffset.length - 1, generatedPosition));
+            return Math.max(originalStart, Math.min(originalEnd, originalStart + generatedToTemplateOffset[safePosition]));
+        }
+
+        private boolean containsOriginalPosition(int originalPosition) {
+            return originalPosition >= originalStart && originalPosition <= originalEnd;
+        }
+
+        private boolean intersectsOriginalRange(int rangeStart, int rangeEnd) {
+            int safeStart = Math.min(rangeStart, rangeEnd);
+            int safeEnd = Math.max(rangeStart, rangeEnd);
+            return safeEnd >= originalStart && safeStart <= originalEnd;
+        }
+
+        private int toSyntheticPosition(int originalPosition) {
+            if (generatedToTemplateOffset.length == 0 || originalPosition <= originalStart) {
+                return 0;
+            }
+            int relative = Math.min(originalEnd - originalStart, originalPosition - originalStart);
+            int best = 0;
+            for (int index = 0; index < generatedToTemplateOffset.length; index++) {
+                if (generatedToTemplateOffset[index] > relative) {
+                    break;
+                }
+                best = index;
+            }
+            return best;
         }
     }
 
     private static final class CachedTemplateTranslation {
         private final String translatedExpression;
+        private final int[] generatedToTemplateOffset;
         private final int endQuoteIndex;
 
-        private CachedTemplateTranslation(String translatedExpression, int endQuoteIndex) {
+        private CachedTemplateTranslation(String translatedExpression, int[] generatedToTemplateOffset, int endQuoteIndex) {
             this.translatedExpression = translatedExpression;
+            this.generatedToTemplateOffset = generatedToTemplateOffset;
             this.endQuoteIndex = endQuoteIndex;
+        }
+    }
+
+    private static final class MappedExpression {
+        private final String text;
+        private final int[] generatedToTemplateOffset;
+
+        private MappedExpression(String text, int[] generatedToTemplateOffset) {
+            this.text = text;
+            this.generatedToTemplateOffset = generatedToTemplateOffset;
+        }
+
+        private static MappedExpression synthetic(String text, int startOffset, int endOffset) {
+            return new MappedExpression(text, createLinearOffsetMap(text == null ? 0 : text.length(), startOffset, endOffset));
+        }
+    }
+
+    private static final class MappedTextBuilder {
+        private final StringBuilder text = new StringBuilder();
+        private final List<Integer> offsets = new ArrayList<>();
+
+        private void appendSynthetic(String value, int startOffset, int endOffset) {
+            if (value == null || value.isEmpty()) {
+                return;
+            }
+            int[] mapping = createLinearOffsetMap(value.length(), startOffset, endOffset);
+            text.append(value);
+            for (int offset : mapping) {
+                offsets.add(offset);
+            }
+        }
+
+        private void appendOriginal(String value, int originalStart, int originalEnd) {
+            appendSynthetic(value, originalStart, Math.max(originalStart, originalEnd - 1));
+        }
+
+        private MappedExpression build() {
+            int[] mapping = new int[offsets.size()];
+            for (int index = 0; index < offsets.size(); index++) {
+                mapping[index] = offsets.get(index);
+            }
+            return new MappedExpression(text.toString(), mapping);
         }
     }
 
@@ -817,6 +1335,11 @@ public final class TemplateStringSupport {
 
         String printOut(List<StringRange> build, String text);
 
+        default MappedExpression translate(List<StringRange> build, String text) {
+            String translated = printOut(build, text);
+            return MappedExpression.synthetic(translated, 0, Math.max(0, text.length() - 1));
+        }
+
         TemplateModel build(String text);
 
         String stringTransfer(String text);
@@ -860,93 +1383,13 @@ public final class TemplateStringSupport {
         }
 
         @Override
+        public MappedExpression translate(List<StringRange> build, String text) {
+            return translateAsStringConcatenation(build, text, prefix().length());
+        }
+
+        @Override
         public TemplateModel build(String text) {
-            TemplateModel model = new TemplateModel();
-            List<StringRange> list = model.list;
-            int startIndex = prefix().length() + 1;
-            int selectMode = -1;
-            int parenthesisCount = 0;
-            for (int cursor = startIndex; cursor < text.length() - 1; cursor++) {
-                char current = text.charAt(cursor);
-                if (text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) != '\\') {
-                    continue;
-                }
-                if (selectMode == 2) {
-                    if (current == '{') {
-                        parenthesisCount++;
-                    }
-                    if (current == '}') {
-                        parenthesisCount--;
-                        if (parenthesisCount == 0) {
-                            if (cursor - startIndex > 0) {
-                                list.add(StringRange.code(this, text, startIndex, cursor));
-                            }
-                            startIndex = cursor + 1;
-                            selectMode = -1;
-                        }
-                    }
-                    continue;
-                }
-                if (selectMode == 1) {
-                    if (String.valueOf(current).matches(parenthesisCount > 0 ? "[^)]{1}" : "[A-Za-z0-9_\\u4e00-\\u9fa5.$]{1}")) {
-                        continue;
-                    }
-                    if (current == '(') {
-                        if (text.substring(cursor).matches("^\\([^)]*\\).*")) {
-                            parenthesisCount++;
-                            continue;
-                        }
-                    } else if (current == ')') {
-                        if (parenthesisCount > 0) {
-                            if (text.substring(cursor).matches("^\\)\\.[A-Za-z_\\u4e00-\\u9fa5$]+.*")) {
-                                parenthesisCount--;
-                                continue;
-                            }
-                            list.add(StringRange.code(this, text, startIndex, cursor + 1));
-                            startIndex = cursor + 1;
-                            selectMode = -1;
-                            continue;
-                        }
-                    }
-                    list.add(StringRange.code(this, text, startIndex, cursor));
-                    selectMode = -1;
-                    startIndex = cursor;
-                    cursor--;
-                    continue;
-                }
-                if (current == '$'
-                        && !(text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) == '\\')
-                        && String.valueOf(text.charAt(cursor + 1)).matches("[A-Za-z_\\u4e00-\\u9fa5{$]{1}")) {
-                    if (cursor - startIndex != 0) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    if (text.charAt(cursor + 1) == '{') {
-                        startIndex = cursor + 2;
-                        selectMode = 2;
-                        parenthesisCount = 0;
-                    } else {
-                        startIndex = cursor + 1;
-                        selectMode = 1;
-                        parenthesisCount = 0;
-                    }
-                }
-                if (selectMode == -1 && current == '"') {
-                    if (cursor > startIndex) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    model.endQuoteIndex = cursor;
-                    return model;
-                }
-            }
-            if (text.length() - 1 > startIndex) {
-                if (selectMode > 0) {
-                    list.add(StringRange.code(this, text, startIndex, text.length() - 1));
-                } else {
-                    list.add(StringRange.string(this, text, startIndex, text.length() - 1));
-                }
-            }
-            model.endQuoteIndex = text.length() - 1;
-            return model;
+            return buildFromSharedSplitter(this, text, TemplateStringSplitter.Syntax.DOLLAR);
         }
 
         @Override
@@ -964,59 +1407,7 @@ public final class TemplateStringSupport {
 
         @Override
         public TemplateModel build(String text) {
-            TemplateModel model = new TemplateModel();
-            List<StringRange> list = model.list;
-            int startIndex = prefix().length() + 1;
-            int selectMode = -1;
-            int parenthesisCount = 0;
-            for (int cursor = startIndex; cursor < text.length() - 1; cursor++) {
-                char current = text.charAt(cursor);
-                if (text.charAt(cursor) != '{' && text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) != '\\') {
-                    continue;
-                }
-                if (selectMode == 2) {
-                    if (current == '{') {
-                        parenthesisCount++;
-                    }
-                    if (current == '}') {
-                        parenthesisCount--;
-                        if (parenthesisCount == 0) {
-                            if (cursor - startIndex > 0) {
-                                list.add(StringRange.code(this, text, startIndex, cursor));
-                            }
-                            startIndex = cursor + 1;
-                            selectMode = -1;
-                        }
-                    }
-                    continue;
-                }
-                if (current == '\\'
-                        && !(text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) == '\\')
-                        && String.valueOf(text.charAt(cursor + 1)).equals("{")) {
-                    if (cursor - startIndex != 0) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    startIndex = cursor + 2;
-                    selectMode = 2;
-                    parenthesisCount = 0;
-                }
-                if (selectMode == -1 && current == '"') {
-                    if (cursor > startIndex) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    model.endQuoteIndex = cursor;
-                    return model;
-                }
-            }
-            if (text.length() - 1 > startIndex) {
-                if (selectMode > 0) {
-                    list.add(StringRange.code(this, text, startIndex, text.length() - 1));
-                } else {
-                    list.add(StringRange.string(this, text, startIndex, text.length() - 1));
-                }
-            }
-            model.endQuoteIndex = text.length() - 1;
-            return model;
+            return buildFromSharedSplitter(this, text, TemplateStringSplitter.Syntax.STR);
         }
 
         @Override
@@ -1047,6 +1438,11 @@ public final class TemplateStringSupport {
             return builder.toString();
         }
 
+        @Override
+        public MappedExpression translate(List<StringRange> build, String text) {
+            return translateAsStringConcatenation(build, text, prefix().length());
+        }
+
         private static String mapToFormatString(String text, List<StringRange> ranges) {
             StringRange formatRange = null;
             StringBuilder builder = new StringBuilder();
@@ -1069,103 +1465,7 @@ public final class TemplateStringSupport {
 
         @Override
         public TemplateModel build(String text) {
-            TemplateModel model = new TemplateModel();
-            List<StringRange> list = model.list;
-            int startIndex = prefix().length() + 1;
-            int selectMode = -1;
-            int parenthesisCount = 0;
-            for (int cursor = startIndex; cursor < text.length() - 1; cursor++) {
-                char current = text.charAt(cursor);
-                if (text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) != '\\') {
-                    continue;
-                }
-                if (selectMode == 2) {
-                    if (current == '{') {
-                        parenthesisCount++;
-                    }
-                    if (current == '}') {
-                        parenthesisCount--;
-                        if (parenthesisCount == 0) {
-                            if (cursor - startIndex > 0) {
-                                String substring = text.substring(startIndex, cursor);
-                                if (substring.startsWith("%")) {
-                                    int splitChar = substring.indexOf(":");
-                                    if (splitChar == -1) {
-                                        list.add(StringRange.code(this, text, startIndex, cursor));
-                                    } else {
-                                        list.add(StringRange.of(2, startIndex, startIndex + splitChar));
-                                        list.add(StringRange.code(this, text, startIndex + splitChar + 1, cursor));
-                                    }
-                                } else {
-                                    list.add(StringRange.code(this, text, startIndex, cursor));
-                                }
-                            }
-                            startIndex = cursor + 1;
-                            selectMode = -1;
-                        }
-                    }
-                    continue;
-                }
-                if (selectMode == 1) {
-                    if (String.valueOf(current).matches(parenthesisCount > 0 ? "[^)]{1}" : "[A-Za-z0-9_\\u4e00-\\u9fa5.$]{1}")) {
-                        continue;
-                    }
-                    if (current == '(') {
-                        if (text.substring(cursor).matches("^\\([^)]*\\).*")) {
-                            parenthesisCount++;
-                            continue;
-                        }
-                    } else if (current == ')') {
-                        if (parenthesisCount > 0) {
-                            if (text.substring(cursor).matches("^\\)\\.[A-Za-z_\\u4e00-\\u9fa5$]+.*")) {
-                                parenthesisCount--;
-                                continue;
-                            }
-                            list.add(StringRange.code(this, text, startIndex, cursor + 1));
-                            startIndex = cursor + 1;
-                            selectMode = -1;
-                            continue;
-                        }
-                    }
-                    list.add(StringRange.code(this, text, startIndex, cursor));
-                    selectMode = -1;
-                    startIndex = cursor;
-                    cursor--;
-                    continue;
-                }
-                if (current == '$'
-                        && !(text.charAt(cursor - 1) == '\\' && text.charAt(cursor - 2) == '\\')
-                        && String.valueOf(text.charAt(cursor + 1)).matches("[A-Za-z_\\u4e00-\\u9fa5{$]{1}")) {
-                    if (cursor - startIndex != 0) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    if (text.charAt(cursor + 1) == '{') {
-                        startIndex = cursor + 2;
-                        selectMode = 2;
-                        parenthesisCount = 0;
-                    } else {
-                        startIndex = cursor + 1;
-                        selectMode = 1;
-                        parenthesisCount = 0;
-                    }
-                }
-                if (selectMode == -1 && current == '"') {
-                    if (cursor > startIndex) {
-                        list.add(StringRange.string(this, text, startIndex, cursor));
-                    }
-                    model.endQuoteIndex = cursor;
-                    return model;
-                }
-            }
-            if (text.length() - 1 > startIndex) {
-                if (selectMode > 0) {
-                    list.add(StringRange.code(this, text, startIndex, text.length() - 1));
-                } else {
-                    list.add(StringRange.string(this, text, startIndex, text.length() - 1));
-                }
-            }
-            model.endQuoteIndex = text.length() - 1;
-            return model;
+            return buildFromSharedSplitter(this, text, TemplateStringSplitter.Syntax.FORMAT);
         }
 
         @Override

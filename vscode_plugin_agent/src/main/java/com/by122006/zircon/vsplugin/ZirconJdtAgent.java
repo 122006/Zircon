@@ -8,8 +8,14 @@ import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.JavaModule;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.CodeSource;
 import java.util.jar.JarFile;
 
@@ -74,9 +80,39 @@ public class ZirconJdtAgent {
                             .advice(ElementMatchers.named("record")
                                             .and(ElementMatchers.takesArguments(2)
                                                     .or(ElementMatchers.takesArguments(3))),
-                                    CompilationResultRecordAdvice.class.getName()));
+                                    CompilationResultRecordAdvice.class.getName())
+                            .advice(ElementMatchers.namedOneOf("getProblems", "getErrors", "getAllProblems")
+                                            .and(ElementMatchers.takesArguments(0))
+                                            .and(ElementMatchers.returns(ElementMatchers.isArray())),
+                                    CompilationResultProblemsAdvice.class.getName()));
 
             if (!syntaxServer) {
+                builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.codeassist.CompletionEngine"))
+                        .transform(new AgentBuilder.Transformer.ForAdvice()
+                                .withExceptionHandler(net.bytebuddy.asm.Advice.ExceptionHandler.Default.PRINTING)
+                                .include(ClassFileLocator.ForJarFile.of(agentJar))
+                                .advice(ElementMatchers.named("findMethods")
+                                                .and(ElementMatchers.takesArguments(20)),
+                                        CompletionEngineFindMethodsAdvice.class.getName()));
+
+                builder = builder.type(ElementMatchers.named(
+                                "org.eclipse.jdt.ls.core.internal.contentassist.CompletionProposalRequestor"))
+                        .transform(new AgentBuilder.Transformer.ForAdvice()
+                                .withExceptionHandler(net.bytebuddy.asm.Advice.ExceptionHandler.Default.PRINTING)
+                                .include(ClassFileLocator.ForJarFile.of(agentJar))
+                                .advice(ElementMatchers.named("accept")
+                                                .and(ElementMatchers.takesArguments(1)),
+                                        JdtCompletionProposalRequestorAdvice.class.getName()));
+
+                builder = builder.type(ElementMatchers.named(
+                                "org.eclipse.jdt.ls.core.internal.contentassist.CompletionProposalReplacementProvider"))
+                        .transform(new AgentBuilder.Transformer.ForAdvice()
+                                .withExceptionHandler(net.bytebuddy.asm.Advice.ExceptionHandler.Default.PRINTING)
+                                .include(ClassFileLocator.ForJarFile.of(agentJar))
+                                .advice(ElementMatchers.named("updateReplacement")
+                                                .and(ElementMatchers.takesArguments(3)),
+                                        JdtCompletionReplacementAdvice.class.getName()));
+
                 builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.compiler.lookup.Scope")
                                 .or(ElementMatchers.named("org.eclipse.jdt.internal.compiler.lookup.BlockScope"))
                                 .or(ElementMatchers.named("org.eclipse.jdt.internal.compiler.lookup.ClassScope"))
@@ -126,7 +162,12 @@ public class ZirconJdtAgent {
                                                         ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.MessageSend")))
                                                 .and(ElementMatchers.takesArgument(1,
                                                         ElementMatchers.named("org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet"))),
-                                        JdtSearchCandidateAdvice.class.getName()));
+                                        JdtSearchCandidateAdvice.class.getName())
+                                .advice(ElementMatchers.named("matchReportReference")
+                                                .and(ElementMatchers.takesArguments(4))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.MessageSend"))),
+                                        JdtSearchReportAdvice.class.getName()));
 
                 builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.LambdaExpression"))
                         .transform(new AgentBuilder.Transformer.ForAdvice()
@@ -174,6 +215,9 @@ public class ZirconJdtAgent {
                                     TemplateScannerResetAdvice.class.getName()))
                     .installOn(instrumentation);
 
+            if (!syntaxServer) {
+                writeRuntimeHeartbeat(agentJar);
+            }
             Util.log("[Zircon] Agent installed successfully.");
         } catch (Throwable e) {
             Util.log("[Zircon] Agent install failed: " + e.getClass().getName() + ": " + e.getMessage());
@@ -207,6 +251,52 @@ public class ZirconJdtAgent {
             return null;
         }
         return new File(codeSource.getLocation().toURI());
+    }
+
+    private static void writeRuntimeHeartbeat(File agentJar) {
+        String configuredPath = System.getProperty("zircon.agent.heartbeat", "").trim();
+        if (configuredPath.isEmpty()) {
+            return;
+        }
+        try {
+            writeRuntimeHeartbeat(
+                    Paths.get(configuredPath),
+                    agentJar,
+                    ProcessHandle.current().pid(),
+                    System.currentTimeMillis()
+            );
+        } catch (Throwable error) {
+            Util.log("[Zircon] Agent heartbeat failed: "
+                    + error.getClass().getName() + ": " + error.getMessage());
+        }
+    }
+
+    static void writeRuntimeHeartbeat(Path heartbeat, File agentJar, long pid, long startedAtMillis)
+            throws IOException {
+        Path absolute = heartbeat.toAbsolutePath().normalize();
+        Path parent = absolute.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        String agentPath = agentJar == null
+                ? ""
+                : agentJar.toPath().toAbsolutePath().normalize().toString();
+        String content = "pid=" + pid + "\n"
+                + "startedAt=" + startedAtMillis + "\n"
+                + "agentJar=" + agentPath + "\n"
+                + "mode=full\n";
+        Path temporary = absolute.resolveSibling(absolute.getFileName() + ".tmp." + pid);
+        Files.write(temporary, content.getBytes(StandardCharsets.UTF_8));
+        try {
+            Files.move(
+                    temporary,
+                    absolute,
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING
+            );
+        } catch (IOException atomicMoveError) {
+            Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private static boolean isSyntaxServerProcess() {

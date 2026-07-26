@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getZirconConfig } from './config';
 import { scanDocument } from './syntax';
+import { inspectZirconDocument } from './zirconInspections';
 
 export class ZirconDiagnostics implements vscode.Disposable {
     private readonly collection = vscode.languages.createDiagnosticCollection('zircon');
@@ -17,7 +18,10 @@ export class ZirconDiagnostics implements vscode.Disposable {
         }
 
         const result = scanDocument(document);
-        this.collection.set(document.uri, result.diagnostics);
+        this.collection.set(document.uri, [
+            ...result.diagnostics,
+            ...inspectZirconDocument(document)
+        ]);
     }
 
     public clear(document: vscode.TextDocument): void {

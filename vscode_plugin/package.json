@@ -13,7 +13,8 @@
     },
     "files": [
         "out/**",
-        "server/**",
+        "server/zircon-agent.jar",
+        "server/zircon-agent-bootstrap.jar",
         "README.md",
         "LICENSE",
         "package.json"
@@ -29,7 +30,16 @@
         "onCommand:zircon.showProjectStatus",
         "onCommand:zircon.restartJavaServer",
         "onCommand:zircon.refreshDiagnostics",
-        "onCommand:zircon.probeNativeJavaSearch"
+        "onCommand:zircon.probeNativeJavaSearch",
+        "onCommand:zircon.convertFileToTemplates",
+        "onCommand:zircon.convertFileToJava",
+        "onCommand:zircon.convertWorkspaceToTemplates",
+        "onCommand:zircon.convertWorkspaceToJava",
+        "onCommand:zircon.convertWorkspaceToExtensionMethods",
+        "onCommand:zircon.convertWorkspaceToNormalMethods",
+        "onCommand:zircon.refreshExMethodIndex",
+        "onCommand:zircon.formatDocument",
+        "onCommand:zircon.optimizeImports"
     ],
     "contributes": {
         "configuration": {
@@ -42,8 +52,8 @@
                 },
                 "zircon.enableExperimentalJavaAgent": {
                     "type": "boolean",
-                    "default": false,
-                    "description": "启用实验中的 Zircon JDT Agent。当前默认关闭，以避免影响普通 Java 语言服务。"
+                    "default": true,
+                    "description": "启用 Zircon JDT Agent。仅在检测到 Zircon 项目时自动注入。"
                 },
                 "zircon.autoInjectJavaAgent": {
                     "type": "boolean",
@@ -78,6 +88,16 @@
                     "type": "boolean",
                     "default": true,
                     "description": "在状态栏显示 Zircon 项目状态。"
+                },
+                "zircon.enableCodeActions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "启用 Zircon 字符串语法的快速修复、意图操作和批量转换。"
+                },
+                "zircon.enableEditorExperience": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "启用 Zircon Java 文件中的可选链补全、模板字符串回车和引号输入增强。"
                 },
                 "zircon.debug": {
                     "type": "boolean",
@@ -122,6 +142,71 @@
             {
                 "command": "zircon.probeNativeJavaSearch",
                 "title": "Zircon: 验证 JDT 原生引用查询"
+            },
+            {
+                "command": "zircon.convertFileToTemplates",
+                "title": "Zircon: 转换当前文件为模板字符串"
+            },
+            {
+                "command": "zircon.convertFileToJava",
+                "title": "Zircon: 转换当前文件模板为普通 Java"
+            },
+            {
+                "command": "zircon.convertWorkspaceToTemplates",
+                "title": "Zircon: 批量转换工作区为模板字符串"
+            },
+            {
+                "command": "zircon.convertWorkspaceToJava",
+                "title": "Zircon: 批量转换工作区模板为普通 Java"
+            },
+            {
+                "command": "zircon.convertWorkspaceToExtensionMethods",
+                "title": "Zircon: 批量转换为扩展方法调用"
+            },
+            {
+                "command": "zircon.convertWorkspaceToNormalMethods",
+                "title": "Zircon: 批量还原为普通静态调用"
+            },
+            {
+                "command": "zircon.refreshExMethodIndex",
+                "title": "Zircon: 刷新扩展方法索引"
+            },
+            {
+                "command": "zircon.formatDocument",
+                "title": "Zircon: 格式化当前 Java 文件"
+            },
+            {
+                "command": "zircon.optimizeImports",
+                "title": "Zircon: 优化 Java 导入"
+            },
+            {
+                "command": "zircon.templateEnter",
+                "title": "Zircon: 模板字符串内换行"
+            },
+            {
+                "command": "zircon.typeQuote",
+                "title": "Zircon: 输入引号"
+            },
+            {
+                "command": "zircon.typeLeftBrace",
+                "title": "Zircon: 输入模板表达式花括号"
+            }
+        ],
+        "keybindings": [
+            {
+                "key": "enter",
+                "command": "zircon.templateEnter",
+                "when": "editorTextFocus && editorLangId == java && zircon.projectActive"
+            },
+            {
+                "key": "shift+'",
+                "command": "zircon.typeQuote",
+                "when": "editorTextFocus && editorLangId == java && zircon.projectActive"
+            },
+            {
+                "key": "shift+[",
+                "command": "zircon.typeLeftBrace",
+                "when": "editorTextFocus && editorLangId == java && zircon.projectActive"
             }
         ]
     },
@@ -132,24 +217,30 @@
         "pretest": "tsc -p ./ && eslint src --ext ts",
         "lint": "eslint src --ext ts",
         "build": "tsc -p ./",
-        "test": "node ./scripts/validateCompletion.cjs",
+        "test": "node ./scripts/validateCompletion.cjs && node ./scripts/validateEditorFeatures.cjs && node ./scripts/validateInspections.cjs && node ./scripts/validateIntentions.cjs && node ./scripts/validateNavigation.cjs && node ./scripts/validateFormatting.cjs",
         "validate:completion": "npm test",
         "probe:native-search": "node ./scripts/probeNativeJavaSearch.cjs",
+        "probe:native-completion": "node ./scripts/probeNativeJavaSearch.cjs --completion-only",
+        "probe:indexed-completion": "node ./scripts/probeNativeJavaSearch.cjs --indexed-completion-only",
+        "probe:jdt-diagnostics": "node ./scripts/probeNativeJavaSearch.cjs --diagnostics-only",
+        "probe:optional-chain": "node ./scripts/probeNativeJavaSearch.cjs --optional-chain-only",
+        "probe:optional-completion": "node ./scripts/probeNativeJavaSearch.cjs --optional-completion-only",
+        "probe:optional-type-error": "node ./scripts/probeNativeJavaSearch.cjs --optional-type-error-only",
+        "probe:template": "node ./scripts/probeNativeJavaSearch.cjs --template-only",
         "package": "npm test && vsce package --allow-missing-repository"
     },
-    "dependencies": {
-        "adm-zip": "^0.5.16"
-    },
     "devDependencies": {
-        "@types/adm-zip": "^0.5.7",
         "@types/glob": "^8.1.0",
         "@types/node": "16.x",
         "@types/vscode": "^1.75.0",
+        "@types/yauzl": "^2.10.3",
         "@typescript-eslint/eslint-plugin": "^5.53.0",
         "@typescript-eslint/parser": "^5.53.0",
         "@vscode/vsce": "^3.7.1",
         "eslint": "^8.34.0",
         "typescript": "^4.9.5"
+    },
+    "dependencies": {
+        "yauzl": "^3.4.0"
     }
-
 }
