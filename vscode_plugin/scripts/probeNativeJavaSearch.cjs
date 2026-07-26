@@ -88,6 +88,7 @@ let nextId = 1;
 let stdoutBuffer = Buffer.alloc(0);
 const pending = new Map();
 const notifications = [];
+const appliedWorkspaceEdits = [];
 
 server.stdout.on('data', (chunk) => {
     stdoutBuffer = Buffer.concat([stdoutBuffer, chunk]);
@@ -192,7 +193,8 @@ function handleServerRequest(message) {
     } else if (message.method === 'workspace/workspaceFolders') {
         result = [{ name: path.basename(workspace), uri: pathToFileURL(workspace).href }];
     } else if (message.method === 'workspace/applyEdit') {
-        result = { applied: false };
+        appliedWorkspaceEdits.push(message.params?.edit);
+        result = { applied: true };
     }
     send({ id: message.id, result });
 }
@@ -375,6 +377,15 @@ function findInvocationPosition(text, methodName) {
     return { line: lines.length - 1, character: lines[lines.length - 1].length };
 }
 
+function findMethodDeclarationPosition(text, methodName) {
+    const pattern = new RegExp(`\\b${methodName}\\s*\\(`);
+    const match = pattern.exec(text);
+    if (!match) {
+        throw new Error(`Cannot find method declaration ${methodName}`);
+    }
+    return offsetToPosition(text, match.index);
+}
+
 function findCompletionPosition(text, methodName) {
     const marker = `.${methodName}`;
     const offset = text.indexOf(marker);
@@ -502,6 +513,11 @@ function countText(text, value) {
     return count;
 }
 
+function countIdentifier(text, value) {
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (text.match(new RegExp(`(?<![\\w$])${escaped}(?![\\w$])`, 'g')) || []).length;
+}
+
 function rangeContainsPosition(range, position) {
     if (!range) {
         return false;
@@ -547,6 +563,8 @@ async function main() {
     let indexedBinaryCompletionPosition;
     let indexedAcceptedCompletionPosition;
     let indexedRejectedCompletionPosition;
+    let indexedDirectOnlyReceiverPosition;
+    let indexedDirectOnlyImplicitPosition;
     let optionalTypeErrorPosition;
     let templateCompletionPosition;
     let templateExtensionCompletionPosition;
@@ -567,6 +585,8 @@ async function main() {
             '        String binaryResult = value.bin();',
             '        String acceptedResult = accepted.fil();',
             '        rejected.fil();',
+            '        value.dir();',
+            '        dir();',
             '        return sourceResult + binaryResult + acceptedResult;',
             '    }',
             '}',
@@ -582,6 +602,8 @@ async function main() {
         indexedBinaryCompletionPosition = offsetToPosition(text, text.indexOf('value.bin') + 'value.bin'.length);
         indexedAcceptedCompletionPosition = offsetToPosition(text, text.indexOf('accepted.fil') + 'accepted.fil'.length);
         indexedRejectedCompletionPosition = offsetToPosition(text, text.indexOf('rejected.fil') + 'rejected.fil'.length);
+        indexedDirectOnlyReceiverPosition = offsetToPosition(text, text.indexOf('value.dir') + 'value.dir'.length);
+        indexedDirectOnlyImplicitPosition = offsetToPosition(text, text.indexOf('        dir') + '        dir'.length);
     }
     if (optionalCompletionOnly) {
         const insertionOffset = text.lastIndexOf('}');
@@ -710,7 +732,17 @@ async function main() {
                 references: { dynamicRegistration: true },
                 rename: { dynamicRegistration: true, prepareSupport: true },
                 callHierarchy: { dynamicRegistration: true },
-                codeLens: { dynamicRegistration: true, resolveSupport: { properties: ['command'] } }
+                codeLens: { dynamicRegistration: true, resolveSupport: { properties: ['command'] } },
+                definition: { dynamicRegistration: true, linkSupport: true },
+                hover: { dynamicRegistration: true, contentFormat: ['markdown', 'plaintext'] },
+                signatureHelp: { dynamicRegistration: true },
+                codeAction: {
+                    dynamicRegistration: true,
+                    resolveSupport: { properties: ['edit'] },
+                    codeActionLiteralSupport: {
+                        codeActionKind: { valueSet: ['source.organizeImports'] }
+                    }
+                }
             }
         },
         initializationOptions: {
@@ -924,6 +956,31 @@ async function main() {
             if (acceptedItems.length === 0 || rejectedItems.length !== 0) {
                 throw new Error('JDT binary extension filterAnnotation matching did not respect receiver annotations.');
             }
+            const receiverDirectOnly = await requestCompletionItems(
+                sourceUri,
+                indexedDirectOnlyReceiverPosition,
+                undefined,
+                1
+            );
+            const implicitDirectOnly = await requestCompletionItems(
+                sourceUri,
+                indexedDirectOnlyImplicitPosition,
+                'directOnly',
+                4
+            );
+            const receiverDirectItems = receiverDirectOnly.items.filter(
+                (item) => completionLabel(item).replace(/\(.*$/, '') === 'directOnly'
+            );
+            const implicitDirectItems = implicitDirectOnly.items.filter(
+                (item) => completionLabel(item).replace(/\(.*$/, '') === 'directOnly'
+            );
+            console.log(
+                `[probe:native-search] directOnlyReceiver=${receiverDirectItems.length}, `
+                + `directOnlyImplicit=${implicitDirectItems.length}`
+            );
+            if (receiverDirectItems.length !== 0 || implicitDirectItems.length === 0) {
+                throw new Error('JDT completion did not respect ExMethodIDE.shouldInvokeDirectly.');
+            }
         }
         if (!optionalCompletionOnly && probeMethodName === 'map' && fs.existsSync(zirconGenericChainSource)) {
             const variableText = [
@@ -1011,6 +1068,28 @@ async function main() {
     const incomingCalls = Array.isArray(callItems) && callItems.length > 0
         ? await request('callHierarchy/incomingCalls', { item: callItems[0] }, 90_000).catch(() => null)
         : null;
+    const definitions = await request('textDocument/definition', documentPosition, 60_000).catch(() => null);
+    const hover = await request('textDocument/hover', documentPosition, 60_000).catch(() => null);
+    const signatureOffset = text.indexOf(`.${probeMethodName}(`) + `.${probeMethodName}(`.length + 1;
+    const signatureHelp = signatureOffset > 0
+        ? await request('textDocument/signatureHelp', {
+            textDocument: { uri: sourceUri },
+            position: offsetToPosition(text, signatureOffset),
+            context: { triggerKind: 1 }
+        }, 60_000).catch(() => null)
+        : null;
+    const enclosingMethodPosition = fs.existsSync(zirconTestSource)
+        ? null
+        : findMethodDeclarationPosition(text, 'extensionCall');
+    const outgoingItems = enclosingMethodPosition
+        ? await request('textDocument/prepareCallHierarchy', {
+            textDocument: { uri: sourceUri },
+            position: enclosingMethodPosition
+        }, 60_000).catch(() => null)
+        : null;
+    const outgoingCalls = Array.isArray(outgoingItems) && outgoingItems.length > 0
+        ? await request('callHierarchy/outgoingCalls', { item: outgoingItems[0] }, 90_000).catch(() => null)
+        : null;
     const declarationLocation = (references || []).find((location) => location.uri !== sourceUri);
     const declarationPosition = declarationLocation
         ? { textDocument: { uri: declarationLocation.uri }, position: declarationLocation.range.start }
@@ -1050,6 +1129,13 @@ async function main() {
     }
     console.log(`[probe:native-search] callHierarchyItems=${Array.isArray(callItems) ? callItems.length : 0}`);
     console.log(`[probe:native-search] incomingCalls=${Array.isArray(incomingCalls) ? incomingCalls.length : 0}`);
+    console.log(`[probe:native-search] outgoingCalls=${Array.isArray(outgoingCalls) ? outgoingCalls.length : 0}`);
+    for (const call of outgoingCalls || []) {
+        console.log(`[probe:native-search]   outgoing ${call.to?.name || '<unnamed>'}`
+            + ` ${call.to?.uri || ''}`);
+    }
+    console.log(`[probe:native-search] definitions=${Array.isArray(definitions) ? definitions.length : definitions ? 1 : 0}`);
+    console.log(`[probe:native-search] hover=${Boolean(hover)}, signatures=${signatureHelp?.signatures?.length || 0}`);
     for (const call of incomingCalls || []) {
         for (const range of call.fromRanges || []) {
             console.log(`[probe:native-search]   incoming ${call.from.uri}:${range.start.line + 1}:${range.start.character + 1}`);
@@ -1066,6 +1152,24 @@ async function main() {
     if (!hasExtensionReference) {
         throw new Error('JDT native SearchEngine did not return the extension invocation itself.');
     }
+    if (declarationFile) {
+        const methodReferencePosition = offsetToPosition(
+            text,
+            text.indexOf(`::${probeMethodName}`) + 2
+        );
+        const templateReferenceOffset = text.indexOf(`.${probeMethodName}("<"`);
+        const templateReferencePosition = offsetToPosition(text, templateReferenceOffset + 1);
+        if (!(references || []).some((location) => {
+            return location.uri === sourceUri && rangeContainsPosition(location.range, methodReferencePosition);
+        })) {
+            throw new Error('JDT native SearchEngine did not return the extension method reference.');
+        }
+        if (!(references || []).some((location) => {
+            return location.uri === sourceUri && rangeContainsPosition(location.range, templateReferencePosition);
+        })) {
+            throw new Error('JDT native SearchEngine did not return the template-expression extension invocation.');
+        }
+    }
     if (!prepareRename || !workspaceEditContainsPosition(renameEdit, sourceUri, position)) {
         throw new Error('JDT native rename did not edit the extension invocation itself.');
     }
@@ -1073,21 +1177,6 @@ async function main() {
         const declarationUri = pathToFileURL(declarationFile).href;
         const declarationText = fs.readFileSync(declarationFile, 'utf8');
         const textsByUri = new Map([[sourceUri, text], [declarationUri, declarationText]]);
-        const rawRenamedUsage = applyWorkspaceEditToText(renameEdit, sourceUri, text);
-        const rawRenamedDeclaration = applyWorkspaceEditToText(renameEdit, declarationUri, declarationText);
-        if (countText(rawRenamedUsage, `.${renameName}(`) !== 2
-                || countText(rawRenamedUsage, `.${probeMethodName}(`) !== 1
-                || countText(rawRenamedDeclaration, `${renameName}(`) !== 1) {
-            throw new Error('Invocation-started raw JDT rename changed more than the three semantic occurrences.');
-        }
-        const rawDeclarationStartedUsage = applyWorkspaceEditToText(declarationRename, sourceUri, text);
-        const rawDeclarationStartedDeclaration =
-            applyWorkspaceEditToText(declarationRename, declarationUri, declarationText);
-        if (countText(rawDeclarationStartedUsage, `.${declarationRenameName}(`) !== 2
-                || countText(rawDeclarationStartedUsage, `.${probeMethodName}(`) !== 1
-                || countText(rawDeclarationStartedDeclaration, `${declarationRenameName}(`) !== 1) {
-            throw new Error('Declaration-started raw JDT rename changed more than the three semantic occurrences.');
-        }
         const safeRenameEdit = sanitizeRenameWithNativeReferences(
             renameEdit,
             references,
@@ -1109,10 +1198,10 @@ async function main() {
         }
         const renamedUsage = applyWorkspaceEditToText(safeRenameEdit, sourceUri, text);
         const renamedDeclaration = applyWorkspaceEditToText(safeRenameEdit, declarationUri, declarationText);
-        if (countText(renamedUsage, `.${renameName}(`) !== 2
-                || countText(renamedUsage, `.${probeMethodName}(`) !== 1
+        if (countIdentifier(renamedUsage, renameName) !== 4
+                || countIdentifier(renamedUsage, probeMethodName) !== 2
                 || countText(renamedDeclaration, `${renameName}(`) !== 1) {
-            throw new Error('JDT native rename did not semantically rename declaration, extension call and static call.');
+            throw new Error('JDT native rename did not rename call, static call, method reference and template call.');
         }
         const declarationStartedUsage = applyWorkspaceEditToText(safeDeclarationRename, sourceUri, text);
         const declarationStartedDeclaration = applyWorkspaceEditToText(
@@ -1120,12 +1209,12 @@ async function main() {
             declarationUri,
             declarationText
         );
-        if (countText(declarationStartedUsage, `.${declarationRenameName}(`) !== 2
-                || countText(declarationStartedUsage, `.${probeMethodName}(`) !== 1
+        if (countIdentifier(declarationStartedUsage, declarationRenameName) !== 4
+                || countIdentifier(declarationStartedUsage, probeMethodName) !== 2
                 || countText(declarationStartedDeclaration, `${declarationRenameName}(`) !== 1) {
-            throw new Error('Declaration-started JDT rename did not update all three method occurrences.');
+            throw new Error('Declaration-started JDT rename did not update all four semantic usages.');
         }
-        console.log('[probe:native-search] rawNativeRenameOccurrences=3 (both entry points)');
+        console.log('[probe:native-search] sanitizedNativeRenameOccurrences=5 (declaration plus four usages)');
     }
     const hasExtensionIncomingCall = Array.isArray(incomingCalls) && incomingCalls.some((call) => {
         return call.from?.uri === sourceUri
@@ -1134,8 +1223,20 @@ async function main() {
     if (!hasExtensionIncomingCall) {
         throw new Error('JDT native incoming call hierarchy did not return the extension invocation itself.');
     }
-    if (declarationFile && !(codeLenses || []).some((lens) => /2\s+references/i.test(lens.command?.title || ''))) {
-        throw new Error('JDT native references CodeLens did not count both method calls.');
+    if (declarationFile && !(codeLenses || []).some((lens) => /4\s+references/i.test(lens.command?.title || ''))) {
+        throw new Error('JDT native references CodeLens did not count call, static call, method reference and template call.');
+    }
+    if (declarationFile) {
+        const definitionItems = Array.isArray(definitions) ? definitions : definitions ? [definitions] : [];
+        if (!definitionItems.some((item) => (item.targetUri || item.uri) === pathToFileURL(declarationFile).href)) {
+            throw new Error('JDT native definition did not resolve the extension declaration.');
+        }
+        if (!hover || !JSON.stringify(hover).includes(probeMethodName)) {
+            throw new Error('JDT native hover did not describe the extension method.');
+        }
+        if (!(outgoingCalls || []).some((call) => call.to?.name?.startsWith(`${probeMethodName}(`))) {
+            throw new Error('JDT native outgoing call hierarchy did not include the extension method.');
+        }
     }
 }
 

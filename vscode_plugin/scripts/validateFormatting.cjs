@@ -11,7 +11,9 @@ Module._load = function patchedLoad(request, parent, isMain) {
 try {
     const {
         buildFallbackImportOptimization,
-        createZirconFormattingProxy
+        collectProtectedZirconImports,
+        createZirconFormattingProxy,
+        restoreProtectedZirconImports
     } = require('../out/zirconFormatting');
     const { collectImportedDependencyTargets } = require('../out/exMethodIndex');
 
@@ -45,6 +47,33 @@ try {
         'import static zeta.Constants.VALUE;'
     ].join('\n')));
     assert.strictEqual((optimized.match(/import zeta\.B;/g) || []).length, 1);
+
+    const zirconImportSource = [
+        'package demo;',
+        '',
+        'import demo.extensions.StringMethods;',
+        'import java.util.Locale;',
+        'import java.util.Set;',
+        '',
+        'class Imports {',
+        '    String value = $"${Locale.ROOT}:${"x".surround("[", "]")}";',
+        '}'
+    ].join('\n');
+    const protectedImports = collectProtectedZirconImports(zirconImportSource, [
+        { qualifiedDeclaringClass: 'demo.extensions.StringMethods' }
+    ]);
+    assert.deepStrictEqual(protectedImports.sort(), [
+        'import demo.extensions.StringMethods;',
+        'import java.util.Locale;'
+    ]);
+    const nativeWithoutZirconImports = zirconImportSource
+        .replace('import demo.extensions.StringMethods;\n', '')
+        .replace('import java.util.Locale;\n', '')
+        .replace('import java.util.Set;\n', '');
+    const restoredImports = restoreProtectedZirconImports(nativeWithoutZirconImports, protectedImports);
+    assert.ok(restoredImports.includes('import demo.extensions.StringMethods;'));
+    assert.ok(restoredImports.includes('import java.util.Locale;'));
+    assert.ok(!restoredImports.includes('import java.util.Set;'));
 
     const dependencyTargets = collectImportedDependencyTargets([
         'import demo.extensions.CollectionMethods;',

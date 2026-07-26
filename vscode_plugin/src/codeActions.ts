@@ -21,7 +21,7 @@ type BatchDirection = 'toTemplate' | 'toJava';
 export function registerZirconCodeActions(
     context: vscode.ExtensionContext,
     exMethodIndex: ExMethodIndex,
-    isEnabled: () => boolean
+    isEnabled: (document?: vscode.TextDocument) => boolean
 ): void {
     const selector: vscode.DocumentSelector = [{ language: 'java', scheme: 'file' }, { language: 'java', scheme: 'untitled' }];
     context.subscriptions.push(
@@ -61,7 +61,7 @@ export function registerZirconCodeActions(
 class ZirconCodeActionProvider implements vscode.CodeActionProvider {
     constructor(
         private readonly exMethodIndex: ExMethodIndex,
-        private readonly isEnabled: () => boolean
+        private readonly isEnabled: (document?: vscode.TextDocument) => boolean
     ) {
     }
 
@@ -70,7 +70,7 @@ class ZirconCodeActionProvider implements vscode.CodeActionProvider {
         range: vscode.Range,
         context: vscode.CodeActionContext
     ): Promise<(vscode.CodeAction | vscode.Command)[]> {
-        if (!this.isEnabled()) {
+        if (!this.isEnabled(document)) {
             return [];
         }
         if (context.only?.value.startsWith(vscode.CodeActionKind.SourceOrganizeImports.value)) {
@@ -243,9 +243,12 @@ function batchAction(
     return action;
 }
 
-async function convertActiveFile(direction: BatchDirection, isEnabled: () => boolean): Promise<void> {
+async function convertActiveFile(
+    direction: BatchDirection,
+    isEnabled: (document?: vscode.TextDocument) => boolean
+): Promise<void> {
     const editor = vscode.window.activeTextEditor;
-    if (!isEnabled() || !editor || editor.document.languageId !== 'java') {
+    if (!editor || editor.document.languageId !== 'java' || !isEnabled(editor.document)) {
         void vscode.window.showWarningMessage('请先在 Zircon Java 项目中打开一个 Java 文件。');
         return;
     }
@@ -255,7 +258,10 @@ async function convertActiveFile(direction: BatchDirection, isEnabled: () => boo
         : '当前文件没有可转换的语法。');
 }
 
-async function convertWorkspace(direction: BatchDirection, isEnabled: () => boolean): Promise<void> {
+async function convertWorkspace(
+    direction: BatchDirection,
+    isEnabled: (document?: vscode.TextDocument) => boolean
+): Promise<void> {
     if (!isEnabled()) {
         void vscode.window.showWarningMessage('当前工作区未启用 Zircon。');
         return;
@@ -278,6 +284,9 @@ async function convertWorkspace(direction: BatchDirection, isEnabled: () => bool
                 message: vscode.workspace.asRelativePath(uri)
             });
             const document = await vscode.workspace.openTextDocument(uri);
+            if (!isEnabled(document)) {
+                continue;
+            }
             const count = await applyDocumentConversions(document, direction);
             if (count > 0) {
                 changedFiles += 1;
@@ -308,7 +317,7 @@ async function applyDocumentConversions(document: vscode.TextDocument, direction
 async function convertExMethodWorkspace(
     direction: 'toExtension' | 'toNormal',
     index: ExMethodIndex,
-    isEnabled: () => boolean
+    isEnabled: (document?: vscode.TextDocument) => boolean
 ): Promise<void> {
     if (!isEnabled()) {
         void vscode.window.showWarningMessage('当前工作区未启用 Zircon。');
@@ -329,6 +338,9 @@ async function convertExMethodWorkspace(
     }, async (progress, token) => {
         for (let fileIndex = 0; fileIndex < uris.length && !token.isCancellationRequested; fileIndex += 1) {
             const document = await vscode.workspace.openTextDocument(uris[fileIndex]);
+            if (!isEnabled(document)) {
+                continue;
+            }
             progress.report({
                 increment: uris.length > 0 ? 100 / uris.length : 100,
                 message: vscode.workspace.asRelativePath(document.uri)

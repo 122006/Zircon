@@ -5,11 +5,17 @@ import { scanDocument } from './syntax';
 const TOKEN_TYPES = ['keyword', 'operator'] as const;
 const TOKEN_LEGEND = new vscode.SemanticTokensLegend([...TOKEN_TYPES], []);
 
-export function registerZirconSemanticTokens(context: vscode.ExtensionContext): void {
+export function registerZirconSemanticTokens(
+    context: vscode.ExtensionContext,
+    isDocumentEnabled: (document: vscode.TextDocument) => boolean = () => true
+): void {
     const provider: vscode.DocumentSemanticTokensProvider = {
         provideDocumentSemanticTokens(document: vscode.TextDocument): vscode.ProviderResult<vscode.SemanticTokens> {
             const config = getZirconConfig();
-            if (!config.enable || !config.enableSemanticHighlighting || document.languageId !== 'java') {
+            if (!config.enable
+                    || !config.enableSemanticHighlighting
+                    || document.languageId !== 'java'
+                    || !isDocumentEnabled(document)) {
                 return new vscode.SemanticTokens(new Uint32Array());
             }
 

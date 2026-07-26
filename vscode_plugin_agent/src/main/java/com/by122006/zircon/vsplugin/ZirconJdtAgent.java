@@ -163,11 +163,28 @@ public class ZirconJdtAgent {
                                                 .and(ElementMatchers.takesArgument(1,
                                                         ElementMatchers.named("org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet"))),
                                         JdtSearchCandidateAdvice.class.getName())
+                                .advice(ElementMatchers.named("match")
+                                                .and(ElementMatchers.takesArguments(2))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.ReferenceExpression")))
+                                                .and(ElementMatchers.takesArgument(1,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.core.search.matching.MatchingNodeSet"))),
+                                        JdtSearchCandidateAdvice.class.getName())
                                 .advice(ElementMatchers.named("matchReportReference")
                                                 .and(ElementMatchers.takesArguments(4))
                                                 .and(ElementMatchers.takesArgument(0,
                                                         ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.MessageSend"))),
-                                        JdtSearchReportAdvice.class.getName()));
+                                        JdtSearchReportAdvice.class.getName())
+                                .advice(ElementMatchers.named("matchReportReference")
+                                        .and(ElementMatchers.takesArgument(0,
+                                                ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.ASTNode"))),
+                                        JdtSearchReportAdvice.class.getName())
+                                .advice(ElementMatchers.named("matchReportReference")
+                                                .and(ElementMatchers.takesArguments(7))
+                                                .and(ElementMatchers.takesArgument(0,
+                                                        ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.ASTNode")))
+                                                .and(ElementMatchers.takesArgument(5, int.class)),
+                                        JdtSearchReferenceAccuracyAdvice.class.getName()));
 
                 builder = builder.type(ElementMatchers.named("org.eclipse.jdt.internal.compiler.ast.LambdaExpression"))
                         .transform(new AgentBuilder.Transformer.ForAdvice()

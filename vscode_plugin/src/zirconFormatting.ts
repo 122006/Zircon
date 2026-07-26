@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { ExMethodIndex } from './exMethodIndex';
+import { ExMethodDescriptor } from './exMethodModel';
 import { findTemplateLiterals } from './stringConversions';
 import { TEMPLATE_CODE } from './templateStringSplitter';
 
@@ -19,7 +21,8 @@ interface ImportBlockEdit {
 export function registerZirconFormatting(
     context: vscode.ExtensionContext,
     output: vscode.OutputChannel,
-    isEnabled: () => boolean
+    isEnabled: (document: vscode.TextDocument) => boolean,
+    exMethodIndex: ExMethodIndex
 ): void {
     const selector: vscode.DocumentSelector = [
         { language: 'java', scheme: 'file' },
@@ -27,7 +30,7 @@ export function registerZirconFormatting(
     ];
     const provider: vscode.DocumentFormattingEditProvider = {
         async provideDocumentFormattingEdits(document, options) {
-            if (suppressZirconFormatter || !isEnabled()) {
+            if (suppressZirconFormatter || !isEnabled(document)) {
                 return undefined;
             }
             return formatZirconDocument(document, options, output);
@@ -37,7 +40,7 @@ export function registerZirconFormatting(
         vscode.languages.registerDocumentFormattingEditProvider(selector, provider),
         vscode.commands.registerCommand('zircon.formatDocument', async () => {
             const editor = vscode.window.activeTextEditor;
-            if (!editor || editor.document.languageId !== 'java') {
+            if (!editor || editor.document.languageId !== 'java' || !isEnabled(editor.document)) {
                 void vscode.window.showWarningMessage('请先打开 Java 文件。');
                 return;
             }
@@ -56,11 +59,11 @@ export function registerZirconFormatting(
         }),
         vscode.commands.registerCommand('zircon.optimizeImports', async () => {
             const editor = vscode.window.activeTextEditor;
-            if (!editor || editor.document.languageId !== 'java') {
+            if (!editor || editor.document.languageId !== 'java' || !isEnabled(editor.document)) {
                 void vscode.window.showWarningMessage('请先打开 Java 文件。');
                 return;
             }
-            await optimizeZirconImports(editor.document, output);
+            await optimizeZirconImports(editor.document, output, exMethodIndex);
         })
     );
 }
@@ -197,7 +200,13 @@ async function requestNativeFormatting(
     }
 }
 
-async function optimizeZirconImports(document: vscode.TextDocument, output: vscode.OutputChannel): Promise<void> {
+async function optimizeZirconImports(
+    document: vscode.TextDocument,
+    output: vscode.OutputChannel,
+    exMethodIndex: ExMethodIndex
+): Promise<void> {
+    await exMethodIndex.ensureImportedDependencies(document);
+    const protectedImports = collectProtectedZirconImports(document.getText(), exMethodIndex.getAll());
     const actions = await vscode.commands.executeCommand<Array<vscode.CodeAction | vscode.Command>>(
         'vscode.executeCodeActionProvider',
         document.uri,
@@ -225,6 +234,7 @@ async function optimizeZirconImports(document: vscode.TextDocument, output: vsco
         } else {
             await vscode.commands.executeCommand(nativeAction.command, ...(nativeAction.arguments ?? []));
         }
+        await restoreImportsAfterNativeAction(document, protectedImports);
         return;
     }
 
@@ -239,6 +249,88 @@ async function optimizeZirconImports(document: vscode.TextDocument, output: vsco
         new vscode.Range(document.positionAt(fallback.start), document.positionAt(fallback.end)),
         fallback.newText
     );
+    await vscode.workspace.applyEdit(edit);
+}
+
+export function collectProtectedZirconImports(
+    source: string,
+    descriptors: readonly Pick<ExMethodDescriptor, 'qualifiedDeclaringClass'>[]
+): string[] {
+    const extensionOwners = new Set(descriptors.map((descriptor) => descriptor.qualifiedDeclaringClass));
+    const templateCode = findTemplateLiterals(source)
+        .flatMap((template) => template.ranges
+            .filter((range) => range.style === TEMPLATE_CODE)
+            .map((range) => source.slice(range.startIndex, range.endIndex)))
+        .join('\n');
+    const imports: string[] = [];
+    const pattern = /^[ \t]*import\s+(static\s+)?([A-Za-z_$][\w$]*(?:\.[A-Za-z_$*][\w$*]*)*)\s*;[ \t]*$/gm;
+    for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
+        const isStatic = match[1] !== undefined;
+        const importedName = match[2];
+        const importedOwner = isStatic
+            ? importedName.endsWith('.*')
+                ? importedName.slice(0, -2)
+                : importedName.slice(0, importedName.lastIndexOf('.'))
+            : importedName;
+        const wildcardPackage = !isStatic && importedName.endsWith('.*')
+            ? importedName.slice(0, -2)
+            : undefined;
+        const protectsExtensionOwner = extensionOwners.has(importedOwner)
+            || wildcardPackage !== undefined
+                && [...extensionOwners].some((owner) => owner.startsWith(`${wildcardPackage}.`));
+        const simpleName = importedName.slice(importedName.lastIndexOf('.') + 1);
+        const protectsTemplateType = !isStatic && simpleName !== '*'
+            && new RegExp(`\\b${escapeRegExp(simpleName)}\\b`).test(templateCode);
+        if (protectsExtensionOwner || protectsTemplateType) {
+            imports.push(match[0].trim());
+        }
+    }
+    return [...new Set(imports)];
+}
+
+export function restoreProtectedZirconImports(source: string, protectedImports: readonly string[]): string {
+    const missing = protectedImports.filter((statement) => {
+        const normalized = statement.replace(/\s+/g, ' ').trim();
+        return ![...source.matchAll(/^[ \t]*import\s+(?:static\s+)?[\w.*]+\s*;[ \t]*$/gm)]
+            .some((match) => match[0].replace(/\s+/g, ' ').trim() === normalized);
+    });
+    if (missing.length === 0) {
+        return source;
+    }
+    const lineBreak = source.includes('\r\n') ? '\r\n' : '\n';
+    const importMatches = [...source.matchAll(/^[ \t]*import\s+(?:static\s+)?[\w.*]+\s*;[ \t]*(?:\r?\n|$)/gm)];
+    if (importMatches.length > 0) {
+        const last = importMatches[importMatches.length - 1];
+        const insertAt = (last.index ?? 0) + last[0].length;
+        return source.slice(0, insertAt)
+            + missing.join(lineBreak) + lineBreak
+            + source.slice(insertAt);
+    }
+    const packageMatch = /^[ \t]*package\s+[\w.]+\s*;[ \t]*(?:\r?\n|$)/m.exec(source);
+    const insertAt = packageMatch ? (packageMatch.index ?? 0) + packageMatch[0].length : 0;
+    const prefix = insertAt > 0 ? lineBreak : '';
+    return source.slice(0, insertAt)
+        + prefix + missing.join(lineBreak) + lineBreak + lineBreak
+        + source.slice(insertAt);
+}
+
+async function restoreImportsAfterNativeAction(
+    originalDocument: vscode.TextDocument,
+    protectedImports: readonly string[]
+): Promise<void> {
+    if (protectedImports.length === 0) {
+        return;
+    }
+    const currentDocument = vscode.workspace.textDocuments.find(
+        (candidate) => candidate.uri.toString() === originalDocument.uri.toString()
+    ) ?? originalDocument;
+    const source = currentDocument.getText();
+    const restored = restoreProtectedZirconImports(source, protectedImports);
+    if (restored === source) {
+        return;
+    }
+    const edit = new vscode.WorkspaceEdit();
+    edit.replace(currentDocument.uri, fullDocumentRange(currentDocument), restored);
     await vscode.workspace.applyEdit(edit);
 }
 

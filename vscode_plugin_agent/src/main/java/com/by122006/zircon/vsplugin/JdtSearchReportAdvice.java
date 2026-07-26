@@ -9,7 +9,7 @@ import net.bytebuddy.asm.Advice;
  */
 public class JdtSearchReportAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static int enter(
+    public static long enter(
             @Advice.This Object locator,
             @Advice.Argument(0) Object messageSend
     ) {
@@ -19,8 +19,8 @@ public class JdtSearchReportAdvice {
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
     public static void exit(
             @Advice.Argument(0) Object messageSend,
-            @Advice.Enter int originalSourceEnd
+            @Advice.Enter long originalRange
     ) {
-        ZirconCore.restoreJdtSearchReportRange(messageSend, originalSourceEnd);
+        ZirconCore.restoreJdtSearchReportRange(messageSend, originalRange);
     }
 }

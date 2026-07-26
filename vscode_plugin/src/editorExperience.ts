@@ -10,11 +10,11 @@ interface CursorAction {
 
 export function registerZirconEditorExperience(
     context: vscode.ExtensionContext,
-    isEnabled: () => boolean
+    isEnabled: (document: vscode.TextDocument) => boolean
 ): void {
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('zircon.templateEnter', async (editor) => {
-            if (!isEnabled() || editor.document.languageId !== 'java') {
+            if (!isEnabled(editor.document) || editor.document.languageId !== 'java') {
                 await typeDefault('\n');
                 return;
             }
@@ -44,7 +44,7 @@ export function registerZirconEditorExperience(
             await applyCursorActions(editor, actions as CursorAction[]);
         }),
         vscode.commands.registerTextEditorCommand('zircon.typeQuote', async (editor) => {
-            if (!isEnabled() || editor.document.languageId !== 'java') {
+            if (!isEnabled(editor.document) || editor.document.languageId !== 'java') {
                 await typeDefault('"');
                 return;
             }
@@ -70,7 +70,7 @@ export function registerZirconEditorExperience(
             await applyCursorActions(editor, actions as CursorAction[]);
         }),
         vscode.commands.registerTextEditorCommand('zircon.typeLeftBrace', async (editor) => {
-            if (!isEnabled() || editor.document.languageId !== 'java') {
+            if (!isEnabled(editor.document) || editor.document.languageId !== 'java') {
                 await typeDefault('{');
                 return;
             }
@@ -94,7 +94,7 @@ export function registerZirconEditorExperience(
             await applyCursorActions(editor, actions as CursorAction[]);
         }),
         vscode.workspace.onDidChangeTextDocument((event) => {
-            if (!isEnabled() || event.document.languageId !== 'java') {
+            if (!isEnabled(event.document) || event.document.languageId !== 'java') {
                 return;
             }
             const editor = vscode.window.activeTextEditor;

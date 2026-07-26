@@ -217,7 +217,7 @@
         "pretest": "tsc -p ./ && eslint src --ext ts",
         "lint": "eslint src --ext ts",
         "build": "tsc -p ./",
-        "test": "node ./scripts/validateCompletion.cjs && node ./scripts/validateEditorFeatures.cjs && node ./scripts/validateInspections.cjs && node ./scripts/validateIntentions.cjs && node ./scripts/validateNavigation.cjs && node ./scripts/validateFormatting.cjs",
+        "test": "node ./scripts/validateCompletion.cjs && node ./scripts/validateProjectDetection.cjs && node ./scripts/validateEditorFeatures.cjs && node ./scripts/validateInspections.cjs && node ./scripts/validateIntentions.cjs && node ./scripts/validateNavigation.cjs && node ./scripts/validateFormatting.cjs",
         "validate:completion": "npm test",
         "probe:native-search": "node ./scripts/probeNativeJavaSearch.cjs",
         "probe:native-completion": "node ./scripts/probeNativeJavaSearch.cjs --completion-only",

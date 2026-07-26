@@ -39,6 +39,7 @@ import java.util.zip.ZipFile;
 
 public class ZirconCore {
     private static final String EX_METHOD_ANNOTATION = "zircon.ExMethod";
+    private static final String EX_METHOD_IDE_ANNOTATION = "zircon.ExMethodIDE";
     private static final String JDT_SEARCH_REQUESTOR_CLASS =
             "org.eclipse.jdt.core.search.ZirconExMethodSearchRequestor";
     private static final String JDT_SEARCH_REQUESTOR_RESOURCE =
@@ -94,6 +95,8 @@ public class ZirconCore {
     // can compare the stable declaration without retaining compilation environments indefinitely.
     private static final Map<Object, Object> JDT_SEARCH_ORIGINAL_METHODS =
             Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Set<Object> JDT_SEARCH_ACCURATE_REFERENCE_NODES =
+            Collections.newSetFromMap(Collections.synchronizedMap(new WeakHashMap<>()));
     // These de-dup sets only gate debug logging so repeated JDT callbacks do not flood the console.
     private static final Set<String> MESSAGE_SEND_GENERATE_CODE_FAILURE_KEYS = newBoundedConcurrentSet();
     private static final Set<String> MESSAGE_SEND_GENERATE_CODE_PREPARE_KEYS = newBoundedConcurrentSet();
@@ -313,6 +316,9 @@ public class ZirconCore {
                         + ", argCount=" + (argumentTypes == null ? 0 : argumentTypes.length));
             }
             if (scope == null || receiverType == null || methodName == null || methodName.isEmpty()) {
+                return null;
+            }
+            if (!isScopeInConfiguredZirconProject(scope)) {
                 return null;
             }
             if (shouldSkipAnonymousImplicitCompilePath(scope, receiverType, methodName, invocationSite)) {
@@ -3799,6 +3805,35 @@ public class ZirconCore {
         return compilationResult;
     }
 
+    private static boolean isScopeInConfiguredZirconProject(Object scope) {
+        String configuredRoots = Util.getProperty("zircon.project.roots", "").trim();
+        if (configuredRoots.isEmpty()) {
+            return true;
+        }
+        try {
+            String fileName = describeCompilationUnitFileName(resolveCompilationResultFromScope(scope));
+            if (fileName == null || fileName.trim().isEmpty()) {
+                return false;
+            }
+            Path sourcePath = Paths.get(fileName).toAbsolutePath().normalize();
+            for (String configuredRoot : configuredRoots.split(
+                    java.util.regex.Pattern.quote(File.pathSeparator)
+            )) {
+                String trimmed = configuredRoot.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                Path root = Paths.get(trimmed).toAbsolutePath().normalize();
+                if (sourcePath.startsWith(root)) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return false;
+    }
+
     private static boolean shouldSuppressExplicitThisFunctionalDirectCallProblem(
             Object compilationResult,
             Integer problemId,
@@ -5399,6 +5434,9 @@ public class ZirconCore {
             if (receiverType == null || scope == null || methodsFound == null || isProblem(receiverType)) {
                 return;
             }
+            if (!isScopeInConfiguredZirconProject(scope)) {
+                return;
+            }
             Object receiverReferenceBinding = asReferenceBinding(receiverType);
             Object compilationUnitScope = getCompilationUnitScope(scope);
             if (receiverReferenceBinding == null || compilationUnitScope == null) {
@@ -5418,6 +5456,13 @@ public class ZirconCore {
                 Util.log("[ZirconCore] completion candidates receiver=" + getTypeName(receiverType)
                         + ", receiverDetail=" + describeTypeDebug(receiverType)
                         + ", token=" + new String(token)
+                        + ", direct=" + isDirectCompletionInvocation(invocationSite)
+                        + ", invocationSite=" + (invocationSite == null
+                                ? "null"
+                                : invocationSite.getClass().getSimpleName())
+                        + ", invocationReceiver=" + describeBinding(
+                                invocationSite == null ? null : getFieldValue(invocationSite, "receiver")
+                        )
                         + ", count=" + candidates.size());
             }
             if (candidates.isEmpty()) {
@@ -8441,6 +8486,7 @@ public class ZirconCore {
         String prefix = completionToken == null ? "" : new String(completionToken);
         List<CandidateBinding> candidates = new ArrayList<>();
         Set<String> seenBindings = new LinkedHashSet<>();
+        boolean directInvocation = isDirectCompletionInvocation(invocationSite);
         for (Object candidateType : collectCandidateTypes(compilationUnitScope)) {
             Object holderType = normalizeHolderType(candidateType, scope);
             if (holderType == null || isProblem(holderType)) {
@@ -8464,7 +8510,8 @@ public class ZirconCore {
                         scope,
                         candidates,
                         seenBindings,
-                        false
+                        false,
+                        directInvocation
                 );
             }
         }
@@ -8506,7 +8553,8 @@ public class ZirconCore {
                         scope,
                         candidates,
                         seenBindings,
-                        true
+                        true,
+                        directInvocation
                 );
             }
         }
@@ -8519,10 +8567,12 @@ public class ZirconCore {
             Object scope,
             List<CandidateBinding> candidates,
             Set<String> seenBindings,
-            boolean requireImport
+            boolean requireImport,
+            boolean directInvocation
     ) throws Exception {
         if (!isPotentialExtensionMethod(methodBinding)
-                || !matchesExtensionCandidate(methodBinding, receiverType, scope)) {
+                || !matchesExtensionCandidate(methodBinding, receiverType, scope)
+                || (isDirectOnlyCompletionMethod(methodBinding) && !directInvocation)) {
             return;
         }
         CandidateBinding facade = createCandidateBinding(
@@ -8549,6 +8599,34 @@ public class ZirconCore {
             facade.completionImportRequired = requireImport;
             candidates.add(facade);
         }
+    }
+
+    private static boolean isDirectCompletionInvocation(Object invocationSite) {
+        if (invocationSite == null) {
+            return false;
+        }
+        try {
+            Object implicit = invokeOptionalMethod(invocationSite, "receiverIsImplicitThis");
+            if (implicit instanceof Boolean && (Boolean) implicit) {
+                return true;
+            }
+            Object receiver = getFieldValue(invocationSite, "receiver");
+            if (receiver == null) {
+                return invocationSite.getClass().getSimpleName().contains("SingleName");
+            }
+            Object receiverImplicit = invokeOptionalMethod(receiver, "isImplicitThis");
+            return receiverImplicit instanceof Boolean && (Boolean) receiverImplicit;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isDirectOnlyCompletionMethod(Object methodBinding) throws Exception {
+        return getAnnotationBooleanFlag(
+                methodBinding,
+                EX_METHOD_IDE_ANNOTATION,
+                "shouldInvokeDirectly"
+        );
     }
 
     private static Map<String, String> buildCompletionRequiredImports(List<CandidateBinding> candidates) {
@@ -13178,9 +13256,8 @@ public class ZirconCore {
                 return currentLevel;
             }
             Object[] parameterNames = (Object[]) getFieldValue(pattern, "parameterSimpleNames");
-            Object[] arguments = (Object[]) getFieldValue(node, "arguments");
+            int invocationArity = getJdtSearchInvocationArity(node);
             int declarationArity = parameterNames == null ? -1 : parameterNames.length;
-            int invocationArity = arguments == null ? 0 : arguments.length;
             if (declarationArity != invocationArity + 1) {
                 return currentLevel;
             }
@@ -13214,6 +13291,28 @@ public class ZirconCore {
         }
     }
 
+    private static int getJdtSearchInvocationArity(Object node) throws Exception {
+        if (node == null) {
+            return 0;
+        }
+        Object arguments = getFieldValue(node, "arguments");
+        if (arguments instanceof Object[]) {
+            return ((Object[]) arguments).length;
+        }
+        if (node.getClass().getName().endsWith("ReferenceExpression")) {
+            Object freeParameters = getFieldValue(node, "freeParameters");
+            if (freeParameters instanceof Object[]) {
+                return ((Object[]) freeParameters).length;
+            }
+            Object descriptor = getFieldValue(node, "descriptor");
+            Object parameters = descriptor == null ? null : getFieldValue(descriptor, "parameters");
+            if (parameters instanceof Object[]) {
+                return ((Object[]) parameters).length;
+            }
+        }
+        return 0;
+    }
+
     public static void traceJdtSearchResolution(Object node, int level) {
         if (!Util.isTraceEnabled() || node == null) {
             return;
@@ -13226,8 +13325,7 @@ public class ZirconCore {
                 return;
             }
             Object binding = getFieldValue(node, "binding");
-            Object arguments = getFieldValue(node, "arguments");
-            int arity = arguments instanceof Object[] ? ((Object[]) arguments).length : 0;
+            int arity = getJdtSearchInvocationArity(node);
             Util.log("[ZirconSearch] resolved selector=" + selectorName
                     + ", invocationArity=" + arity
                     + ", level=" + level
@@ -13242,9 +13340,9 @@ public class ZirconCore {
         }
     }
 
-    public static int prepareJdtSearchReportRange(Object locator, Object messageSend) {
+    public static long prepareJdtSearchReportRange(Object locator, Object messageSend) {
         if (locator == null || messageSend == null) {
-            return Integer.MIN_VALUE;
+            return Long.MIN_VALUE;
         }
         try {
             Object pattern = getFieldValue(locator, "pattern");
@@ -13252,15 +13350,21 @@ public class ZirconCore {
                 if (Util.isTraceEnabled()) {
                     Util.log("[ZirconSearch] report-range skipped: non-extension pattern");
                 }
-                return Integer.MIN_VALUE;
+                return Long.MIN_VALUE;
             }
             Object namePositionValue = getFieldValue(messageSend, "nameSourcePosition");
-            if (!(namePositionValue instanceof Long)) {
-                return Integer.MIN_VALUE;
+            int selectorStart;
+            int selectorEnd;
+            if (namePositionValue instanceof Long) {
+                long namePosition = (Long) namePositionValue;
+                selectorStart = (int) (namePosition >>> 32);
+                selectorEnd = (int) namePosition;
+            } else {
+                selectorStart = readIntField(messageSend, "nameSourceStart", -1);
+                String selector = getSelectorName(messageSend);
+                selectorEnd = selectorStart < 0 ? -1 : selectorStart + selector.length() - 1;
             }
-            long namePosition = (Long) namePositionValue;
-            int selectorStart = (int) (namePosition >>> 32);
-            int selectorEnd = (int) namePosition;
+            int originalSourceStart = readIntField(messageSend, "sourceStart", -1);
             int originalSourceEnd = readIntField(messageSend, "sourceEnd", -1);
             if (Util.isTraceEnabled()) {
                 Util.log("[ZirconSearch] report-range selector="
@@ -13268,29 +13372,116 @@ public class ZirconCore {
                         + ", name=" + selectorStart + "-" + selectorEnd
                         + ", sourceEnd=" + originalSourceEnd);
             }
-            if (selectorStart < 0 || selectorEnd < selectorStart || originalSourceEnd == selectorEnd) {
-                return Integer.MIN_VALUE;
+            boolean referenceExpression = messageSend.getClass().getName().endsWith("ReferenceExpression");
+            if (selectorStart < 0 || selectorEnd < selectorStart
+                    || (originalSourceEnd == selectorEnd
+                    && (!referenceExpression || originalSourceStart == selectorStart))) {
+                return Long.MIN_VALUE;
+            }
+            if (referenceExpression) {
+                setFieldValue(messageSend, "sourceStart", selectorStart);
             }
             setFieldValue(messageSend, "sourceEnd", selectorEnd);
-            return originalSourceEnd;
+            return ((long) originalSourceStart << 32) | (originalSourceEnd & 0xffff_ffffL);
         } catch (Throwable error) {
             if (Util.isDebugEnabled()) {
                 Util.log("[ZirconSearch] report-range normalization failed: "
                         + error.getClass().getName() + ": " + error.getMessage());
             }
-            return Integer.MIN_VALUE;
+            return Long.MIN_VALUE;
         }
     }
 
-    public static void restoreJdtSearchReportRange(Object messageSend, int originalSourceEnd) {
-        if (messageSend == null || originalSourceEnd == Integer.MIN_VALUE) {
+    public static void restoreJdtSearchReportRange(Object messageSend, long originalRange) {
+        if (messageSend == null || originalRange == Long.MIN_VALUE) {
             return;
         }
         try {
+            int originalSourceStart = (int) (originalRange >>> 32);
+            int originalSourceEnd = (int) originalRange;
+            setFieldValue(messageSend, "sourceStart", originalSourceStart);
             setFieldValue(messageSend, "sourceEnd", originalSourceEnd);
         } catch (Throwable error) {
             if (Util.isDebugEnabled()) {
                 Util.log("[ZirconSearch] report-range restoration failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+        }
+    }
+
+    public static int repairJdtSearchReportAccuracy(Object locator, Object node, int currentAccuracy) {
+        if (locator == null || node == null
+                || !node.getClass().getName().endsWith("ReferenceExpression")) {
+            return currentAccuracy;
+        }
+        if (Util.isTraceEnabled()) {
+            Util.log("[ZirconSearch] method-reference report accuracy=" + currentAccuracy);
+        }
+        if (currentAccuracy == 0) {
+            return currentAccuracy;
+        }
+        if (JDT_SEARCH_ACCURATE_REFERENCE_NODES.contains(node)) {
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconSearch] promoted remembered method-reference accuracy="
+                        + currentAccuracy + "->0");
+            }
+            return 0;
+        }
+        try {
+            Object pattern = getFieldValue(locator, "pattern");
+            if (pattern == null || !isExMethodSearchPattern(pattern)) {
+                return currentAccuracy;
+            }
+            Object binding = normalizeJdtSearchBinding(getFieldValue(node, "binding"));
+            Object focus = getFieldValue(pattern, "focus");
+            if (binding == null || focus == null) {
+                return currentAccuracy;
+            }
+            String selector = getSelectorName(binding);
+            Object patternSelector = getFieldValue(pattern, "selector");
+            if (!(patternSelector instanceof char[])
+                    || !selector.equals(new String((char[]) patternSelector))) {
+                return currentAccuracy;
+            }
+            Object declaringClass = getFieldValue(binding, "declaringClass");
+            String bindingOwner = getReadableTypeName(declaringClass);
+            Method getDeclaringType = findMethod(focus.getClass(), "getDeclaringType");
+            Object declaringType = getDeclaringType == null ? null : getDeclaringType.invoke(focus);
+            Method getFullyQualifiedName = declaringType == null
+                    ? null
+                    : findMethod(declaringType.getClass(), "getFullyQualifiedName");
+            Object ownerValue = getFullyQualifiedName == null ? null : getFullyQualifiedName.invoke(declaringType);
+            if (!(ownerValue instanceof String) || !bindingOwner.equals(ownerValue)) {
+                return currentAccuracy;
+            }
+            if (Util.isTraceEnabled()) {
+                Util.log("[ZirconSearch] promoted method-reference accuracy selector=" + selector
+                        + ", owner=" + bindingOwner
+                        + ", accuracy=" + currentAccuracy + "->0");
+            }
+            return 0;
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] method-reference accuracy repair failed: "
+                        + error.getClass().getName() + ": " + error.getMessage());
+            }
+            return currentAccuracy;
+        }
+    }
+
+    public static void rememberAccurateJdtSearchReference(Object locator, Object node, int level) {
+        if (level != 3 || locator == null || node == null
+                || !node.getClass().getName().endsWith("ReferenceExpression")) {
+            return;
+        }
+        try {
+            Object pattern = getFieldValue(locator, "pattern");
+            if (pattern != null && isExMethodSearchPattern(pattern)) {
+                JDT_SEARCH_ACCURATE_REFERENCE_NODES.add(node);
+            }
+        } catch (Throwable error) {
+            if (Util.isDebugEnabled()) {
+                Util.log("[ZirconSearch] method-reference accuracy tracking failed: "
                         + error.getClass().getName() + ": " + error.getMessage());
             }
         }
@@ -13307,7 +13498,10 @@ public class ZirconCore {
      * native path without a workspace text scan.
      */
     public static int repairJdtSearchResolution(Object locator, Object node, int currentLevel) {
-        if (currentLevel != 0 || locator == null || node == null) {
+        boolean unresolvedReference = node != null
+                && node.getClass().getName().endsWith("ReferenceExpression")
+                && currentLevel == 1;
+        if ((currentLevel != 0 && !unresolvedReference) || locator == null || node == null) {
             return currentLevel;
         }
         try {
@@ -13323,9 +13517,8 @@ public class ZirconCore {
             }
 
             Object[] parameterNames = (Object[]) getFieldValue(pattern, "parameterSimpleNames");
-            Object[] arguments = (Object[]) getFieldValue(node, "arguments");
+            int invocationArity = getJdtSearchInvocationArity(node);
             int declarationArity = parameterNames == null ? -1 : parameterNames.length;
-            int invocationArity = arguments == null ? 0 : arguments.length;
             if (declarationArity != invocationArity + 1) {
                 return currentLevel;
             }
@@ -13338,18 +13531,12 @@ public class ZirconCore {
                 return currentLevel;
             }
 
-            Object receiverType = getFieldValue(node, "actualReceiverType");
-            if (receiverType == null) {
-                Object receiver = getFieldValue(node, "receiver");
-                receiverType = receiver == null ? null : getFieldValue(receiver, "resolvedType");
-            }
+            Object receiverType = getJdtSearchReceiverType(node);
             if (!searchTypeMatchesPattern(receiverType, pattern, 0)) {
                 return currentLevel;
             }
             for (int index = 0; index < invocationArity; index++) {
-                Object argumentType = arguments[index] == null
-                        ? null
-                        : getFieldValue(arguments[index], "resolvedType");
+                Object argumentType = getJdtSearchArgumentType(node, index);
                 if (!searchTypeMatchesPattern(argumentType, pattern, index + 1)) {
                     return currentLevel;
                 }
@@ -13368,6 +13555,38 @@ public class ZirconCore {
             }
             return currentLevel;
         }
+    }
+
+    private static Object getJdtSearchReceiverType(Object node) throws Exception {
+        Object receiverType = getFieldValue(node, "actualReceiverType");
+        if (receiverType == null) {
+            receiverType = getFieldValue(node, "receiverType");
+        }
+        if (receiverType != null) {
+            return receiverType;
+        }
+        Object receiver = getFieldValue(node, "receiver");
+        if (receiver == null) {
+            receiver = getFieldValue(node, "lhs");
+        }
+        return receiver == null ? null : getFieldValue(receiver, "resolvedType");
+    }
+
+    private static Object getJdtSearchArgumentType(Object node, int index) throws Exception {
+        Object arguments = getFieldValue(node, "arguments");
+        if (arguments instanceof Object[] && index < ((Object[]) arguments).length) {
+            Object argument = ((Object[]) arguments)[index];
+            return argument == null ? null : getFieldValue(argument, "resolvedType");
+        }
+        Object freeParameters = getFieldValue(node, "freeParameters");
+        if (freeParameters instanceof Object[] && index < ((Object[]) freeParameters).length) {
+            return ((Object[]) freeParameters)[index];
+        }
+        Object descriptor = getFieldValue(node, "descriptor");
+        Object parameters = descriptor == null ? null : getFieldValue(descriptor, "parameters");
+        return parameters instanceof Object[] && index < ((Object[]) parameters).length
+                ? ((Object[]) parameters)[index]
+                : null;
     }
 
     private static boolean searchTypeMatchesPattern(Object typeBinding, Object pattern, int parameterIndex)
@@ -14560,13 +14779,21 @@ public class ZirconCore {
     }
 
     private static boolean getAnnotationBooleanFlag(Object methodBinding, String memberName) throws Exception {
+        return getAnnotationBooleanFlag(methodBinding, EX_METHOD_ANNOTATION, memberName);
+    }
+
+    private static boolean getAnnotationBooleanFlag(
+            Object methodBinding,
+            String annotationTypeName,
+            String memberName
+    ) throws Exception {
         Object[] annotations = getResolvedAnnotations(methodBinding);
         for (Object annotation : annotations) {
             if (annotation == null) {
                 continue;
             }
             Object annotationType = invokeMethod(annotation, "getAnnotationType");
-            if (!EX_METHOD_ANNOTATION.equals(getQualifiedTypeName(annotationType))) {
+            if (!annotationTypeName.equals(getQualifiedTypeName(annotationType))) {
                 continue;
             }
             Object pairs = invokeMethod(annotation, "getElementValuePairs");
@@ -14589,11 +14816,13 @@ public class ZirconCore {
                 return false;
             }
         }
-        Boolean binaryValue = readAnnotationBooleanValue(getBinaryAnnotationMemberValue(methodBinding, EX_METHOD_ANNOTATION, memberName));
+        Boolean binaryValue = readAnnotationBooleanValue(
+                getBinaryAnnotationMemberValue(methodBinding, annotationTypeName, memberName)
+        );
         if (binaryValue != null) {
             return binaryValue;
         }
-        return getSourceAnnotationBooleanFlag(methodBinding, EX_METHOD_ANNOTATION, memberName);
+        return getSourceAnnotationBooleanFlag(methodBinding, annotationTypeName, memberName);
     }
 
     private static String getQualifiedPackageName(Object packageBinding) {

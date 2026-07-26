@@ -15,6 +15,7 @@ public class JdtSearchNodeAdvice {
             @Advice.Return(readOnly = false) int level
     ) {
         level = ZirconCore.repairJdtSearchResolution(locator, node, level);
+        ZirconCore.rememberAccurateJdtSearchReference(locator, node, level);
         ZirconCore.traceJdtSearchResolution(node, level);
     }
 }

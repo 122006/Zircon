@@ -10,14 +10,15 @@ export function registerExMethodCompletion(
     context: vscode.ExtensionContext,
     index: ExMethodIndex,
     output: vscode.OutputChannel,
-    nativeAgentAvailable: () => boolean = () => false
+    nativeAgentAvailable: () => boolean = () => false,
+    isDocumentEnabled: (document: vscode.TextDocument) => boolean = () => true
 ): void {
     const provider: vscode.CompletionItemProvider = {
         async provideCompletionItems(
             document: vscode.TextDocument,
             position: vscode.Position
         ): Promise<vscode.CompletionItem[]> {
-            if (document.languageId !== 'java') {
+            if (document.languageId !== 'java' || !isDocumentEnabled(document)) {
                 return [];
             }
             if (isMemberCompletion(document, position) && !nativeAgentAvailable()) {

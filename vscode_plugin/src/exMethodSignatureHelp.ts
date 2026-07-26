@@ -8,7 +8,8 @@ import { resolveCallContext } from './exMethodUsage';
 export function registerExMethodSignatureHelp(
     context: vscode.ExtensionContext,
     index: ExMethodIndex,
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    isDocumentEnabled: (document: vscode.TextDocument) => boolean = () => true
 ): void {
     const selector: vscode.DocumentSelector = [
         { language: 'java', scheme: 'file' },
@@ -18,6 +19,9 @@ export function registerExMethodSignatureHelp(
     context.subscriptions.push(
         vscode.languages.registerSignatureHelpProvider(selector, {
             async provideSignatureHelp(document, position) {
+                if (!isDocumentEnabled(document)) {
+                    return undefined;
+                }
                 await index.ensureImportedDependencies(document);
                 const call = resolveCallContext(index, document, position);
                 if (!call) {

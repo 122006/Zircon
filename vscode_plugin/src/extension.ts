@@ -12,7 +12,11 @@ import { registerExMethodSignatureHelp } from './exMethodSignatureHelp';
 import { registerZirconEditorExperience } from './editorExperience';
 import { ZirconJavaAgentManager } from './javaAgent';
 import { registerJavaProjectChangeListeners } from './javaProjectClasspath';
-import { detectWorkspaceInfo, ZirconWorkspaceInfo } from './projectDetector';
+import {
+    detectWorkspaceInfo,
+    isDocumentInZirconProject,
+    ZirconWorkspaceInfo
+} from './projectDetector';
 import { registerZirconSemanticTokens } from './semanticTokens';
 import { ZirconStatusBar } from './statusBar';
 import { clearScanCache, scanDocument } from './syntax';
@@ -22,7 +26,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const output = vscode.window.createOutputChannel('Zircon');
     const diagnosticsLogPath = path.join(os.tmpdir(), 'zircon_vscode_diagnostics.log');
     fs.writeFileSync(diagnosticsLogPath, '');
-    const diagnostics = new ZirconDiagnostics();
     const statusBar = new ZirconStatusBar();
     const agentManager = new ZirconJavaAgentManager(context, output);
     const exMethodIndex = new ExMethodIndex(output);
@@ -32,15 +35,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         hasZirconMarkers: false,
         markers: [],
         javaFileCount: 0,
-        buildFiles: []
+        buildFiles: [],
+        zirconProjectRoots: [],
+        classpathProjectCount: 0,
+        classpathDetectionReady: false
     };
-    const codeActionsEnabled = (): boolean => {
+    const documentEnabled = (document: vscode.TextDocument): boolean => {
         const config = getZirconConfig();
-        return config.enable && config.enableCodeActions && workspaceInfo.hasZirconMarkers;
+        return config.enable && isDocumentInZirconProject(document, workspaceInfo);
     };
-    const editorExperienceEnabled = (): boolean => {
+    const diagnostics = new ZirconDiagnostics(documentEnabled);
+    const codeActionsEnabled = (document?: vscode.TextDocument): boolean => {
         const config = getZirconConfig();
-        return config.enable && config.enableEditorExperience && workspaceInfo.hasZirconMarkers;
+        return config.enable
+            && config.enableCodeActions
+            && (document ? documentEnabled(document) : workspaceInfo.hasZirconMarkers);
+    };
+    const editorExperienceEnabled = (document: vscode.TextDocument): boolean => {
+        const config = getZirconConfig();
+        return config.enable && config.enableEditorExperience && documentEnabled(document);
     };
     const pendingRefreshTimers = new Map<string, NodeJS.Timeout>();
     const diagnosticSnapshots = new Map<string, string>();
@@ -69,28 +82,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
         })
     );
-    registerZirconSemanticTokens(context);
+    registerZirconSemanticTokens(context, documentEnabled);
     registerExMethodCompletion(
         context,
         exMethodIndex,
         output,
-        () => getZirconConfig().enableExperimentalJavaAgent && agentManager.hasActiveAgent()
+        () => getZirconConfig().enableExperimentalJavaAgent && agentManager.hasActiveAgent(),
+        documentEnabled
     );
-    registerExMethodNavigation(context, exMethodIndex, output);
-    registerExMethodSignatureHelp(context, exMethodIndex, output);
+    registerExMethodNavigation(
+        context,
+        exMethodIndex,
+        output,
+        () => getZirconConfig().enableExperimentalJavaAgent && agentManager.hasActiveAgent(),
+        documentEnabled
+    );
+    registerExMethodSignatureHelp(
+        context,
+        exMethodIndex,
+        output,
+        documentEnabled
+    );
     registerZirconCodeActions(context, exMethodIndex, codeActionsEnabled);
     registerZirconEditorExperience(context, editorExperienceEnabled);
-    registerZirconFormatting(context, output, () => {
+    registerZirconFormatting(context, output, (document) => {
         const config = getZirconConfig();
-        return config.enable && workspaceInfo.hasZirconMarkers;
-    });
-    registerJavaProjectChangeListeners(context, output, (reason, uris) => {
-        const suffix = uris.length > 0
-            ? ` (${uris.map((uri) => uri.fsPath || uri.toString()).join(', ')})`
-            : '';
-        output.appendLine(`[Zircon] Java project event: ${reason}${suffix}`);
-        scheduleIndexRebuild(`javaProject:${reason}`);
-    });
+        return config.enable && documentEnabled(document);
+    }, exMethodIndex);
     const javaSourceWatcher = vscode.workspace.createFileSystemWatcher('**/*.java');
     context.subscriptions.push(
         javaSourceWatcher,
@@ -114,10 +132,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         }
 
         workspaceInfo = await detectWorkspaceInfo(output);
+        const activeDocument = vscode.window.activeTextEditor?.document;
         await vscode.commands.executeCommand(
             'setContext',
             'zircon.projectActive',
-            workspaceInfo.hasZirconMarkers && config.enableEditorExperience
+            Boolean(activeDocument
+                && config.enableEditorExperience
+                && isDocumentInZirconProject(activeDocument, workspaceInfo))
         );
         scheduleIndexRebuild(`refreshWorkspace:${forceInject ? 'force' : 'normal'}`);
         const injected = await agentManager.ensureInjected(workspaceInfo, forceInject);
@@ -137,6 +158,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         workspaceRefreshQueue = pending.then(() => undefined, () => undefined);
         return pending;
     };
+    registerJavaProjectChangeListeners(context, output, (reason, uris) => {
+        const suffix = uris.length > 0
+            ? ` (${uris.map((uri) => uri.fsPath || uri.toString()).join(', ')})`
+            : '';
+        output.appendLine(`[Zircon] Java project event: ${reason}${suffix}`);
+        scheduleIndexRebuild(`javaProject:${reason}`);
+        void scheduleWorkspaceRefresh(false, `javaProject:${reason}`);
+    });
 
     const refreshDocument = (document: vscode.TextDocument): void => {
         if (isZirconFormattingProxy(document)) {
@@ -238,6 +267,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 `hasJavaFiles=${workspaceInfo.hasJavaFiles}`,
                 `hasZirconMarkers=${workspaceInfo.hasZirconMarkers}`,
                 `javaFileCount=${workspaceInfo.javaFileCount}`,
+                `classpathProjectCount=${workspaceInfo.classpathProjectCount}`,
+                `classpathDetectionReady=${workspaceInfo.classpathDetectionReady}`,
+                `zirconProjectRoots=${workspaceInfo.zirconProjectRoots.join(', ') || 'none'}`,
                 `markers=${workspaceInfo.markers.join(', ') || 'none'}`,
                 `agentInjected=${agentManager.hasInjectedVmArg()}`,
                 `agentActive=${agentManager.hasActiveAgent()}`,
@@ -312,6 +344,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
         }),
         vscode.window.onDidChangeActiveTextEditor((editor) => {
+            const config = getZirconConfig();
+            void vscode.commands.executeCommand(
+                'setContext',
+                'zircon.projectActive',
+                Boolean(editor
+                    && config.enableEditorExperience
+                    && isDocumentInZirconProject(editor.document, workspaceInfo))
+            );
             if (editor && editor.document.languageId === 'java' && getZirconConfig().debug) {
                 const result = scanDocument(editor.document);
                 output.appendLine(`[Zircon] Active document: ${editor.document.fileName}, templateStrings=${result.templateStringCount}, diagnostics=${result.diagnostics.length}`);

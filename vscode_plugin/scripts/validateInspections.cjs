@@ -61,7 +61,7 @@ Module._load = function patchedLoad(request, parent, isMain) {
 };
 
 try {
-    const { inspectZirconDocument } = require('../out/zirconInspections');
+    const { extractJavaHoverType, inspectZirconDocument } = require('../out/zirconInspections');
     const { scanDocument } = require('../out/syntax');
     const source = [
         'class Inspection {',
@@ -89,6 +89,8 @@ try {
     }
     assert.ok(diagnostics.find((item) => item.code === 'zircon.exMethod.mustBeStatic').zirconFix);
     assert.ok(diagnostics.find((item) => item.code === 'zircon.optional.primitiveResult').zirconFix);
+    assert.strictEqual(extractJavaHoverType('```java\npublic static double sample.Type.returnDouble()\n```'), 'double');
+    assert.strictEqual(extractJavaHoverType('```java\njava.util.List<String> values\n```'), 'java.util.List<String>');
     const recoveryScan = scanDocument(new MockDocument('$"broken ${value.\nString ok = $"still ${works}";'));
     assert.strictEqual(recoveryScan.templateStringCount, 2);
     assert.strictEqual(recoveryScan.diagnostics.length, 1);

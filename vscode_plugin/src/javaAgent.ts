@@ -70,7 +70,7 @@ export class ZirconJavaAgentManager {
 
         const javaConfig = vscode.workspace.getConfiguration('java');
         const currentVmArgs = javaConfig.get<string>('jdt.ls.vmargs', '') ?? '';
-        const nextVmArgs = this.buildNextVmArgs(currentVmArgs, config.debug);
+        const nextVmArgs = this.buildNextVmArgs(currentVmArgs, config.debug, info.zirconProjectRoots);
 
         if (areVmArgsEquivalent(nextVmArgs, currentVmArgs)) {
             this.output.appendLine('[Zircon] Java agent vmargs already up to date.');
@@ -162,7 +162,11 @@ export class ZirconJavaAgentManager {
         return removed;
     }
 
-    private buildNextVmArgs(currentVmArgs: string, debug: boolean): string {
+    private buildNextVmArgs(
+        currentVmArgs: string,
+        debug: boolean,
+        zirconProjectRoots: readonly string[]
+    ): string {
         const config = getZirconConfig();
         const sanitized = sanitizeZirconVmArgs(currentVmArgs, getConfiguredAdditionalVmArgs(config));
         const parts: string[] = [];
@@ -181,6 +185,11 @@ export class ZirconJavaAgentManager {
             .filter((folder) => folder.length > 0);
         if (workspaceRoots.length > 0) {
             parts.push(`-Dzircon.workspace.roots="${workspaceRoots.join(path.delimiter)}"`.replace('Z', 'z'));
+        }
+        if (zirconProjectRoots.length > 0) {
+            parts.push(
+                `-Dzircon.project.roots="${zirconProjectRoots.join(path.delimiter)}"`.replace('Z', 'z')
+            );
         }
 
         const additionalVmArgs = getConfiguredAdditionalVmArgs(config);
@@ -233,7 +242,8 @@ const ZIRCON_AGENT_OPTION_NAMES = new Set([
     'zircon.trace.selectors',
     'zircon.agent.jar',
     'zircon.agent.heartbeat',
-    'zircon.workspace.roots'
+    'zircon.workspace.roots',
+    'zircon.project.roots'
 ]);
 
 export function readActiveAgentHeartbeat(
@@ -335,7 +345,7 @@ function canonicalizeVmArg(argument: string): string {
     let value = propertyMatch[2];
     if (name === 'zircon.agent.jar' || name === 'zircon.agent.heartbeat') {
         value = canonicalizePath(value);
-    } else if (name === 'zircon.workspace.roots') {
+    } else if (name === 'zircon.workspace.roots' || name === 'zircon.project.roots') {
         value = stripWrappingQuotes(value)
             .split(path.delimiter)
             .map(canonicalizePath)

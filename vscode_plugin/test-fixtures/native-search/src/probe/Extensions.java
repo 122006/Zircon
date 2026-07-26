@@ -1,6 +1,7 @@
 package probe;
 
 import zircon.ExMethod;
+import zircon.ExMethodIDE;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,12 @@ public final class Extensions {
     @ExMethod
     public static String surround(String value, String left, String right) {
         return left + value + right;
+    }
+
+    @ExMethod
+    @ExMethodIDE(shouldInvokeDirectly = true)
+    public static String directOnly(Object value) {
+        return String.valueOf(value);
     }
 
     public static <E> List<E> identity(List<E> values) {

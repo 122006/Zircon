@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { getZirconConfig } from './config';
 import { ExMethodDescriptor } from './exMethodModel';
 import { ExMethodIndex } from './exMethodIndex';
 import { resolveDefinitionTargets, resolveMethodTargets } from './exMethodUsage';
@@ -11,7 +10,9 @@ let suppressZirconRenameProvider = false;
 export function registerExMethodNavigation(
     context: vscode.ExtensionContext,
     index: ExMethodIndex,
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    nativeAgentAvailable: () => boolean = () => false,
+    isDocumentEnabled: (document: vscode.TextDocument) => boolean = () => true
 ): void {
     const selector: vscode.DocumentSelector = [
         { language: 'java', scheme: 'file' },
@@ -21,6 +22,12 @@ export function registerExMethodNavigation(
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(selector, {
             async provideHover(document, position) {
+                if (!isDocumentEnabled(document)) {
+                    return undefined;
+                }
+                if (nativeAgentAvailable()) {
+                    return undefined;
+                }
                 await index.ensureImportedDependencies(document);
                 const targets = resolveMethodTargets(index, document, position);
                 if (targets.length === 0) {
@@ -36,6 +43,12 @@ export function registerExMethodNavigation(
         }),
         vscode.languages.registerDefinitionProvider(selector, {
             async provideDefinition(document, position) {
+                if (!isDocumentEnabled(document)) {
+                    return [];
+                }
+                if (nativeAgentAvailable()) {
+                    return [];
+                }
                 await index.ensureImportedDependencies(document);
                 const targets = resolveDefinitionTargets(index, document, position);
                 return targets.map((descriptor) => toDefinitionLink(descriptor));
@@ -43,13 +56,16 @@ export function registerExMethodNavigation(
         }),
         vscode.languages.registerReferenceProvider(selector, {
             async provideReferences(document, position, options) {
+                if (!isDocumentEnabled(document)) {
+                    return [];
+                }
                 if (suppressCustomReferenceProvider) {
                     return [];
                 }
                 // The JDT agent now makes extension invocations accurate native
                 // SearchEngine matches. Keep the source scan only as a
                 // fallback for users who explicitly disable the agent.
-                if (getZirconConfig().enableExperimentalJavaAgent) {
+                if (nativeAgentAvailable()) {
                     return [];
                 }
                 await index.ensureImportedDependencies(document);
@@ -63,13 +79,16 @@ export function registerExMethodNavigation(
         }),
         vscode.languages.registerRenameProvider(selector, {
             async provideRenameEdits(document, position, newName) {
-                if (suppressZirconRenameProvider || !getZirconConfig().enableExperimentalJavaAgent) {
+                if (suppressZirconRenameProvider || !isDocumentEnabled(document)) {
                     return undefined;
                 }
                 await index.ensureImportedDependencies(document);
                 const targets = resolveMethodTargets(index, document, position);
                 if (targets.length === 0) {
                     return undefined;
+                }
+                if (!nativeAgentAvailable()) {
+                    return buildFallbackRenameEdit(document, targets, newName, index, output);
                 }
 
                 // Let JDT build the authoritative refactoring first. Its
@@ -99,6 +118,35 @@ export function registerExMethodNavigation(
             }
         })
     );
+}
+
+async function buildFallbackRenameEdit(
+    document: vscode.TextDocument,
+    targets: readonly ExMethodDescriptor[],
+    newName: string,
+    index: ExMethodIndex,
+    output: vscode.OutputChannel
+): Promise<vscode.WorkspaceEdit | undefined> {
+    const locations = await findReferences([...targets], index, output, true);
+    if (locations.length === 0) {
+        return undefined;
+    }
+    const edit = new vscode.WorkspaceEdit();
+    const unique = dedupeLocations(locations);
+    const edited = new Set<string>();
+    for (const location of unique) {
+        edit.replace(location.uri, location.range, newName);
+        edited.add(locationKey(location.uri, location.range));
+    }
+    // The declaration is always part of includeDeclaration, but retain an exact
+    // declaration edit if a dependency/source scan was temporarily incomplete.
+    for (const target of targets) {
+        const declaration = new vscode.Location(target.uri, target.nameRange);
+        if (target.uri.scheme === 'file' && !edited.has(locationKey(declaration.uri, declaration.range))) {
+            edit.replace(target.uri, target.nameRange, newName);
+        }
+    }
+    return edit;
 }
 
 export async function mergeNativeRenameReferences(
