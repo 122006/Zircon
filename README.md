@@ -1,5 +1,7 @@
 # Zircon
 
+**简体中文** | [English](README_EN.md)
+
 [![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
 [![GitHub Release](https://img.shields.io/github/v/release/122006/Zircon)](https://github.com/122006/Zircon/releases)
 [![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg)](https://plugins.jetbrains.com/plugin/19146-zircon)
