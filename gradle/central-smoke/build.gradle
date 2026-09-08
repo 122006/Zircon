@@ -1,0 +1,20 @@
+buildscript {
+    repositories { maven { url uri(project.property('zirconRepository')) } }
+    dependencies { classpath "io.github.122006.Zircon:gradle:${project.property('zirconVersion')}" }
+}
+
+apply plugin: 'java'
+apply plugin: 'zircon'
+
+repositories { maven { url uri(project.property('zirconRepository')) } }
+java {
+    toolchain { languageVersion = JavaLanguageVersion.of(project.property('smokeJava').toString().toInteger()) }
+}
+tasks.register('smoke', JavaExec) {
+    dependsOn classes
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'smoke.Main'
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(project.property('smokeJava').toString().toInteger())
+    }
+}

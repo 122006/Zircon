@@ -6,6 +6,13 @@
 
 ## 编译与基础依赖
 
+### v3.3.3
+
+1. 四个编译模块迁移到 Maven Central，统一坐标为 `io.github.122006.Zircon`，可直接使用 `mavenCentral()`。
+2. 增加完整的 POM、源码包、Javadoc、签名及独立发布构建；发布时从源码重新编译 Java 8/11/17 的 javac 适配资源。
+3. Gradle 插件使用新坐标和打包版本信息，修复可选链开关读取错误，并按实际编译工具链设置 JVM 参数。
+4. 独立 Gradle 项目通过 Java 8/11/17/23 编译运行验证，独立 Maven 项目通过 Java 8/17 验证。
+
 ### v3.3.2
 
 1. 修复换行时无法识别可选链的问题 [#17](https://github.com/122006/Zircon/issues/17)

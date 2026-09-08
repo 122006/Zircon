@@ -4,6 +4,17 @@ apply plugin: 'maven-publish'
 
 dependencies {
     compileOnly gradleApi()
+    testImplementation gradleApi()
+    testImplementation 'junit:junit:4.13.2'
+}
+
+repositories { mavenCentral() }
+
+processResources {
+    inputs.property('zirconVersion', project.version)
+    filesMatching('zircon-version.properties') {
+        expand(zirconVersion: project.version)
+    }
 }
 gradlePlugin {
     plugins {

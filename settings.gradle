@@ -8,7 +8,10 @@ include ':zircon'
 include ':base'
 include ':gradle_plugin'
 
-if (System.getProperty("user.name", "") == "jitpack") {
+if (providers.gradleProperty('centralRelease').isPresent()) {
+    // Rebuild all javac adapters without configuring the IDE and demo projects.
+    include ':inject_java7', ':inject_java11', ':inject_java16'
+} else if (System.getProperty("user.name", "") == "jitpack") {
     System.out.println("build by JITPACK")
 } else {
     include ':vscode_plugin'

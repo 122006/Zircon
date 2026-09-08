@@ -14,6 +14,12 @@ dependencies {
 
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -28,7 +34,7 @@ task sourceJar(type: Jar) {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId "com.github.122006.Zircon"
+            groupId rootProject.ext.groupId
             artifactId "zircon"
             version rootProject.ext.version
             from components.java

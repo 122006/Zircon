@@ -2,7 +2,8 @@
 
 [简体中文](README.md) | **English**
 
-[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.122006.Zircon/zircon)](https://central.sonatype.com/artifact/io.github.122006.Zircon/zircon)
+[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#io.github.122006/Zircon)
 [![GitHub Release](https://img.shields.io/github/v/release/122006/Zircon)](https://github.com/122006/Zircon/releases)
 [![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg)](https://plugins.jetbrains.com/plugin/19146-zircon)
 ![Java 8–23](https://img.shields.io/badge/Java-8%E2%80%9323-green)
@@ -18,7 +19,7 @@ The compiler produces standard Java bytecode, so no custom JVM is required. Zirc
 
 | Component | Current version | Purpose |
 | --- | --- | --- |
-| Zircon compiler and core dependencies | **3.3.2** | `gradle`, `javac`, `zircon`, and `base` |
+| Zircon compiler and core dependencies | **3.3.3** | `gradle`, `javac`, `zircon`, and `base` |
 | IntelliJ IDEA plugin | 4.9 | One ZIP that selects the appropriate implementation for your IDEA version |
 | VS Code extension | 0.0.1 | Editor support under active development; see installation steps below |
 
@@ -84,6 +85,11 @@ String formatted = f"Age: ${%02d:age}"; // Age: 07
 
 Configure the build dependencies first, then install an editor plugin if needed. The javac plugin handles compilation; the editor plugin provides completion, navigation, and semantic checks.
 
+Starting with **3.3.3**, all four compiler modules are published to Maven Central under `io.github.122006.Zircon`.
+Gradle needs only `mavenCentral()`; Maven uses Central by default. No additional repository is required.
+JitPack's `io.github.122006` alias uses the same module coordinates; availability of earlier versions depends on its retained build artifacts.
+Maintainers can follow the [Central publishing guide](gradle/CENTRAL_PUBLISHING.md) (Chinese).
+
 ### Gradle (Groovy DSL)
 
 For a single-module Java project, add the following to `build.gradle`:
@@ -91,10 +97,10 @@ For a single-module Java project, add the following to `build.gradle`:
 ```groovy
 buildscript {
     repositories {
-        maven { url 'https://jitpack.io' }
+        mavenCentral()
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.3.2'
+        classpath 'io.github.122006.Zircon:gradle:3.3.3'
     }
 }
 
@@ -103,11 +109,10 @@ apply plugin: 'zircon'
 
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io' }
 }
 ```
 
-For a multi-module project, place `buildscript` in the root project, apply the `zircon` plugin in each module that needs it, and include JitPack in those modules' dependency repositories. Keep any existing Java or Android plugin configuration.
+For a multi-module project, place `buildscript` in the root project, apply the `zircon` plugin in each module that needs it, and include `mavenCentral()` in those modules' dependency repositories. Keep any existing Java or Android plugin configuration.
 
 The Gradle plugin adds the Zircon dependencies and the `ZrOptionalChain`, `ZrExMethod`, and `ZrString` compiler arguments. Sync the project after making these changes.
 
@@ -117,32 +122,25 @@ Merge the following configuration into `pom.xml`. This example targets Java 8; a
 
 ```xml
 <properties>
-    <zircon.version>3.3.2</zircon.version>
+    <zircon.version>3.3.3</zircon.version>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 </properties>
 
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-
 <dependencies>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>javac</artifactId>
         <version>${zircon.version}</version>
         <scope>provided</scope>
     </dependency>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>zircon</artifactId>
         <version>${zircon.version}</version>
     </dependency>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>base</artifactId>
         <version>${zircon.version}</version>
     </dependency>
@@ -166,7 +164,7 @@ Merge the following configuration into `pom.xml`. This example targets Java 8; a
 </build>
 ```
 
-If your project already configures `annotationProcessorPaths`, add the same version of `com.github.122006.Zircon:javac` to that path and keep the existing processors. Installing an editor plugin alone does not enable Zircon syntax in Maven or CI builds.
+If your project already configures `annotationProcessorPaths`, add the same version of `io.github.122006.Zircon:javac` to that path and keep the existing processors. Installing an editor plugin alone does not enable Zircon syntax in Maven or CI builds.
 
 ## Editor support
 
@@ -203,7 +201,7 @@ The detailed guides and changelog below are currently in Chinese:
 - [Extension methods](mds/README_ZrExMethod.md): declarations, imports, generics, replacement rules, and annotation constraints.
 - [Optional chaining and Elvis expressions](mds/README_ZrOptionalChaining.md): short-circuiting, defaults, assignments, and parentheses.
 - [Template strings](mds/README_ZrString.md): interpolation, format specifiers, quotes, and expression boundaries.
-- [Changelog](CHANGELOG.md): changes in 3.3.2, IDEA plugin updates, and earlier releases.
+- [Changelog](CHANGELOG.md): changes in 3.3.3, IDEA plugin updates, and earlier releases.
 
 ## FAQ
 
@@ -222,6 +220,8 @@ Zircon does not include predefined extension methods. Define your own, or add [E
 ```groovy
 implementation 'com.github.122006:ExMethodUtil:1.1.8'
 ```
+
+`ExMethodUtil` is a separate legacy extension library and still requires the JitPack repository. The Zircon 3.3.3 compiler dependencies above require only Maven Central.
 
 ## Contributing
 

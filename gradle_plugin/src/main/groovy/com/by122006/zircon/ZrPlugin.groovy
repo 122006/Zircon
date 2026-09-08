@@ -4,52 +4,53 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.compile.JavaCompile
 
+/** Adds the Central-hosted compiler and annotations to Java/Android projects. */
 class ZrPlugin implements Plugin<Project> {
+    static final String GROUP = 'io.github.122006.Zircon'
+
     void apply(Project project) {
-        try {
-            project.tasks.withType(JavaCompile) { JavaCompile it ->
-                if (!project.hasProperty("zircon_optional_chain") || project.zircon_temp_string) it.options.compilerArgs << "-Xplugin:ZrOptionalChain"
-                if (!project.hasProperty("zircon_ex_method") || project.zircon_ex_method) it.options.compilerArgs << "-Xplugin:ZrExMethod"
-                if (!project.hasProperty("zircon_temp_string") || project.zircon_temp_string) it.options.compilerArgs << "-Xplugin:ZrString"
-                if (Integer.parseInt(System.getProperty("java.version").split("\\.")[0]) >= 9) {
-                    it.options.forkOptions.jvmArgs << "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED" << "--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED" << "--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
-                    it.options.fork = true
+        project.tasks.withType(JavaCompile).configureEach { JavaCompile task ->
+            ['zircon_optional_chain': 'ZrOptionalChain', 'zircon_ex_method': 'ZrExMethod',
+             'zircon_temp_string': 'ZrString'].each { property, plugin ->
+                if (!project.hasProperty(property) || project.property(property).toString().toBoolean()) {
+                    task.options.compilerArgs.add('-Xplugin:' + plugin)
                 }
             }
-            var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.3.2";
-
-            def find = project.buildscript.configurations.classpath.dependencies
-                    .find { it.group.equals("com.github.122006.Zircon") && it.name.equals("gradle") };
-            if (find != null) {
-                version = find.version;
-            } else {
-                find = project.rootProject.buildscript.configurations.classpath.dependencies
-                        .find { it.group.equals("com.github.122006.Zircon") && it.name.equals("gradle") };
-                if (find != null) {
-                    version = find.version;
+            task.options.fork = true
+            task.doFirst {
+                // Gradle's JVM can be newer than the selected compiler toolchain.
+                if (task.javaCompiler.get().metadata.languageVersion.asInt() >= 9) {
+                    task.options.forkOptions.jvmArgs += [
+                            '--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+                            '--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+                            '--add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+                            '--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                            '--add-opens=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED']
                 }
             }
-            project.dependencies.add("annotationProcessor"
-                    , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-            project.dependencies.add("implementation"
-                    , project.dependencies.create("com.github.122006.Zircon:zircon:" + version))
-            project.dependencies.add("implementation"
-                    , project.dependencies.create("com.github.122006.Zircon:base:" + version))
-            try {
-                project.dependencies.add("androidTestImplementation"
-                        , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-            } catch (ignored) {
-
-            }
-            try {
-                project.dependencies.add("testAnnotationProcessor"
-                        , project.dependencies.create("com.github.122006.Zircon:javac:" + version))
-            } catch (ignored) {
-
-            }
-        } catch (err) {
-            System.err.println("[Zircon] gradle插件加载时发生错误：" + err)
         }
+        def version = resolveVersion(project)
+        ['annotationProcessor': 'javac', 'implementation': 'zircon'].each { configuration, artifact ->
+            project.dependencies.add(configuration, GROUP + ':' + artifact + ':' + version)
+        }
+        project.dependencies.add('implementation', GROUP + ':base:' + version)
+        ['androidTestImplementation', 'testAnnotationProcessor'].each { configuration ->
+            if (project.configurations.findByName(configuration) != null) {
+                project.dependencies.add(configuration, GROUP + ':javac:' + version)
+            }
+        }
+    }
 
+    private static String resolveVersion(Project project) {
+        if (project.hasProperty('zircon_version')) return project.property('zircon_version').toString()
+        for (candidate in [project, project.rootProject]) {
+            def dependency = candidate.buildscript.configurations.classpath.dependencies.find {
+                it.group == GROUP && it.name == 'gradle'
+            }
+            if (dependency?.version) return dependency.version
+        }
+        def metadata = new Properties()
+        ZrPlugin.getResourceAsStream('/zircon-version.properties').withCloseable { metadata.load(it) }
+        return metadata.getProperty('version')
     }
 }

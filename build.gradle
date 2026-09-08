@@ -1,7 +1,14 @@
 ext {
-    version = "3.3.2"
-    groupId = "com.github.122006.Zircon"
+    version = "3.3.3"
+    groupId = "io.github.122006.Zircon"
 }
+
+allprojects {
+    group = rootProject.ext.groupId
+    version = rootProject.ext.version
+}
+
+apply from: 'gradle/central-publishing.gradle'
 
 buildscript {
     repositories {
@@ -35,7 +42,7 @@ ext {
     testJavaVersion = Integer.valueOf(project.getProperties().getOrDefault('tjv', 22))
 // gradle testWithDiffJavaVersion -Ptjv=21
 }
-if (System.getProperty("user.name", "") != "jitpack") {
+if (System.getProperty("user.name", "") != "jitpack" && !hasProperty('centralRelease')) {
     {
         def allData = [
                 [version: 8, project: ":inject_java7"]

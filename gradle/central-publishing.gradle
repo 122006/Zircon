@@ -1,0 +1,115 @@
+// One repository layout for all four Central modules. Signing and upload are
+// separate steps so the exact bundle can be inspected before publication.
+def moduleInfo = [
+        zircon: ['zircon', 'Zircon annotations', 'Annotations for Java extension methods and Zircon syntax tooling.'],
+        base: ['base', 'Zircon core', 'Shared syntax models and template string parsing for Zircon.'],
+        javac: ['javac', 'Zircon javac plugin', 'Java compiler plugins for extension methods, optional chaining, Elvis expressions and template strings.'],
+        gradle_plugin: ['gradle', 'Zircon Gradle plugin', 'Gradle integration for the Zircon Java compiler plugins.']
+]
+
+configure(subprojects.findAll { moduleInfo.containsKey(it.name) }) { p ->
+    plugins.withId('maven-publish') {
+        def info = moduleInfo[p.name]
+        tasks.withType(AbstractArchiveTask).configureEach {
+            preserveFileTimestamps = false
+            reproducibleFileOrder = true
+        }
+        tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+        tasks.withType(Javadoc).configureEach {
+            options.encoding = 'UTF-8'
+            options.charSet = 'UTF-8'
+            options.addStringOption('Xdoclint:none', '-quiet')
+            options.addStringOption('XDignore.symbol.file', '-quiet')
+        }
+        def docs = p.name == 'gradle_plugin' ? tasks.named('groovydoc') : tasks.named('javadoc')
+        def javadocJar = tasks.register('javadocJar', Jar) {
+            archiveClassifier = 'javadoc'
+            dependsOn docs
+            from docs.map { it.destinationDir }
+        }
+        if (p.name == 'gradle_plugin') {
+            tasks.register('sourceJar', Jar) {
+                archiveClassifier = 'sources'
+                from sourceSets.main.allSource
+            }
+            // The short legacy plugin IDs are not owned Central namespaces.
+            // The implementation remains usable with apply plugin: 'zircon'.
+            gradlePlugin.automatedPublishing = false
+        }
+        publishing {
+            repositories {
+                maven {
+                    name = 'CentralStaging'
+                    url = rootProject.layout.buildDirectory.dir('central/repository')
+                }
+            }
+            publications.withType(MavenPublication).configureEach {
+                artifact javadocJar
+                if (p.name == 'gradle_plugin') artifact tasks.named('sourceJar')
+                pom {
+                    name = info[1]
+                    description = info[2]
+                    url = 'https://github.com/122006/Zircon'
+                    licenses {
+                        license {
+                            name = 'Apache License, Version 2.0'
+                            url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                            distribution = 'repo'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = '122006'
+                            name = '122006'
+                            email = '1109108466@qq.com'
+                            url = 'https://github.com/122006'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:https://github.com/122006/Zircon.git'
+                        developerConnection = 'scm:git:ssh://git@github.com/122006/Zircon.git'
+                        url = 'https://github.com/122006/Zircon'
+                        tag = rootProject.version.toString()
+                    }
+                }
+            }
+        }
+    }
+}
+
+tasks.register('stageCentral') {
+    group = 'publishing'
+    description = 'Build, test and stage the four Maven Central modules locally.'
+    dependsOn moduleInfo.keySet().collect { ":${it}:publishMavenPublicationToCentralStagingRepository" }
+    dependsOn ':base:test', ':gradle_plugin:test'
+    doFirst {
+        if (!project.hasProperty('centralRelease')) {
+            throw new GradleException('Use -PcentralRelease to rebuild the compiler adapters for a release.')
+        }
+    }
+}
+
+if (project.hasProperty('centralRelease')) {
+    gradle.projectsEvaluated {
+        def adapters = [inject_java7: 'java7', inject_java11: 'java11', inject_java16: 'java16']
+        def generatedAdapters = layout.buildDirectory.dir('central/adapters')
+        adapters.each { module, directory ->
+            project(":${module}").tasks.named('copyJavacClass', Copy) {
+                dependsOn project(":${module}").tasks.named('compileJava')
+                into generatedAdapters.map { it.dir("clazz/${directory}") }
+            }
+        }
+        project(':javac').sourceSets.main.resources.setSrcDirs([])
+        project(':javac').tasks.named('processResources') {
+            // Use freshly compiled adapters, leaving tracked development resources intact.
+            from(project(':javac').fileTree('src/main/resources') { exclude 'clazz/**' })
+            from generatedAdapters
+            dependsOn adapters.keySet().collect { ":${it}:copyJavacClass" }
+        }
+        project(':javac').tasks.named('sourceJar', Jar) {
+            adapters.keySet().each { module ->
+                from(project(":${module}").file('src/main/java')) { into "adapters/${module}" }
+            }
+        }
+    }
+}

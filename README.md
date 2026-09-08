@@ -2,7 +2,8 @@
 
 **简体中文** | [English](README_EN.md)
 
-[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.122006.Zircon/zircon)](https://central.sonatype.com/artifact/io.github.122006.Zircon/zircon)
+[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#io.github.122006/Zircon)
 [![GitHub Release](https://img.shields.io/github/v/release/122006/Zircon)](https://github.com/122006/Zircon/releases)
 [![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg)](https://plugins.jetbrains.com/plugin/19146-zircon)
 ![Java 8–23](https://img.shields.io/badge/Java-8%E2%80%9323-green)
@@ -18,7 +19,7 @@ Zircon 为 Java 增加**扩展方法、可选链、Elvis 表达式和模板字�
 
 | 组件 | 当前版本 | 用途 |
 | --- | --- | --- |
-| Zircon 编译与基础依赖 | **3.3.2** | `gradle`、`javac`、`zircon`、`base` |
+| Zircon 编译与基础依赖 | **3.3.3** | `gradle`、`javac`、`zircon`、`base` |
 | IntelliJ IDEA 插件 | 4.9 | 一个 ZIP，按 IDEA 版本自动选择兼容实现 |
 | VS Code 扩展 | 0.0.1 | 开发中的编辑器支持，安装方式见下文 |
 
@@ -84,6 +85,11 @@ String formatted = f"Age: ${%02d:age}"; // Age: 07
 
 先配置构建依赖，再按需安装编辑器插件。javac 插件负责实际编译，编辑器插件提供补全、导航和语义检查。
 
+从 **3.3.3** 起，四个编译模块发布到 Maven Central，统一使用 `io.github.122006.Zircon`。
+Gradle 只需 `mavenCentral()`，Maven 默认即可解析，无需添加额外仓库。
+JitPack 的 `io.github.122006` 别名也使用这些模块坐标；旧版本是否可用取决于 JitPack 的构建产物。
+维护者发布流程见 [Maven Central 发布指南](gradle/CENTRAL_PUBLISHING.md)。
+
 ### Gradle（Groovy DSL）
 
 单模块 Java 项目可在 `build.gradle` 中加入：
@@ -91,10 +97,10 @@ String formatted = f"Age: ${%02d:age}"; // Age: 07
 ```groovy
 buildscript {
     repositories {
-        maven { url 'https://jitpack.io' }
+        mavenCentral()
     }
     dependencies {
-        classpath 'com.github.122006.Zircon:gradle:3.3.2'
+        classpath 'io.github.122006.Zircon:gradle:3.3.3'
     }
 }
 
@@ -103,11 +109,10 @@ apply plugin: 'zircon'
 
 repositories {
     mavenCentral()
-    maven { url 'https://jitpack.io' }
 }
 ```
 
-多模块项目将 `buildscript` 放在根项目中，在需要 Zircon 的模块中应用 `zircon` 插件，并确保模块的依赖仓库包含 JitPack。已有 Java 或 Android 插件配置的模块保留原配置即可。
+多模块项目将 `buildscript` 放在根项目中，在需要 Zircon 的模块中应用 `zircon` 插件，并确保模块的依赖仓库包含 `mavenCentral()`。已有 Java 或 Android 插件配置的模块保留原配置即可。
 
 Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrString` 编译参数。配置后重新同步项目。
 
@@ -117,32 +122,25 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 
 ```xml
 <properties>
-    <zircon.version>3.3.2</zircon.version>
+    <zircon.version>3.3.3</zircon.version>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 </properties>
 
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-
 <dependencies>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>javac</artifactId>
         <version>${zircon.version}</version>
         <scope>provided</scope>
     </dependency>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>zircon</artifactId>
         <version>${zircon.version}</version>
     </dependency>
     <dependency>
-        <groupId>com.github.122006.Zircon</groupId>
+        <groupId>io.github.122006.Zircon</groupId>
         <artifactId>base</artifactId>
         <version>${zircon.version}</version>
     </dependency>
@@ -166,7 +164,7 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 </build>
 ```
 
-如果项目已配置 `annotationProcessorPaths`，还需把同版本的 `com.github.122006.Zircon:javac` 加入该路径，并保留已有处理器。只安装编辑器插件无法让 Maven 或 CI 识别 Zircon 语法。
+如果项目已配置 `annotationProcessorPaths`，还需把同版本的 `io.github.122006.Zircon:javac` 加入该路径，并保留已有处理器。只安装编辑器插件无法让 Maven 或 CI 识别 Zircon 语法。
 
 ## 编辑器支持
 
@@ -199,7 +197,7 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 - [扩展方法](mds/README_ZrExMethod.md)：声明、导入、泛型、覆盖规则与注解约束。
 - [可选链与 Elvis 表达式](mds/README_ZrOptionalChaining.md)：短路、默认值、赋值与括号边界。
 - [模板字符串](mds/README_ZrString.md)：插值、格式符、引号与表达式范围。
-- [更新记录](CHANGELOG.md)：3.3.2、IDEA 插件及历史版本变更。
+- [更新记录](CHANGELOG.md)：3.3.3、IDEA 插件及历史版本变更。
 
 ## 常见问题
 
@@ -218,6 +216,8 @@ Zircon 本身不预置扩展方法。可自行声明，或引入 [ExMethodUtil](
 ```groovy
 implementation 'com.github.122006:ExMethodUtil:1.1.8'
 ```
+
+`ExMethodUtil` 是单独的旧扩展库，仍需 JitPack 仓库；上述 Zircon 3.3.3 编译依赖本身只需 Maven Central。
 
 ## 参与开发
 

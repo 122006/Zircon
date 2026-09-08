@@ -1,4 +1,10 @@
 # Project exclude paths
+/build/
+/zircon/build/
+/gradle/central-smoke/.gradle/
+/gradle/central-smoke/build/
+/gradle/central-smoke/target/
+**/bin/
 /.gradle/
 /.idea/
 /.intellijPlatform/
