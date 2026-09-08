@@ -2,13 +2,12 @@ package com.by122006.zircon.ijplugin;
 
 import com.intellij.lang.java.lexer.JavaLexer;
 import com.intellij.lexer.LexerBase;
+import com.intellij.lexer.LexerPosition;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.util.Pair;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.TokenType;
-import com.intellij.psi.formatter.java.JavaSpacePropertyProcessor;
 import com.intellij.psi.impl.source.tree.JavaDocElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.text.CharArrayUtil;
@@ -16,12 +15,10 @@ import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ZrStringModel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import zircon.example.ExReflection;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Map;
 
 
 @SuppressWarnings({"unchecked", "rawtypes"})
@@ -76,6 +73,7 @@ public final class ZrJavaLexer extends LexerBase {
         myBufferEndOffset = endOffset;
         myTokenType = null;
         myTokenEndOffset = startOffset;
+        infos = null;
         try {
             Method reset = getFlexClazz().getMethod("reset", CharSequence.class, int.class, int.class, int.class);
             reset.setAccessible(true);
@@ -98,6 +96,7 @@ public final class ZrJavaLexer extends LexerBase {
 
     @Override
     public int getTokenStart() {
+        locateToken();
         return myBufferIndex;
     }
 
@@ -116,12 +115,14 @@ public final class ZrJavaLexer extends LexerBase {
     ElementTypesInfo[] infos = null;
 
     public static class ElementTypesInfo {
-        IElementType iElementType = null;
-        int endTokenEndOffset = -1;
+        final IElementType iElementType;
+        final int startOffset;
+        final int endOffset;
 
-        public ElementTypesInfo(IElementType iElementType, int endTokenEndOffset) {
+        public ElementTypesInfo(IElementType iElementType, int startOffset, int endOffset) {
             this.iElementType = iElementType;
-            this.endTokenEndOffset = endTokenEndOffset;
+            this.startOffset = startOffset;
+            this.endOffset = endOffset;
         }
     }
 
@@ -131,7 +132,8 @@ public final class ZrJavaLexer extends LexerBase {
             if (infos.length != 0) {
                 final ElementTypesInfo info = infos[0];
                 infos = Arrays.copyOfRange(infos, 1, infos.length);
-                myBufferIndex = info.endTokenEndOffset;
+                myBufferIndex = info.startOffset;
+                myTokenEndOffset = info.endOffset;
                 myTokenType = info.iElementType;
                 return;
             } else {
@@ -193,20 +195,24 @@ public final class ZrJavaLexer extends LexerBase {
                 }
                 break;
             case '?':
-                if (charAt(myBufferIndex + 1) == '.' && myBufferIndex + 1 < myBufferEndOffset && ((charAt(myBufferIndex + 2) < '0') || (charAt(myBufferIndex + 2) > '9'))) {
+                if (myBufferIndex + 1 < myBufferEndOffset
+                        && charAt(myBufferIndex + 1) == '.'
+                        && (myBufferIndex + 2 >= myBufferEndOffset
+                        || charAt(myBufferIndex + 2) < '0'
+                        || charAt(myBufferIndex + 2) > '9')) {
                     myTokenType = JavaTokenType.DOT;
                     myTokenEndOffset = myBufferIndex + 2;
-//                    flexLocateToken();
-                } else if (charAt(myBufferIndex + 1) == ':') {
-//                    infos = new ElementTypesInfo[]{new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.EQEQ, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.NULL_KEYWORD, myTokenEndOffset),
-//                            new ElementTypesInfo(JavaTokenType.COLON, myTokenEndOffset + 1)};
-//                    myTokenType = JavaTokenType.QUEST;
-//                    myTokenEndOffset = myBufferIndex;
-                    myTokenType = ZrJavaTokenType.ELVIS;
-                    myTokenEndOffset = myBufferIndex + 2;
-//                    flexLocateToken();
+                } else if (myBufferIndex + 1 < myBufferEndOffset
+                        && charAt(myBufferIndex + 1) == ':') {
+                    int operatorStart = myBufferIndex;
+                    infos = new ElementTypesInfo[]{
+                            new ElementTypesInfo(JavaTokenType.NULL_KEYWORD,
+                                    operatorStart + 1, operatorStart + 1),
+                            new ElementTypesInfo(JavaTokenType.COLON,
+                                    operatorStart + 1, operatorStart + 2)
+                    };
+                    myTokenType = JavaTokenType.QUEST;
+                    myTokenEndOffset = operatorStart + 1;
                 } else {
                     flexLocateToken();
                 }
@@ -230,7 +236,7 @@ public final class ZrJavaLexer extends LexerBase {
                 Formatter formatter = Formatter.getAllFormatters().stream().filter((Formatter a) -> {
                     String prefix = a.prefix();
                     int length = prefix.length();
-                    if (myBufferIndex + length >= myBuffer.length()) return false;
+                    if (myBufferIndex + length >= myBufferEndOffset) return false;
                     if (charAt(myBufferIndex + length) != '"') return false;
                     for (int i = 0; i < length; i++) {
                         if (charAt(myBufferIndex + i) != prefix.charAt(i)) return false;
@@ -249,6 +255,64 @@ public final class ZrJavaLexer extends LexerBase {
 
         if (myTokenEndOffset > myBufferEndOffset) {
             myTokenEndOffset = myBufferEndOffset;
+        }
+    }
+
+    @Override
+    public @NotNull LexerPosition getCurrentPosition() {
+        locateToken();
+        ElementTypesInfo[] pending = infos == null ? null : Arrays.copyOf(infos, infos.length);
+        return new ZrLexerPosition(
+                myBufferIndex,
+                getState(),
+                myTokenEndOffset,
+                myTokenType,
+                pending);
+    }
+
+    @Override
+    public void restore(@NotNull LexerPosition position) {
+        if (!(position instanceof ZrLexerPosition)) {
+            super.restore(position);
+            infos = null;
+            return;
+        }
+        ZrLexerPosition zrPosition = (ZrLexerPosition) position;
+        myBufferIndex = zrPosition.offset;
+        myTokenEndOffset = zrPosition.tokenEndOffset;
+        myTokenType = zrPosition.tokenType;
+        infos = zrPosition.infos == null
+                ? null
+                : Arrays.copyOf(zrPosition.infos, zrPosition.infos.length);
+    }
+
+    private static final class ZrLexerPosition implements LexerPosition {
+        private final int offset;
+        private final int state;
+        private final int tokenEndOffset;
+        private final IElementType tokenType;
+        private final ElementTypesInfo[] infos;
+
+        private ZrLexerPosition(int offset,
+                                int state,
+                                int tokenEndOffset,
+                                IElementType tokenType,
+                                ElementTypesInfo[] infos) {
+            this.offset = offset;
+            this.state = state;
+            this.tokenEndOffset = tokenEndOffset;
+            this.tokenType = tokenType;
+            this.infos = infos;
+        }
+
+        @Override
+        public int getOffset() {
+            return offset;
+        }
+
+        @Override
+        public int getState() {
+            return state;
         }
     }
 

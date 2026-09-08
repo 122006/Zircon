@@ -9,11 +9,13 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.6.0'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
 }
 
 group 'com.by122006.zircon'
-version '4.8'
+version '4.9'
+
+def localIdea253Path = providers.gradleProperty('zircon.idea253.path').orNull
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -22,7 +24,7 @@ compileJava {
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 buildPlugin {
@@ -42,12 +44,16 @@ repositories {
 
 }
 patchPluginXml {
-    sinceBuild = "212.*"
-    untilBuild = "253.*"
+    sinceBuild = "212"
+    untilBuild = "261.*"
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2024.1'
+        if (localIdea253Path) {
+            local(localIdea253Path)
+        } else {
+            intellijIdea '2025.3.1.1'
+        }
 //        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
@@ -69,6 +75,18 @@ tasks.withType(JavaCompile) {
     it.options.compilerArgs << "-Xplugin:ZrExMethod"
     it.options.compilerArgs << "-Xplugin:ZrString"
     it.options.fork = true
+}
+
+// Shared runtime library of the single shipping ijplugin ZIP.
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_mix is an internal shared library.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
 }
 
 

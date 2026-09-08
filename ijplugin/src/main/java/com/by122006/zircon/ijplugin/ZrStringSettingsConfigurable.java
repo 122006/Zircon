@@ -124,7 +124,6 @@ public class ZrStringSettingsConfigurable implements Configurable {
             settings.stringRangeHighlightSettings[i].fontType = mySettingsComponent.fontTypeFields[i].getSelectedIndex();
             settings.stringRangeHighlightSettings[i].effectType = selectedEffectTypeIndex;
         }
-        ZirconSettings.stringRangeHighlightKeys = null;
     }
 
     @Override
@@ -167,7 +166,6 @@ public class ZrStringSettingsConfigurable implements Configurable {
                             (EFFECT_TYPES.length - 1)
             );
         }
-        ZirconSettings.stringRangeHighlightKeys = null;
     }
 
     @Override

@@ -1,10 +1,6 @@
 package com.by122006.zircon.ijplugin;
 
-import com.by122006.zircon.ijplugin252.ZrHighlightVisitorNew;
-import com.intellij.codeInsight.daemon.impl.HighlightVisitor;
-import com.intellij.codeInsight.daemon.impl.analysis.HighlightVisitorImpl;
 import com.intellij.lang.Language;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiExtensionMethod;
@@ -15,8 +11,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import zircon.example.ExObject;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 
 @SuppressWarnings("UnstableApiUsage")
 class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMethod {
@@ -62,14 +58,22 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
 
     @Override
     public @NotNull PsiElement getNavigationElement() {
-        return this;
+        return targetMethod.getNavigationElement();
     }
 
     @NotNull
     @Override
     public PsiReference[] getReferences() {
-        final PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(targetClass.getManager().getProject());
-        return new PsiReference[]{getReference(), elementFactory.createClassReferenceElement(targetClass)};
+        List<PsiReference> references = new ArrayList<>(2);
+        PsiReference targetReference = getReference();
+        if (targetReference != null) {
+            references.add(targetReference);
+        }
+        if (targetClass != null && targetClass.isValid()) {
+            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(getProject());
+            references.add(elementFactory.createClassReferenceElement(targetClass));
+        }
+        return references.toArray(PsiReference.EMPTY_ARRAY);
     }
 
     @Override
@@ -86,35 +90,6 @@ class ZrPsiExtensionMethod extends LightMethodBuilder implements PsiExtensionMet
         return super.getResolveScope();
     }
 
-
-    @Override
-    public void accept(@NotNull PsiElementVisitor visitor) {
-        super.accept(visitor);
-        if (visitor instanceof HighlightVisitor && (visitor instanceof ZrHighlightVisitorNew || visitor.getClass().getSimpleName().endsWith("HighlightVisitorImpl"))) {
-            HighlightVisitor highlightVisitor = visitor instanceof ZrHighlightVisitorNew
-                    ? ((ZrHighlightVisitorNew) visitor).visitor
-                    : (HighlightVisitor) visitor;
-            try {
-                final Field myRefCountHolder = highlightVisitor.getClass().getDeclaredField("myRefCountHolder");
-                myRefCountHolder.setAccessible(true);
-                final Object refCountHolder = myRefCountHolder.get(highlightVisitor);
-                if (refCountHolder != null) {
-                    final Method registerImportStatement = refCountHolder.getClass()
-                            .getDeclaredMethod("registerImportStatement", PsiReference.class, PsiImportStatementBase.class);
-                    final PsiReference reference = getReference();
-                    final PsiClass containingClass = targetMethod.getContainingClass();
-                    if (containingClass == null) return;
-                    final PsiImportStatement importStatement = PsiElementFactory.getInstance(getProject())
-                            .createImportStatement(containingClass);
-                    registerImportStatement.invoke(registerImportStatement, reference, importStatement);
-                }
-            } catch (ProcessCanceledException e) {
-                throw e;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
 
     @Override
     public @NotNull PsiMethod getTargetMethod() {

@@ -4,7 +4,6 @@ import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.markup.EffectType;
 import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.ui.JBColor;
-import com.sun.tools.javac.parser.ReflectionUtil;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 
@@ -149,7 +148,7 @@ public class StringRangeHighlightSetting {
      * @param externalName 外部名称
      * @return TextAttributesKey对象
      */
-    public TextAttributesKey toTextAttributesKey(@NotNull String externalName) {
+    public TextAttributes toTextAttributes() {
         // 创建前景色和背景色，使用JBColor支持白天/夜间模式
         JBColor foreground = foregroundColorLight != null && foregroundColorDark != null ?
                 new JBColor(foregroundColorLight, foregroundColorDark) : null;
@@ -158,17 +157,18 @@ public class StringRangeHighlightSetting {
         JBColor effect = effectColorLight != null && effectColorDark != null ?
                 new JBColor(effectColorLight, effectColorDark) : null;
 
-        // 创建TextAttributes
-        TextAttributes textAttributes = new TextAttributes(
+        return new TextAttributes(
                 foreground,
                 background,
                 effect,
                 getEffectTypeByIndex(effectType),
                 fontType
         );
-        final TextAttributesKey textAttributesKey = TextAttributesKey.find(externalName);
-        ReflectionUtil.setDeclaredField(textAttributesKey, TextAttributesKey.class, "myDefaultAttributes", textAttributes);
-        return textAttributesKey;
+    }
+
+    public TextAttributesKey toTextAttributesKey(@NotNull String externalName) {
+        return TextAttributesKey.createTextAttributesKey(
+                externalName, toTextAttributes());
     }
 
     public TextAttributesKey toTextAttributesKey(int index) {

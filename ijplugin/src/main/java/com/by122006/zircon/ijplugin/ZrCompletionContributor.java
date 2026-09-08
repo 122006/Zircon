@@ -7,13 +7,9 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.ex.EditorEx;
-import com.intellij.openapi.editor.impl.EditorImpl;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Iconable;
-import com.intellij.openapi.util.TextRange;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.util.*;
@@ -189,46 +185,20 @@ public class ZrCompletionContributor extends CompletionContributor {
                         try {
                             final Editor editor = context.getEditor();
                             Document document = context.getDocument();
-                            int end;
-                            if (editor instanceof EditorImpl) {
-                                end = position.getTextOffset() + method.getName().length();
-                                if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                    final PsiParameterList parameterList = method.getParameterList();
-                                    if (parameterList.isEmpty()) {
-                                        document.insertString(end, "()");
-                                        try {
-                                            editor.getCaretModel().moveToOffset(end + 2);
-                                        } catch (Exception e) {
-                                            //do nothing
-                                        }
-                                    } else {
-                                        final String params = Arrays.stream(parameterList.getParameters())
-                                                .filter(a -> !a.isVarArgs())
-                                                .map(a -> "")
-                                                .collect(Collectors.joining(", "));
-                                        document.insertString(end, "(" + params + ")");
-                                        try {
-                                            editor.getCaretModel().moveToOffset(end + 1);
-                                        } catch (Exception e) {
-                                            //do nothing
-                                        }
-                                    }
-                                }
-                            } else {
-                                final EditorEx nowEditor = (EditorEx) editor;
-                                end = nowEditor.getExpectedCaretOffset();
-                                if (!document.getText(TextRange.create(end, end + 1)).equals("(")) {
-                                    final PsiParameterList parameterList = method.getParameterList();
-                                    if (parameterList.isEmpty()) {
-                                        document.insertString(end, "()");
-                                    } else {
-                                        final String params = Arrays.stream(parameterList.getParameters())
-                                                .filter(a -> !a.isVarArgs())
-                                                .map(a -> "")
-                                                .collect(Collectors.joining(", "));
-                                        document.insertString(end, "(" + params + ")");
-                                    }
-                                }
+                            int end = context.getTailOffset();
+                            boolean hasOpeningParenthesis = end < document.getTextLength()
+                                    && document.getCharsSequence().charAt(end) == '(';
+                            if (!hasOpeningParenthesis) {
+                                PsiParameterList parameterList = method.getParameterList();
+                                String params = Arrays.stream(parameterList.getParameters())
+                                        .filter(a -> !a.isVarArgs())
+                                        .map(a -> "")
+                                        .collect(Collectors.joining(", "));
+                                String arguments = "(" + params + ")";
+                                document.insertString(end, arguments);
+                                context.setTailOffset(end + arguments.length());
+                                editor.getCaretModel().moveToOffset(
+                                        parameterList.isEmpty() ? end + 2 : end + 1);
                             }
 
                             final Project project = editor.getProject();
@@ -238,16 +208,10 @@ public class ZrCompletionContributor extends CompletionContributor {
                                 if (qualifiedName != null) {
                                     final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, position) && ZrAnnotator.canImport(containingClass, position);
                                     if (canBeImported) {
-//                                            if (!(editor instanceof EditorEx)) {
-//                                                ImportUtils.addImportIfNeeded(containingClass, context.getFile());
-//                                            } else {
-                                        final VirtualFile virtualFile = editor.reflectionInvokeMethod("getVirtualFile");
-                                        final PsiFile file = PsiManager.getInstance(project)
-                                                .findFile(virtualFile);
+                                        final PsiFile file = context.getFile();
                                         if (file != null) {
                                             ImportUtils.addImportIfNeeded(containingClass, file);
                                         }
-//                                            }
                                     }
                                 }
 

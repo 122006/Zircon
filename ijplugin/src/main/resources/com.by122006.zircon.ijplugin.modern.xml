@@ -1,0 +1,19 @@
+<idea-plugin package="com.by122006.zircon.ijplugin252">
+    <!--
+      This content module is enabled only when the Java plugin exposes its
+      public Syntax API module (IDEA 253+). Older IDEs keep using the embedded
+      parser adapters selected by ZrPsiBuilderFactoryImpl.
+    -->
+    <dependencies>
+        <module name="intellij.java.syntax"/>
+    </dependencies>
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationInitializedListener
+                implementation="com.by122006.zircon.ijplugin252.ZrModernServiceBootstrap"/>
+        <syntax.syntaxDefinition language="JAVA"
+                                 implementationClass="com.by122006.zircon.ijplugin252.ZrJavaSyntaxDefinitionExtension"/>
+        <syntax.elementTypeConverter language="JAVA"
+                                     implementationClass="com.by122006.zircon.ijplugin252.ZrJavaElementTypeConverterFactory"
+                                     order="first"/>
+    </extensions>
+</idea-plugin>

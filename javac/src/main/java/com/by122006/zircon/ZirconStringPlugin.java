@@ -32,6 +32,8 @@ public class ZirconStringPlugin extends ZirconPlugin {
         reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
         final Class<?> formatterClass = reloadClass("com.sun.tools.javac.parser.Formatter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.Formatter$MappedCharacter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.Formatter$CodeTransferResult", pcl, classLoader);
         final List<String> AllFormatters = (List<String>) formatterClass.getMethod("getAllFormattersClazz").invoke(null);
         for (String clazz : AllFormatters) {
             reloadClass(clazz, pcl, classLoader);

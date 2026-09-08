@@ -1,0 +1,106 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
+}
+
+group 'com.by122006.zircon'
+version '4.9'
+
+def localIdea261Path = providers.gradleProperty('zircon.idea261.path').orNull
+
+sourceSets {
+    main {
+        // Compile every shipping Java source against 261 as a compatibility
+        // gate. Modern PSI construction uses public Syntax API extensions, so
+        // no version-specific parser bytecode is shipped from this module.
+        java.srcDirs = [
+                rootProject.file('ijplugin/src/main/java'),
+                rootProject.file('ijplugin_mix/src/main/java')
+        ]
+        resources.srcDirs = [rootProject.file('ijplugin/src/main/resources')]
+    }
+    test {
+        java.srcDirs = [rootProject.file('ijplugin/src/test/java')]
+    }
+}
+
+processResources {
+    exclude 'clazz/**'
+}
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+buildPlugin {
+    buildSearchableOptions.enabled = false
+}
+
+repositories {
+    maven { url uri('../../repo') }
+    intellijPlatform { defaultRepositories() }
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+}
+
+patchPluginXml {
+    sinceBuild = '261'
+    untilBuild = '261.*'
+}
+
+dependencies {
+    intellijPlatform {
+        if (localIdea261Path) {
+            local(localIdea261Path)
+        } else {
+            intellijIdea('2026.1.4') {
+                useInstaller = false
+            }
+        }
+        bundledPlugin 'com.intellij.java'
+        instrumentationTools()
+        testFramework TestFrameworkType.Platform.INSTANCE
+        testFramework TestFrameworkType.Plugin.Java.INSTANCE
+    }
+    implementation project(':zircon')
+    implementation project(':base')
+    implementation project(':ijplugin_261_ex')
+    implementation 'com.github.122006:ExMethodUtil:1.1.8'
+    annotationProcessor project(':javac')
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    testAnnotationProcessor project(':javac')
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xplugin:ZrOptionalChain'
+    options.compilerArgs << '-Xplugin:ZrExMethod'
+    options.compilerArgs << '-Xplugin:ZrString'
+    options.fork = true
+}
+
+// This project compiles and tests the shipping sources against IDEA 261, but
+// it is not a separately published plugin.  The only release archive is built
+// by :ijplugin:buildPlugin against the oldest supported ABI (253) and verified
+// against both 253 and 261.
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_261 is a compatibility gate, not a release artifact.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
+}

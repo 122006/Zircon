@@ -3,7 +3,6 @@ package com.by122006.zircon.ijplugin;
 import com.by122006.zircon.ijplugin.util.ZrPluginUtil;
 import com.by122006.zircon.ijplugin.util.ZrUtil;
 import com.intellij.codeInsight.FileModificationService;
-import com.intellij.codeInsight.folding.impl.FoldingUtil;
 import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.codeInspection.ProblemHighlightType;
 import com.intellij.codeInspection.dataFlow.CommonDataflow;
@@ -18,9 +17,8 @@ import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.FoldRegion;
+import com.intellij.openapi.editor.FoldingModel;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
-import com.intellij.openapi.editor.ex.EditorEx;
-import com.intellij.openapi.editor.ex.FoldingModelEx;
 import com.intellij.openapi.editor.markup.EffectType;
 import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
@@ -30,8 +28,6 @@ import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.codeStyle.CodeStyleManager;
-import com.intellij.psi.impl.compiled.ClsClassImpl;
-import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -53,7 +49,6 @@ import zircon.example.ExObject;
 import zircon.example.ExString;
 
 import java.awt.*;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -343,7 +338,7 @@ public class ZrAnnotator implements Annotator {
             final String qualifiedName = containingClass.getQualifiedName();
             final PsiFile originalFile = element.getContainingFile().getOriginalFile();
             if (qualifiedName == null) return;
-            if (containingClass instanceof ClsClassImpl) {
+            if (containingClass instanceof PsiCompiledElement) {
                 return;
             }
             final boolean canBeImported = ImportUtils.nameCanBeImported(qualifiedName, originalFile) && canImport(containingClass, originalFile);
@@ -369,17 +364,9 @@ public class ZrAnnotator implements Annotator {
                             @Override
                             public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                                 if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
-//                            ApplicationManager.getApplication().runWriteAction(() -> {
-                                if (!(editor instanceof EditorEx)) {
-                                    ImportUtils.addImportIfNeeded(containingClass, originalFile);
-                                } else {
-                                    final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
-                                    final PsiFile file = PsiManager.getInstance(project).findFile(virtualFile);
-                                    if (file != null) {
-                                        ImportUtils.addImportIfNeeded(containingClass, file);
-                                    }
-                                    CodeStyleManager.getInstance(project).reformat(element);
-                                }
+                                PsiFile targetFile = psiFile.isValid() ? psiFile : originalFile;
+                                ImportUtils.addImportIfNeeded(containingClass, targetFile);
+                                CodeStyleManager.getInstance(project).reformat(element);
 //                            });
                             }
 
@@ -434,7 +421,7 @@ public class ZrAnnotator implements Annotator {
         if (containingClass != null) {
             final String qualifiedName = containingClass.getQualifiedName();
             final PsiFile originalFile = element.getContainingFile().getOriginalFile();
-            if (!originalFile.isPhysical() || originalFile instanceof ClsFileImpl) {
+            if (!originalFile.isPhysical() || originalFile instanceof PsiCompiledFile) {
                 return;
             }
             if (qualifiedName == null) return;
@@ -461,17 +448,9 @@ public class ZrAnnotator implements Annotator {
                             @Override
                             public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
                                 if (!FileModificationService.getInstance().prepareFileForWrite(psiFile)) return;
-//                            ApplicationManager.getApplication().runWriteAction(() -> {
-                                if (!(editor instanceof EditorEx)) {
-                                    ImportUtils.addImportIfNeeded(containingClass, originalFile);
-                                } else {
-                                    final VirtualFile virtualFile = ((EditorEx) editor).getVirtualFile();
-                                    final PsiFile file = PsiManager.getInstance(project).findFile(virtualFile);
-                                    if (file != null) {
-                                        ImportUtils.addImportIfNeeded(containingClass, file);
-                                    }
-                                    CodeStyleManager.getInstance(project).reformat(element);
-                                }
+                                PsiFile targetFile = psiFile.isValid() ? psiFile : originalFile;
+                                ImportUtils.addImportIfNeeded(containingClass, targetFile);
+                                CodeStyleManager.getInstance(project).reformat(element);
 //                            });
                             }
 
@@ -709,12 +688,11 @@ public class ZrAnnotator implements Annotator {
 
                         @Override
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (editor instanceof EditorEx) {
-                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String toText = text.replace("\\\"", "\"");
-                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(toText, element);
-                                element.replace(codeBlockFromText);
-                            }
+                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                            final String toText = text.replace("\\\"", "\"");
+                            @NotNull PsiExpression codeBlockFromText =
+                                    elementFactory.createExpressionFromText(toText, element);
+                            element.replace(codeBlockFromText);
                         }
 
                         @Override
@@ -734,12 +712,14 @@ public class ZrAnnotator implements Annotator {
                 String printOut = replace2NormalString(element, holder, text, formatter, model);
                 foldCode(element, holder, printOut);
                 boldSpecialChar(element, holder, formatter, model);
-                final TextAttributesKey stringRangeHighlightKey = ZirconSettings.getInstance().getStringRangeHighlightKey(0);
+                final TextAttributes stringRangeHighlight =
+                        ZirconSettings.getInstance().getStringRangeTextAttributes(0);
                 model.getList().stream().filter(a -> a.codeStyle == 1).forEach(a -> {
                     final TextRange textRange = TextRange.create(a.startIndex, a.endIndex)
                             .shiftRight(element.getTextOffset());
                     holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                            .highlightType(ProblemHighlightType.INFORMATION).textAttributes(stringRangeHighlightKey)
+                            .highlightType(ProblemHighlightType.INFORMATION)
+                            .enforcedTextAttributes(stringRangeHighlight)
                             .create();
                 });
                 final String previewString = model.getList().map(a -> {
@@ -810,8 +790,10 @@ public class ZrAnnotator implements Annotator {
             int lastItemEndIndex = text.indexOf("\"") + 1;
             final List<StringRange> list = new ArrayList<>(model.getList());
             list.add(StringRange.of(0, model.getEndQuoteIndex(), model.getEndQuoteIndex()));
-            final TextAttributesKey stringRangeHighlightKey2 = ZirconSettings.getInstance().getStringRangeHighlightKey(2);
-            final TextAttributesKey stringRangeHighlightKey1 = ZirconSettings.getInstance().getStringRangeHighlightKey(1);
+            final TextAttributes stringRangeHighlight2 =
+                    ZirconSettings.getInstance().getStringRangeTextAttributes(2);
+            final TextAttributes stringRangeHighlight1 =
+                    ZirconSettings.getInstance().getStringRangeTextAttributes(1);
             for (StringRange stringRange : list) {
                 try {
                     String sub = text.substring(lastItemEndIndex, stringRange.startIndex).trim();
@@ -821,24 +803,25 @@ public class ZrAnnotator implements Annotator {
                         if (formatter instanceof FStringFormatter & sub.equals(":")) {
                             holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                                     .highlightType(ProblemHighlightType.INFORMATION)
-                                    .textAttributes(stringRangeHighlightKey2).create();
+                                    .enforcedTextAttributes(stringRangeHighlight2).create();
                         } else if (sub.length() > 0) {
                             holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
                                     .highlightType(ProblemHighlightType.INFORMATION)
-                                    .textAttributes(stringRangeHighlightKey2).create();
+                                    .enforcedTextAttributes(stringRangeHighlight2).create();
                         }
                     }
                     if (stringRange.codeStyle == 2) {
                         final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
                                 .shiftRight(element.getTextOffset());
                         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                                .textAttributes(stringRangeHighlightKey1).create();
+                                .enforcedTextAttributes(stringRangeHighlight1).create();
                     }
                     if (stringRange.highlight > 0) {
                         final TextRange textRange = TextRange.create(stringRange.startIndex, stringRange.endIndex)
                                 .shiftRight(element.getTextOffset());
                         holder.newSilentAnnotation(HighlightSeverity.INFORMATION).range(textRange)
-                                .textAttributes(ZirconSettings.getInstance().getStringRangeHighlightKey(stringRange.highlight + 2)).create();
+                                .enforcedTextAttributes(ZirconSettings.getInstance()
+                                        .getStringRangeTextAttributes(stringRange.highlight + 2)).create();
                     }
                     lastItemEndIndex = stringRange.endIndex;
                 } catch (Exception e) {
@@ -850,18 +833,12 @@ public class ZrAnnotator implements Annotator {
     }
 
     public static TextAttributesKey createTextAttributesKey(@NotNull String externalName, TextAttributes defaultAttributes, TextAttributesKey fallbackAttributeKey) {
-        final Constructor<?> constructor = TextAttributesKey.class.getDeclaredConstructors().list()
-                .filter(a -> a.getParameterCount() == 3).head()
-                .orElseThrow(() -> new RuntimeException("不支持的idea版本"));
-        constructor.setAccessible(true);
-        try {
-            return (TextAttributesKey) constructor.newInstance(externalName, defaultAttributes, fallbackAttributeKey);
-        } catch (ProcessCanceledException e) {
-            throw e;
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(new RuntimeException("不支持的idea版本"));
+        TextAttributesKey key = TextAttributesKey.createTextAttributesKey(
+                externalName, defaultAttributes);
+        if (fallbackAttributeKey != null) {
+            key.setFallbackAttributeKey(fallbackAttributeKey);
         }
+        return key;
     }
 
     private void checkNeedChange2SString(@NotNull PsiElement element, @NotNull AnnotationHolder holder, String text) {
@@ -885,12 +862,11 @@ public class ZrAnnotator implements Annotator {
 
                         @Override
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (editor instanceof EditorEx) {
-                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "$" + element.getText();
-                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
-                                element.replace(codeBlockFromText);
-                            }
+                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                            final String text = "$" + element.getText();
+                            @NotNull PsiExpression codeBlockFromText =
+                                    elementFactory.createExpressionFromText(text, element);
+                            element.replace(codeBlockFromText);
                         }
 
                         @Override
@@ -923,12 +899,11 @@ public class ZrAnnotator implements Annotator {
 
                         @Override
                         public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
-                            if (editor instanceof EditorEx) {
-                                PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
-                                final String text = "f" + element.getText().substring(1);
-                                @NotNull PsiExpression codeBlockFromText = elementFactory.createExpressionFromText(text, element);
-                                element.replace(codeBlockFromText);
-                            }
+                            PsiElementFactory elementFactory = JavaPsiFacade.getElementFactory(project);
+                            final String text = "f" + element.getText().substring(1);
+                            @NotNull PsiExpression codeBlockFromText =
+                                    elementFactory.createExpressionFromText(text, element);
+                            element.replace(codeBlockFromText);
                         }
 
                         @Override
@@ -1384,14 +1359,17 @@ public class ZrAnnotator implements Annotator {
 
         @Override
         public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
-            if (editor instanceof EditorEx) {
-                final FoldingModelEx foldingModel = ((EditorEx) editor).getFoldingModel();
-                foldingModel.runBatchFoldingOperation(() -> {
-                    final int line = editor.getDocument().getLineNumber(textOffset);
-                    FoldRegion region = FoldingUtil.findFoldRegionStartingAtLine(editor, line);
-                    if (region != null) region.setExpanded(false);
-                });
-            }
+            final FoldingModel foldingModel = editor.getFoldingModel();
+            foldingModel.runBatchFoldingOperation(() -> {
+                final int line = editor.getDocument().getLineNumber(textOffset);
+                for (FoldRegion region : foldingModel.getAllFoldRegions()) {
+                    int regionLine = editor.getDocument().getLineNumber(region.getStartOffset());
+                    if (regionLine == line) {
+                        region.setExpanded(false);
+                        break;
+                    }
+                }
+            });
         }
 
         @Override

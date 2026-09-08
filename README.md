@@ -1,87 +1,92 @@
-# Zircon [![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+# Zircon
 
-<a href="https://github.com/122006/Zircon/releases"><img src="https://img.shields.io/github/release/122006/Zircon.svg?style=flat-square"></a>
-<a href="https://plugins.jetbrains.com/plugin/19146-zircon"><img src="https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg?style=flat-square"></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html"><img src="https://img.shields.io/badge/JDK-8-green.svg" alt="jdk-8" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk11-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-11-green.svg" alt="jdk-11" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-17-green.svg" alt="jdk-17" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-21-green.svg" alt="jdk-21" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-22-green.svg" alt="jdk-22" /></a>
-<a target="_blank" href="https://www.oracle.com/java/technologies/javase/jdk22-archive-downloads.html"><img src="https://img.shields.io/badge/JDK-23-green.svg" alt="jdk-23" /></a>
------------------
+[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+[![GitHub Release](https://img.shields.io/github/v/release/122006/Zircon)](https://github.com/122006/Zircon/releases)
+[![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg)](https://plugins.jetbrains.com/plugin/19146-zircon)
+![Java 8–23](https://img.shields.io/badge/Java-8%E2%80%9323-green)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-## Zircon可以让你在Java语言代码中直接使用一些特殊的语法
+Zircon 为 Java 增加**扩展方法、可选链、Elvis 表达式和模板字符串**。通过 javac 编译插件接入已有项目，并使用 IntelliJ IDEA 或 VS Code 插件获得补全、导航和语义检查。
 
-* **快速接入**: 在已有java项目使用，最快**2**行代码引入。
-* **无缝衔接**: 所有新增语法和java8-23版本基础语法完全兼容，无需更换语言提升开发体验。
-* **依赖安全**: 不依赖第三方库，且构建结果为正常jar文件，无依赖传染
+编译结果仍是标准 Java 字节码，无需更换 JVM。适用于使用 javac 构建的 Java、Android、Spring Boot、JavaFX 等项目；运行时仍需保留项目实际使用的依赖。
 
-----------------
+[快速接入](#快速接入) · [编辑器支持](#编辑器支持) · [语法文档](#语法文档) · [常见问题](#常见问题) · [更新记录](CHANGELOG.md)
 
-#### 已支持的语法特性：
+## 版本
 
-### 1. 全局拓展方法
+| 组件 | 当前版本 | 用途 |
+| --- | --- | --- |
+| Zircon 编译与基础依赖 | **3.3.2** | `gradle`、`javac`、`zircon`、`base` |
+| IntelliJ IDEA 插件 | 4.9 | 一个 ZIP，按 IDEA 版本自动选择兼容实现 |
+| VS Code 扩展 | 0.0.1 | 开发中的编辑器支持，安装方式见下文 |
 
-> 自由拓展已有代码的实现方法。可以实现诸如顶级方法、方法替换等功能<p>
-> 特别的，支持限制仅对含有指定注解的类进行拓展（例@Service、@Repository、@Data）
+编译依赖与编辑器插件独立版本管理，无需使用相同的版本号。
 
-![](others/exmethod_show4.gif)
+## 语法预览
 
-### 2. 可选链
+### 扩展方法
 
-`String text=XXX.returnNull()?.getText(); //不会抛出空指针异常，而是返回null`
+给已有类型增加调用方式，无需修改原类。实例扩展方法必须是静态方法，第一个参数表示接收者：
 
-> 简化了在中间属性可能为null时访问嵌套对象或数组的属性和方法的过程。
->
-> 可选链运算符（?.）允许您在不需要显式null检查的情况下访问属性或方法。如果链中的任何中间属性为null，则表达式会短路，并将结果设置为null。
->
-> 在编程中，“短路”是指当沿着正在访问的属性或方法链遇到null值时，表达式的评估会立即停止的行为。与继续评估表达式不同，结果会立即设置为null，并跳过任何后续的属性或方法访问。
->
-> 如果可选链后续使用了`elvis`表达式，`elvis`表达式将同时作为可选链的默认值。 特别的，对于<kbd>单赋值语句</kbd>
-> ，链式不满足时直接跳过该语句执行
+```java
+package demo;
 
-### 3. `elvis`表达式
+import zircon.ExMethod;
 
-`String text= xxxx.returnNull() ?: "默认值"; //简单使用`
+public class TextExtensions {
+    @ExMethod
+    public static boolean isBlankText(String text) {
+        return text == null || text.trim().isEmpty();
+    }
+}
+```
 
-> 当左侧表达式返回结果为null时，返回右侧表达式的值
+在调用处导入扩展方法的声明类：
 
-### 4. 内插模板字符串
+```java
+import demo.TextExtensions;
 
-`String text=$"My name is $ID.name ";//简单使用`
+boolean empty = "  ".isBlankText(); // 等价于 TextExtensions.isBlankText("  ")
+```
 
-`String text=f"My age is ${%02d:ID.age} ";//带格式化的模板字符串`
-> 字符串插值功能构建在复合格式设置功能的基础之上，提供更具有可读性、更方便的语法，用于将表达式结果包括到结果字符串。
+还支持静态扩展、泛型、方法引用、`cover` 方法覆盖和 `filterAnnotation` 注解约束。详见[扩展方法文档](mds/README_ZrExMethod.md)。
 
----------------
+![扩展方法演示](others/exmethod_show4.gif)
 
-1. 支持android、springboot、javaFX等所有使用java语言的项目（javac）
+### 可选链与 Elvis 表达式
 
-2. 支持java8~java23
+```java
+String text = null;
+String trimmed = text?.trim();          // null
+String display = text?.trim() ?: "默认值";
+Integer count = null;
+int size = count ?: 0;
+```
 
----------------
+`?.` 在接收者为 `null` 时短路当前链；`?:` 在左侧结果为 `null` 时使用右侧默认值。若可选链最终返回基本类型，应使用 `?:` 提供默认值，避免空值路径抛出空指针异常。
 
-### 使用说明
+括号会影响短路范围，赋值左侧也有专门的规则，详见[可选链与 Elvis 文档](mds/README_ZrOptionalChaining.md)。
 
-#### [内插模板字符串（点击跳转）](mds/README_ZrString.md)
+### 模板字符串
 
-#### [全局拓展方法（点击跳转）](mds/README_ZrExMethod.md)
+```java
+String name = "Zircon";
+int age = 7;
+String greeting = $"Hello, ${name.toUpperCase()}!";
+String formatted = f"Age: ${%02d:age}"; // Age: 07
+```
 
-> 如何定义一个拓展方法？[
-*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
+`$"…"` 使用字符串拼接；`f"…"` 支持 `String.format` 格式符。复杂表达式建议放在 `${…}` 中，详见[模板字符串文档](mds/README_ZrString.md)。
 
-#### [可选链 & `elvis`表达式（点击跳转）](mds/README_ZrOptionalChaining.md)
+## 快速接入
 
-### 插件引入
+先配置构建依赖，再按需安装编辑器插件。javac 插件负责实际编译，编辑器插件提供补全、导航和语义检查。
 
-<details>
-  <summary>使用Gradle构建项目(点击展开)</summary>
+### Gradle（Groovy DSL）
 
-#### 使用ZrString插件自动引入依赖
+单模块 Java 项目可在 `build.gradle` 中加入：
 
-Step 1.在你的根项目`build.gradle`文件中进行如下操作
-
-````
+```groovy
 buildscript {
     repositories {
         maven { url 'https://jitpack.io' }
@@ -90,281 +95,134 @@ buildscript {
         classpath 'com.github.122006.Zircon:gradle:3.3.2'
     }
 }
-````
 
-当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+apply plugin: 'java'
+apply plugin: 'zircon'
 
-Step 2.在需要使用插件的module的`build.gradle`首行引入插件`apply plugin: 'zircon'`
+repositories {
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+```
 
-</details>
-<details>
-  <summary>使用Maven构建项目(点击展开)</summary>
-Step 1. 增加依赖
+多模块项目将 `buildscript` 放在根项目中，在需要 Zircon 的模块中应用 `zircon` 插件，并确保模块的依赖仓库包含 JitPack。已有 Java 或 Android 插件配置的模块保留原配置即可。
 
-	    <dependency>
-            <groupId>com.github.122006.Zircon</groupId>
-            <artifactId>javac</artifactId>
-            <version>3.3.2</version>
-            <scope>provided</scope>
-        </dependency>
-	    <dependency>
-            <groupId>com.github.122006.Zircon</groupId>
-            <artifactId>zircon</artifactId>
-            <version>3.3.2</version>
-        </dependency>
+Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrString` 编译参数。配置后重新同步项目。
 
-Step 2. 配置jitpack仓库
+### Maven
 
-	    <repositories>
-        	<repository>
-        	    <id>jitpack.io</id>
-        	    <url>https://jitpack.io</url>
-        	</repository>
-        </repositories>
+将以下配置合并到 `pom.xml`。这里以 Java 8 为编译目标，可按项目需要调整：
 
-当前版本号：[![](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#122006/Zircon)
+```xml
+<properties>
+    <zircon.version>3.3.2</zircon.version>
+    <maven.compiler.source>8</maven.compiler.source>
+    <maven.compiler.target>8</maven.compiler.target>
+</properties>
 
-Step 3. 配置javac参数 `-Xplugin:ZrExMethod -Xplugin:ZrString`
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
 
+<dependencies>
+    <dependency>
+        <groupId>com.github.122006.Zircon</groupId>
+        <artifactId>javac</artifactId>
+        <version>${zircon.version}</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>com.github.122006.Zircon</groupId>
+        <artifactId>zircon</artifactId>
+        <version>${zircon.version}</version>
+    </dependency>
+    <dependency>
+        <groupId>com.github.122006.Zircon</groupId>
+        <artifactId>base</artifactId>
+        <version>${zircon.version}</version>
+    </dependency>
+</dependencies>
+
+<build>
+    <plugins>
         <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <configuration>
-            <compilerArgs>
-              <arg>-Xplugin:ZrExMethod</arg>
-              <arg>-Xplugin:ZrString</arg>
-            </compilerArgs>
-          </configuration>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.13.0</version>
+            <configuration>
+                <compilerArgs>
+                    <arg>-Xplugin:ZrOptionalChain</arg>
+                    <arg>-Xplugin:ZrExMethod</arg>
+                    <arg>-Xplugin:ZrString</arg>
+                </compilerArgs>
+            </configuration>
         </plugin>
+    </plugins>
+</build>
+```
 
-</details>
+如果项目已配置 `annotationProcessorPaths`，还需把同版本的 `com.github.122006.Zircon:javac` 加入该路径，并保留已有处理器。只安装编辑器插件无法让 Maven 或 CI 识别 Zircon 语法。
 
-### 安装IDEA插件
+## 编辑器支持
 
-#### 手动安装（推荐）
+### IntelliJ IDEA
 
-1. 点击 [这里\[ijplugin.zip\]](ijplugin/build/distributions/ijplugin-4.7.zip)
-   进行下载（或目录中`/ijplugin/build/distributions/ijplugin-xxx.zip`文件）'
-2. 下载文件后 拖动至idea中自动安装 或 idea中指定路径加载
-   > For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>
-   Install Plugin from Disk...</kbd>\
-   > For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>齿轮图标</kbd> > <kbd>
-   Install Plugin from Disk...</kbd>
+推荐下载 [Zircon IDEA 插件 4.9](ijplugin/build/distributions/ijplugin-4.9.zip)，在 **Settings → Plugins → 齿轮 → Install Plugin from Disk…** 中选择 ZIP，安装后重启 IDEA。也可在 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/19146-zircon) 搜索 Zircon；市场版本可能因审核而滞后。
 
-#### ide内插件仓库加载
+只需安装一个插件 ZIP。包内保留旧版 `ZrClassLoaderHelper` 加载机制，并为新版 IDEA 提供 Syntax API 适配。
 
-For Windows & Linux - <kbd>File</kbd> > <kbd>Settings</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search
-for "Zircon"</kbd> > <kbd>Install Plugin</kbd> > <kbd>Restart IntelliJ IDEA</kbd>
+声明兼容范围为 IDEA 2021.2–2026.1（build `212–261.*`）。已有 Plugin Verifier 检查覆盖 2022.3.3、2024.2.1、2025.3.1.1、2026.1.4；2025.3.1.1 与 2026.1.4 各通过 8 项语法回归测试。2021.2 尚未实测，静态兼容检查也不等同于全部编辑器功能验证。
 
-For Mac - <kbd>IntelliJ IDEA</kbd> > <kbd>Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search
-for "Zircon"</kbd> > <kbd>Install Plugin</kbd>  > <kbd>Restart IntelliJ IDEA</kbd>
+构建、测试和版本适配说明见 [IDEA 插件 README](ijplugin/README.md)。
 
-#### 网页加载
+### VS Code
 
-<a href="https://plugins.jetbrains.com/plugin/19146-zircon">
-    <img src="https://user-images.githubusercontent.com/12044174/123105697-94066100-d46a-11eb-9832-338cdf4e0612.png" width="300"/>
-</a>
+先安装 [Language Support for Java by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.java)（`redhat.java`），并按它的要求配置 Java Language Server 的 JDK。
 
-### 其他注意事项
+从源码构建 VSIX，在仓库根目录执行：
 
-1. 请注意保持idea插件更新到最新。插件仓库审核有可能有滞后，请优先手动安装
+```powershell
+.\gradlew.bat :vscode_plugin_agent:packageVsix
+```
 
---------------
+在 VS Code 扩展视图中选择 **Install from VSIX…**，安装 `vscode_plugin/zircon-vscode-<version>.vsix`。打开已配置 Zircon 的项目，按提示重启 Java Language Server。
 
-## ChangeLog
+扩展通过 JDT Agent 接入原生补全、引用、重命名、CodeLens 和调用层次，并提供语法检查、意图操作、批量转换、格式化和导入优化。构建环境、命令和排查方式见 [VS Code 扩展 README](vscode_plugin/README.md)。
 
-### v3.3.2
+## 语法文档
 
-1. 修复换行时无法识别可选链的问题 [#17](https://github.com/122006/Zircon/issues/17)
-2. json风格模板字符串优化
+- [扩展方法](mds/README_ZrExMethod.md)：声明、导入、泛型、覆盖规则与注解约束。
+- [可选链与 Elvis 表达式](mds/README_ZrOptionalChaining.md)：短路、默认值、赋值与括号边界。
+- [模板字符串](mds/README_ZrString.md)：插值、格式符、引号与表达式范围。
+- [更新记录](CHANGELOG.md)：3.3.2、IDEA 插件及历史版本变更。
 
-<details>
-  <summary>历史依赖更新</summary>
+## 常见问题
 
-### v2.2
+**安装编辑器插件后，命令行构建仍报语法错误？**
 
-1. 重构已有代码，提高编译性能及拓展性
-2. 使用gradle编译idea插件
+检查项目是否引入同版本的 Zircon 编译依赖，以及 javac 是否加载了上述三个插件。VS Code 使用 JDT 提供编辑服务，项目构建仍需使用配置好的 javac。
 
-### v2.4
+**扩展方法没有提示或无法解析？**
 
-1. 支持jdk11、android30
+确认方法是 `static`、声明了 `@ExMethod`，并在调用文件中导入声明类；还应检查接收者类型、泛型约束和 `filterAnnotation`。添加或更新依赖后重新同步项目。VS Code 可执行 `Zircon: 查看项目状态` 和 `Zircon: 刷新扩展方法索引`。
 
-### v2.5
+**能直接使用 `List.create(...).map(...)` 吗？**
 
-1. 支持内部代码段中使用不转义的引号
+Zircon 本身不预置扩展方法。可自行声明，或引入 [ExMethodUtil](https://github.com/122006/ExMethodUtil) 并导入对应的扩展声明类：
 
-### v2.7
+```groovy
+implementation 'com.github.122006:ExMethodUtil:1.1.8'
+```
 
-1. 不再支持使用单引号转义双引号语法
-2. 支持使用gradle插件配置项目
-3. 重构以支持jdk16、jdk17
+## 参与开发
 
-### v3.0
+基础语法与字符串拆分位于 `base`，javac 注入位于 `javac` 和 `inject_java*`；编辑器代码分别位于 `ijplugin*`、`vscode_plugin` 和 `vscode_plugin_agent`。
 
-1. 支持拓展方法
+请使用仓库的 Gradle Wrapper。IDEA 与 VS Code 的构建步骤分别见各自 README；[编译回归用例](test/src/test/java/test)可用于查阅语法行为。
 
-### v3.1.2
+## 许可证
 
-1. 支持在成员方法引用中对外部引用调用拓展方法的情况
-
-### v3.1.3
-
-1. 修复了一个导致编译时间过长的问题
-
-### v3.1.4
-
-1. gradle插件支持使用id方式引入
-
-### v3.1.6
-
-1. 修复一个特殊情况下与已有方法同名异参的会解析错误问题
-2. 修复强制覆盖原有实现方法时，使用方法引用会提示引用重复的问题
-
-### v3.1.8
-
-1. 修复idea中使用Maven构建项目build错误的问题
-
-### v3.2.0
-
-1. 重用已解析的参数类型提高编译速度。
-2. 修复罕见情况下的多层匿名类指向错误的问题
-3. 现在如果存在多个匹配的拓展方法实现，会自动使用路径最相近的实现
-
-### v3.2.2
-
-1. 优化项目依赖结构
-
-### v3.2.3
-
-1. 支持java21、java22
-2. 优化项目编译结构
-
-### v3.2.6
-
-1. 现在拓展方法会根据import列表进行导入，修复偶现的编译期问题
-2. 对实例拓展方法拓展`Class<?>`时，允许省略`.class`，类似于静态方法效果但可以获得实际类型
-3. 优化编译速度
-4. 增加`@ExMethodIDE`注解，以增强ide的提示特性
-
-### v3.3.0
-
-1. 支持`elvis`表达式
-2. 支持可选链语法
-3. 支持json风格的模板字符串
-
-</details>
-
-### idea插件4.8
-
-1. IntelliJ插件市场审核修改
-
-<details>
-  <summary>历史idea插件更新</summary>
-
-### idea插件2.0
-
-1. 支持`f-string`自动提示格式符及类型匹配错误
-2. 普通字符串支持自动识别转化为`$-string`
-
-### idea插件2.1
-
-1. 模板字符串结构字符会用特殊颜色标出
-
-### idea插件2.3
-
-1. 修复启动后一段时间代码异常检查失效的问题
-
-### idea插件2.4
-
-1. 支持拓展方法
-2. 在未引入该项目的代码中，不再提示模板字符串功能
-
-### idea插件2.5
-
-1. 拓展方法显示优化
-
-### idea插件2.6
-
-1. 拓展方法显示优化
-
-### idea插件2.7
-
-1. 拓展方法自动引包相关支持
-
-### idea插件2.8
-
-1. 支持在成员方法引用中对外部引用调用拓展方法的情况
-
-### idea插件2.9
-
-1. 在idea 203以上版本支持了拓展方法引用处点击跳转。203以下版本会跳转到代理对象
-
-### idea插件3.0
-
-1. 重构了拓展方法及自动提示。现在已支持代理泛型推断及泛型数组推断
-
-### idea插件3.1
-
-1. 增强了模板字符串和拓展函数的联合效果。使用拓展函数支持自动引包
-
-### idea插件3.2
-
-1. 修复idea2023.3版本的兼容性问题
-2. 当输入于变量后自动补全时，不再提示其静态方法
-
-### idea插件3.3
-
-1. 修复部分问题
-
-### idea插件3.4
-
-1. 强化自动补全功能对代理类泛型的支持
-
-### idea插件3.5
-
-1. 强化自动补全功能对代理类泛型的支持：优化泛型继承解析
-2.
-
-### idea插件3.6
-
-1. 功能性优化
-
-### idea插件3.8
-
-1. 支持同名方法自动解析
-2. 原有方法冲突时，自动使用原有方法
-
-### idea插件4.1
-
-1. 拓展方法注解能力拓展，支持3.2.5新增`@ExMethod`注解属性、及`@ExMethodIDE`注解
-2. 现在插件的检测范围只限制于当前已申明插件的module，并只会提供其引入的拓展方法
-
-### idea插件4.2
-
-1. 修复4.1版本对基本类型数组拓展方法无法补全的问题
-2. 对cover类型拓展方法使用处增加提示信息及自动import
-
-### idea插件4.4
-
-1. 提供对可选链 &`elvis` 支持
-
-### idea插件4.6
-
-1. 支持idea版本至2025.3
-
-### idea插件4.7
-
-1. 现在匹配拓展方法时，会判断对象继承链的泛型，以正确匹配对应方法
-
-</details>
-
-## 相关项目
-
-### ExMethodUtil
-
-项目[ExMethodUtil](https://github.com/122006/ExMethodUtil)封装了常见的java工具方法，可用于体验或者测试拓展方法功能。
-
-> Zircon主体项目中不包含任何预定义的拓展方法，你可以引入该项目快速体验Zircon
-
-`implementation 'com.github.122006:ExMethodUtil:1.1.8'`
+[Apache License 2.0](LICENSE)

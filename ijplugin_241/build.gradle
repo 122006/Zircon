@@ -9,11 +9,13 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.6.0'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
 }
 
 group 'com.by122006.zircon'
 version '4.3'
+
+def localIdea251Path = providers.gradleProperty('zircon.idea251.path').orNull
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -42,17 +44,21 @@ repositories {
 
 }
 patchPluginXml {
-    sinceBuild = "212.*"
+    sinceBuild = "240"
     untilBuild = "252.*"
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2025.1'
+        if (localIdea251Path) {
+            local(localIdea251Path)
+        } else {
+            intellijIdeaCommunity '2025.1'
+        }
 //        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation project(":ijplugin")
+    compileOnly files(project(":ijplugin").sourceSets.main.output.classesDirs)
     implementation('com.github.122006:ExMethodUtil:1.1.8')
     implementation project(":ijplugin_mix")
 
@@ -71,3 +77,15 @@ tasks.withType(JavaCompile) {
     it.options.fork = true
 }
 
+compileJava.dependsOn(":ijplugin:compileJava")
+
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_241 is an embedded compatibility adapter.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
+}

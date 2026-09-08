@@ -9,14 +9,22 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.6.0'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
 }
 //apply plugin: 'zircon'
 
 group 'com.by122006.zircon'
-version '4.8'
+version '4.9'
+
+def localIdea253Path = providers.gradleProperty('zircon.idea253.path').orNull
+def localIdea261Path = providers.gradleProperty('zircon.idea261.path').orNull
+def localIdea223Path = providers.gradleProperty('zircon.idea223.path').orNull
+def localIdea242Path = providers.gradleProperty('zircon.idea242.path').orNull
 
 compileJava {
+    // The shipping shell is loaded by every supported IDE, including builds
+    // that still run on JBR 11. Version-specific implementations are isolated
+    // behind ZrClassLoaderHelper or optional plugin descriptor fragments.
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
@@ -28,6 +36,34 @@ java {
 }
 buildPlugin {
     buildSearchableOptions.enabled = false
+    // IntelliJ Platform Gradle Plugin still exposes a previously generated
+    // empty searchable-options JAR as an input when the feature is disabled.
+    // Do not let that stale artifact leak into the single release archive.
+    exclude '**/*-searchableOptions.jar'
+}
+
+sourceSets {
+    main {
+        // Never rely on ignored/generated files left in the source tree.
+        // processResources below embeds freshly compiled legacy adapters.
+        resources.exclude 'clazz/**'
+    }
+}
+
+def legacyParserModules = ['ijplugin_223', 'ijplugin_241']
+processResources {
+    dependsOn legacyParserModules.collect {
+        ":${it}:compileJava"
+    }
+    legacyParserModules.each { moduleName ->
+        from(project(":${moduleName}").layout.buildDirectory.dir('classes/java/main')) {
+            into "clazz/${moduleName}"
+            include '**/*.class'
+            rename { String fileName ->
+                fileName.replaceAll(/\.class$/, '.clazz')
+            }
+        }
+    }
 }
 
 repositories {
@@ -44,25 +80,36 @@ repositories {
 }
 
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
-import org.jetbrains.intellij.platform.gradle.models.ProductRelease
-
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 intellijPlatform {
     pluginVerification {
         ides {
-            ide IntelliJPlatformType.IntellijIdeaCommunity, '2022.3'
-            recommended()
-            select {
-                it.types = [IntelliJPlatformType.IntellijIdeaCommunity]
-                it.channels = [ProductRelease.Channel.RELEASE]
-                it.sinceBuild = '212'
-                it.untilBuild = '253.*'
+            if (localIdea223Path) {
+                local(project.file(localIdea223Path))
+            } else {
+                ide IntelliJPlatformType.IntellijIdea, '2022.3.3'
+            }
+            if (localIdea242Path) {
+                local(project.file(localIdea242Path))
+            } else {
+                ide IntelliJPlatformType.IntellijIdea, '2024.2.1'
+            }
+            if (localIdea253Path) {
+                local(project.file(localIdea253Path))
+            } else {
+                ide IntelliJPlatformType.IntellijIdea, '2025.3.1.1'
+            }
+            if (localIdea261Path) {
+                local(project.file(localIdea261Path))
+            } else {
+                ide IntelliJPlatformType.IntellijIdea, '2026.1.4'
             }
         }
     }
 }
 patchPluginXml {
-    sinceBuild = "212.*"
-    untilBuild = "253.*"
+    sinceBuild = "212"
+    untilBuild = "261.*"
 }
 dependencies {
     intellijPlatform {
@@ -70,8 +117,14 @@ dependencies {
 //        intellijIdeaCommunity '2022.3'
 //        intellijIdeaCommunity '2024.1'
 //        intellijIdeaCommunity '2025.1'
-        intellijIdeaUltimate '2025.3'
+        if (localIdea253Path) {
+            local(localIdea253Path)
+        } else {
+            intellijIdea '2025.3.1.1'
+        }
         instrumentationTools()
+        testFramework TestFrameworkType.Platform.INSTANCE
+        testFramework TestFrameworkType.Plugin.Java.INSTANCE
     }
     annotationProcessor project(":javac")
     implementation project(":zircon")
@@ -82,6 +135,7 @@ dependencies {
     implementation('com.github.122006:ExMethodUtil:1.1.8')
     implementation project(":ijplugin_252_ex")
     implementation project(":ijplugin_mix")
+    testImplementation 'junit:junit:4.13.2'
 
 }
 tasks.findByPath(':ijplugin:runIde').dependsOn(':buildClazzByJava17')

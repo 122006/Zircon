@@ -14,13 +14,9 @@ import com.intellij.pom.java.LanguageLevel;
 import com.intellij.psi.*;
 import com.intellij.psi.augment.PsiAugmentProvider;
 import com.intellij.psi.augment.PsiExtensionMethod;
-import com.intellij.psi.impl.java.stubs.index.JavaAnnotationIndex;
 import com.intellij.psi.impl.light.*;
-import com.intellij.psi.impl.source.PsiClassReferenceType;
-import com.intellij.psi.impl.source.PsiExtensibleClass;
-import com.intellij.psi.impl.source.resolve.graphInference.PsiGraphInferenceHelper;
-import com.intellij.psi.impl.source.tree.java.PsiMethodCallExpressionImpl;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.psi.search.searches.AnnotatedElementsSearch;
 import com.intellij.psi.util.*;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.IncorrectOperationException;
@@ -65,7 +61,18 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                 final String qualifiedName = ExMethod.class.getName();
                 GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
                 final PsiClassType javaLangObject = PsiClassType.getTypeByName("java.lang.Object", module.getProject(), GlobalSearchScope.allScope(module.getProject()));
-                final List<PsiMethod> distinctMethods = JavaAnnotationIndex.getInstance().get(ExMethod.class.getSimpleName(), module.getProject(), moduleScope).copy2List().map(element -> PsiTreeUtil.getParentOfType(element, PsiMethod.class)).filter(Objects::nonNull).distinct();
+                PsiClass annotationClass = JavaPsiFacade.getInstance(module.getProject())
+                        .findClass(qualifiedName, moduleScope);
+                if (annotationClass == null) {
+                    return Collections.emptyList();
+                }
+                final List<PsiMethod> distinctMethods =
+                        AnnotatedElementsSearch.searchPsiMethods(annotationClass, moduleScope)
+                                .findAll()
+                                .stream()
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .collect(Collectors.toList());
                 final List<CacheMethodInfo> collect = distinctMethods.filter(PsiElement::isValid).map(method -> {
                     final PsiAnnotation annotation = method.getAnnotation(qualifiedName);
                     if (annotation == null) return null;
@@ -157,10 +164,10 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     cacheMethodInfo.method = info.method;
 
                     final @NotNull PsiType psiType = info.method.getParameterList().getParameters()[0].getType();
-                    if (!(psiType instanceof PsiClassReferenceType)) {
+                    if (!(psiType instanceof PsiClassType)) {
                         return null;
                     }
-                    if (!Objects.equals(((PsiClassReferenceType) psiType).getReference().getQualifiedName(), "java.lang.Class")) {
+                    if (!psiType.equalsToText(CommonClassNames.JAVA_LANG_CLASS)) {
                         return null;
                     }
                     PsiType o = ((PsiClassType) psiType).getParameters().get(0);
@@ -206,7 +213,9 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         PsiClass ownClass = siteClass;
         final PsiClassType javaLangObject = PsiClassType.getTypeByName("java.lang.Object", siteClass.getProject(), GlobalSearchScope.allScope(siteClass.getProject()));
         if (context instanceof PsiMethodCallExpression) {
-            final PsiExpression qualifierExpression = ((PsiMethodCallExpressionImpl) context).getMethodExpression().getQualifierExpression();
+            final PsiExpression qualifierExpression = ((PsiMethodCallExpression) context)
+                    .getMethodExpression()
+                    .getQualifierExpression();
             if (qualifierExpression == null) return emptyResult;
             PsiType type = qualifierExpression.getType();
             if (type != null) {
@@ -256,15 +265,22 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
         if (ownClass == null) return emptyResult;
         if (PsiUtil.isArrayClass(ownClass)) {
             List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
-                return methodInfo.targetType.filter(type1 -> ZrPluginUtil.isAssignableSite(methodInfo.method, ownType)).map(type -> {
+                return methodInfo.targetType.filter(receiverType ->
+                        receiverType != null
+                                && receiverType.isValid()
+                                && TypeConversionUtil.isAssignable(
+                                TypeConversionUtil.erasure(receiverType), ownType)
+                                && ZrPluginUtil.isAssignableSite(
+                                methodInfo.method, ownType)).map(type -> {
                     final PsiClass targetClass = ownType instanceof PsiCapturedWildcardType ? PsiTypesUtil.getPsiClass(TypeConversionUtil.erasure(ownType)) : siteClass;
                     return buildMethodBy(methodInfo, targetClass, ownType);
                 }).filterNoNull();
             }).flatMap(Collection::stream).collect(Collectors.toList());
+            filterSameMethods(context, collect);
             return collect;
         }
         final PsiClass finalOwnClass = ownClass;
-        List<PsiMethod> ownMethods = ownClass instanceof PsiExtensibleClass ? ((PsiExtensibleClass) ownClass).getOwnMethods() : List.of();
+        List<PsiMethod> ownMethods = Arrays.asList(ownClass.getMethods());
 
         final List<PsiExtensionMethod> collect = psiMethods.stream().map(methodInfo -> {
             return methodInfo.targetType.stream().filter(type -> {
@@ -445,7 +461,7 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     final PsiTypeParameter[] classTypeParameters;
                     if (firstParamType instanceof PsiArrayType) {
                         classTypeParameters = targetClass.getTypeParameters();
-                    } else if (firstParamType instanceof PsiClassReferenceType) {
+                    } else if (firstParamType instanceof PsiClassType) {
                         final PsiClass firstParamPsiClass = PsiTypesUtil.getPsiClass(firstParamType);
                         if (firstParamPsiClass == null) return oTypeParameterList;
                         classTypeParameters = firstParamPsiClass.getTypeParameters();
@@ -466,7 +482,13 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
                     }
                     final LanguageLevel languageLevel = PsiUtil.getLanguageLevel(targetClass);
 
-                    final PsiSubstitutor psiSubstitutor = new PsiGraphInferenceHelper(targetClass.getManager()).inferTypeArguments(targetMethod.getTypeParameters(), new PsiType[]{firstParamType}, new PsiType[]{siteType}, languageLevel);
+                    final PsiSubstitutor psiSubstitutor = PsiResolveHelper
+                            .getInstance(targetClass.getProject())
+                            .inferTypeArguments(
+                                    targetMethod.getTypeParameters(),
+                                    new PsiType[]{firstParamType},
+                                    new PsiType[]{siteType},
+                                    languageLevel);
                     psiSubstitutor.getSubstitutionMap().forEach((typeParameter, psiType) -> {
                         if (psiType.equalsToText(CommonClassNames.JAVA_LANG_OBJECT)) return;
                         typesMapping.remove(typeParameter);
@@ -615,10 +637,12 @@ public class ZrPsiAugmentProvider extends PsiAugmentProvider {
 
         @NotNull
         private static TypeAnnotationProvider getMergedProvider(@NotNull PsiType type1, @NotNull PsiType type2) {
-            if (type1.getAnnotationProvider() == TypeAnnotationProvider.EMPTY && !(type1 instanceof PsiClassReferenceType)) {
+            if (type1.getAnnotationProvider() == TypeAnnotationProvider.EMPTY
+                    && type1.getAnnotations().length == 0) {
                 return type2.getAnnotationProvider();
             }
-            if (type2.getAnnotationProvider() == TypeAnnotationProvider.EMPTY && !(type2 instanceof PsiClassReferenceType)) {
+            if (type2.getAnnotationProvider() == TypeAnnotationProvider.EMPTY
+                    && type2.getAnnotations().length == 0) {
                 return type1.getAnnotationProvider();
             }
             return () -> ArrayUtil.mergeArrays(type1.getAnnotations(), type2.getAnnotations());

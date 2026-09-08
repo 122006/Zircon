@@ -6,7 +6,10 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtilCore;
+import com.intellij.openapi.project.DumbService;
+import com.intellij.openapi.project.IndexNotReadyException;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ProjectRootModificationTracker;
 import com.intellij.openapi.util.BuildNumber;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
@@ -20,16 +23,14 @@ import zircon.ExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExObject;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-import static com.intellij.psi.util.PsiModificationTracker.MODIFICATION_COUNT;
+import java.util.Set;
 
 public class ZrPluginUtil {
-    static int EnablePluginChecker = 3;
-
-    public static synchronized boolean hasZrPlugin(PsiElement psiElement) {
+    public static boolean hasZrPlugin(PsiElement psiElement) {
         final Project project = psiElement.getProject();
         if (project.isDefault() || !project.isInitialized()) {
             return false;
@@ -37,35 +38,31 @@ public class ZrPluginUtil {
         if (!ZirconSettings.getInstance().enableAll) {
             return false;
         }
-        long start = System.currentTimeMillis();
+        // Parser/lexer extensions remain active independently of this check.
+        // Semantic features must not enter Java indexes while they are rebuilt.
+        if (DumbService.isDumb(project)) {
+            return false;
+        }
         try {
             ApplicationManager.getApplication().assertReadAccessAllowed();
-            // 获取当前模块
             final PsiFile containingFile = psiElement.getContainingFile();
+            if (containingFile == null) return false;
             if (containingFile instanceof PsiCodeFragment) return false;
             @Nullable Module module = ModuleUtilCore.findModuleForPsiElement(containingFile);
             if (module == null) return false;
-            // 获取模块的搜索范围
-            try {
-                final boolean b = CachedValuesManager.getManager(project).getCachedValue(module, () -> {
-                    GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
-                    PsiClass psiClass = JavaPsiFacade.getInstance(project).findClass(ExMethod.class.getName(), moduleScope);
-                    return new CachedValueProvider.Result<>(psiClass, MODIFICATION_COUNT);
-                }) != null;
-                if (!b) {
-                    EnablePluginChecker--;
-                    return EnablePluginChecker > 0;
-                } else {
-                    EnablePluginChecker = 3;
-                    return b;
-                }
-            } catch (Exception e) {
-                return true;
-            }
-        } finally {
-            if (System.currentTimeMillis() - start > 100)
-                System.out.println("ZirconPluginUtil.hasZrPlugin: " + (System.currentTimeMillis() - start) + " ms");
-
+            return CachedValuesManager.getManager(project).getCachedValue(module, () -> {
+                GlobalSearchScope moduleScope = module.getModuleWithDependenciesAndLibrariesScope(true);
+                PsiClass psiClass = JavaPsiFacade.getInstance(project)
+                        .findClass(ExMethod.class.getName(), moduleScope);
+                return new CachedValueProvider.Result<>(
+                        psiClass != null,
+                        ProjectRootModificationTracker.getInstance(project));
+            });
+        } catch (IndexNotReadyException ignored) {
+            return false;
+        } catch (RuntimeException ignored) {
+            // PSI can be invalidated between the read checks above during project reload.
+            return false;
         }
     }
 
@@ -91,58 +88,153 @@ public class ZrPluginUtil {
     }
 
     public static boolean isAssignableSite(Project project, PsiType psiType1, PsiType psiType2, PsiTypeParameter[] parameters, boolean allowExtend) {
-        if (!psiType1.isValid()) return false;
-        if (!psiType2.isValid()) return false;
-        if (TypeConversionUtil.isPrimitiveAndNotNull(psiType1) != TypeConversionUtil.isPrimitiveAndNotNull(psiType2))
-            return false;
-        final PsiType erasure1 = TypeConversionUtil.erasure(psiType1);
-        if (erasure1.equalsToText(CommonClassNames.JAVA_LANG_OBJECT)) return true;
-        if (psiType1 instanceof PsiArrayType && psiType2 instanceof PsiArrayType) {
-            final PsiType deepComponentType = convertTypeByMethodTypeParameter(psiType1.getDeepComponentType(), parameters);
+        return isAssignableSite(
+                project,
+                psiType1,
+                psiType2,
+                parameters,
+                allowExtend,
+                new HashSet<>());
+    }
 
-            final PsiType deepComponentType2 = psiType2.getDeepComponentType();
-            if (TypeConversionUtil.isPrimitiveAndNotNull(deepComponentType) && TypeConversionUtil.isPrimitiveAndNotNull(deepComponentType2)) {
-                return deepComponentType.equals(deepComponentType2);
-            }
-            return isAssignableSite(project, deepComponentType, deepComponentType2, parameters, allowExtend);
+    private static boolean isAssignableSite(Project project,
+                                            PsiType expected,
+                                            PsiType actual,
+                                            PsiTypeParameter[] methodParameters,
+                                            boolean allowExtend,
+                                            Set<String> activeComparisons) {
+        if (expected == null || actual == null || !expected.isValid() || !actual.isValid()) {
+            return false;
         }
-        if (psiType1.equals(psiType2) || (allowExtend && TypeConversionUtil.isAssignable(psiType1, psiType2)))
+
+        expected = convertTypeByMethodTypeParameter(expected, methodParameters);
+        String comparisonKey = safeTypeKey(expected) + '\u0000' + safeTypeKey(actual);
+        // Recursive generic bounds such as T extends Comparable<T> are coinductive:
+        // reaching the same pair again means this branch has not found a mismatch.
+        if (!activeComparisons.add(comparisonKey)) {
             return true;
-        if (psiType1 instanceof PsiClassType && psiType2 instanceof PsiClassType) {
-            final PsiType deepComponentType = convertTypeByMethodTypeParameter(psiType1.getDeepComponentType(), parameters);
-            final PsiType[] parameters1 = ((PsiClassType) deepComponentType).getParameters();
-            Predicate<PsiType> test = _psiType2 -> {
-                if (TypeConversionUtil.erasure(_psiType2).equals(TypeConversionUtil.erasure(psiType1))) {
-                    final PsiType[] parameters2 = ((PsiClassType) _psiType2).getParameters();
-                    if (parameters2.size() != parameters1.size())
-                        return false;
-                    for (int i = 0; i < parameters2.length; i++) {
-                        if (parameters1[i].equals(psiType1) && parameters2[i].equals(psiType2)) {
-                            //防止类似T extends A<T>的递归
-                            continue;
-                        }
-                        final boolean assignable = isAssignableSite(project, parameters1[i], parameters2[i], parameters, allowExtend);
-                        if (!assignable) return false;
-                    }
-                    return true;
-                }
+        }
+
+        try {
+            if (TypeConversionUtil.isPrimitiveAndNotNull(expected)
+                    != TypeConversionUtil.isPrimitiveAndNotNull(actual)) {
                 return false;
-            };
-            Function<PsiType, PsiType> find = new Function<>() {
-                @Override
-                public PsiType apply(PsiType psiType) {
-                    if (test.test(psiType)) return psiType;
-                    final PsiType[] superTypes = psiType.getSuperTypes();
-                    for (PsiType superType : superTypes) {
-                        final PsiType apply = apply(superType);
-                        if (apply != null) return apply;
-                    }
-                    return null;
+            }
+
+            PsiType expectedErasure = TypeConversionUtil.erasure(expected);
+            if (expectedErasure.equalsToText(CommonClassNames.JAVA_LANG_OBJECT)) {
+                return true;
+            }
+
+            if (Objects.equals(expected, actual)
+                    || (allowExtend && TypeConversionUtil.isAssignable(expected, actual))) {
+                return true;
+            }
+
+            if (expected instanceof PsiArrayType || actual instanceof PsiArrayType) {
+                if (!(expected instanceof PsiArrayType) || !(actual instanceof PsiArrayType)) {
+                    return false;
                 }
-            };
-            return find.apply(psiType2) != null;
+                PsiArrayType expectedArray = (PsiArrayType) expected;
+                PsiArrayType actualArray = (PsiArrayType) actual;
+                return isAssignableSite(
+                        project,
+                        expectedArray.getComponentType(),
+                        actualArray.getComponentType(),
+                        methodParameters,
+                        allowExtend,
+                        activeComparisons);
+            }
+
+            if (expected instanceof PsiWildcardType) {
+                PsiWildcardType wildcard = (PsiWildcardType) expected;
+                PsiType bound = wildcard.getBound();
+                if (bound == null) return true;
+                return wildcard.isExtends()
+                        ? isAssignableSite(project, bound, actual, methodParameters, true, activeComparisons)
+                        : TypeConversionUtil.isAssignable(actual, bound);
+            }
+
+            if (expected instanceof PsiClassType && actual instanceof PsiClassType) {
+                return matchesClassHierarchy(
+                        project,
+                        (PsiClassType) expected,
+                        (PsiClassType) actual,
+                        methodParameters,
+                        allowExtend,
+                        activeComparisons);
+            }
+            return false;
+        } finally {
+            activeComparisons.remove(comparisonKey);
+        }
+    }
+
+    private static boolean matchesClassHierarchy(Project project,
+                                                 PsiClassType expected,
+                                                 PsiClassType actual,
+                                                 PsiTypeParameter[] methodParameters,
+                                                 boolean allowExtend,
+                                                 Set<String> activeComparisons) {
+        PsiClassType.ClassResolveResult expectedResult = expected.resolveGenerics();
+        PsiClass expectedClass = expectedResult.getElement();
+        if (expectedClass == null) return false;
+
+        Deque<PsiClassType> pending = new ArrayDeque<>();
+        Set<String> visited = new HashSet<>();
+        pending.add(actual);
+
+        while (!pending.isEmpty()) {
+            PsiClassType candidate = pending.removeFirst();
+            if (!visited.add(safeTypeKey(candidate))) {
+                continue;
+            }
+
+            PsiClassType.ClassResolveResult candidateResult = candidate.resolveGenerics();
+            PsiClass candidateClass = candidateResult.getElement();
+            if (candidateClass == null) {
+                continue;
+            }
+
+            if (candidateClass.getManager().areElementsEquivalent(expectedClass, candidateClass)) {
+                PsiTypeParameter[] classParameters = expectedClass.getTypeParameters();
+                for (PsiTypeParameter classParameter : classParameters) {
+                    PsiType expectedArgument = expectedResult.getSubstitutor().substitute(classParameter);
+                    if (expectedArgument == null) {
+                        // A raw expected receiver intentionally accepts every specialization.
+                        continue;
+                    }
+                    PsiType actualArgument = candidateResult.getSubstitutor().substitute(classParameter);
+                    if (actualArgument == null || !isAssignableSite(
+                            project,
+                            expectedArgument,
+                            actualArgument,
+                            methodParameters,
+                            allowExtend,
+                            activeComparisons)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            PsiSubstitutor substitutor = candidateResult.getSubstitutor();
+            for (PsiClassType superType : candidateClass.getSuperTypes()) {
+                PsiType substituted = substitutor.substitute(superType);
+                if (substituted instanceof PsiClassType) {
+                    pending.addLast((PsiClassType) substituted);
+                }
+            }
         }
         return false;
+    }
+
+    private static String safeTypeKey(PsiType type) {
+        try {
+            return type.getCanonicalText();
+        } catch (RuntimeException ignored) {
+            return type.getClass().getName() + '@' + System.identityHashCode(type);
+        }
     }
 
     public static int getLineNumberOfPsiMethod(PsiMethod psiMethod) {

@@ -12,14 +12,12 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.actionSystem.EditorActionHandler;
-import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.editor.highlighter.EditorHighlighter;
 import com.intellij.openapi.editor.highlighter.HighlighterIterator;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.tree.IElementType;
 import com.sun.tools.javac.parser.Formatter;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -74,15 +72,12 @@ public class ZrEnterInStringLiteralHandler extends EnterInStringLiteralHandler {
 
     @Contract("_,null,_->false")
     private boolean zrIsInStringLiteral(@NotNull Editor editor, @Nullable JavaLikeQuoteHandler quoteHandler, int offset) {
-        if (offset > 0 && quoteHandler != null) {
-            EditorHighlighter highlighter = ((EditorEx) editor).getHighlighter();
-            HighlighterIterator iterator = highlighter.createIterator(offset - 1);
-            IElementType type = iterator.getTokenType();
-            if (quoteHandler instanceof ZrJavaQuoteHandler) {
-                return true;
-            }
-        }
-        return false;
+        if (offset <= 0
+                || !(quoteHandler instanceof ZrJavaQuoteHandler)) return false;
+        EditorHighlighter highlighter = editor.getHighlighter();
+        if (highlighter == null) return false;
+        HighlighterIterator iterator = highlighter.createIterator(offset - 1);
+        return !iterator.atEnd() && ((ZrJavaQuoteHandler) quoteHandler).isInsideZrLiteral(iterator);
     }
 
 }

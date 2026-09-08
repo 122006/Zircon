@@ -1,0 +1,84 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
+}
+
+group 'com.by122006.zircon'
+version '4.9'
+
+def localIdea261Path = providers.gradleProperty('zircon.idea261.path').orNull
+
+sourceSets {
+    main {
+        java.srcDirs = [rootProject.file('ijplugin_252_ex/src/main/java')]
+    }
+}
+
+compileJava {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+buildPlugin {
+    buildSearchableOptions.enabled = false
+    prepareJarSearchableOptions.enabled = false
+}
+
+repositories {
+    maven { url uri('../../repo') }
+    intellijPlatform { defaultRepositories() }
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+}
+
+patchPluginXml {
+    sinceBuild = '261'
+    untilBuild = '261.*'
+}
+
+dependencies {
+    intellijPlatform {
+        if (localIdea261Path) {
+            local(localIdea261Path)
+        } else {
+            intellijIdea('2026.1.4') {
+                useInstaller = false
+            }
+        }
+        bundledPlugin 'com.intellij.java'
+    }
+    implementation project(':zircon')
+    implementation project(':base')
+    implementation 'com.github.122006:ExMethodUtil:1.1.8'
+    annotationProcessor project(':javac')
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
+    compileOnly 'org.projectlombok:lombok:1.18.42'
+    testAnnotationProcessor project(':javac')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << '-Xplugin:ZrOptionalChain'
+    options.compilerArgs << '-Xplugin:ZrExMethod'
+    options.compilerArgs << '-Xplugin:ZrString'
+    options.fork = true
+}
+
+// This project is compiled only as part of the IDEA 261 compatibility gate.
+// It must never create, sign, or publish a standalone plugin archive.
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_261_ex is a compatibility gate, not a release artifact.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
+}

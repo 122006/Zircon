@@ -9,20 +9,22 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.6.0'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
 }
 
 group 'com.by122006.zircon'
 version '4.3'
 
+def localIdea253Path = providers.gradleProperty('zircon.idea253.path').orNull
+
 compileJava {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 buildPlugin {
@@ -42,17 +44,24 @@ repositories {
 
 }
 patchPluginXml {
-    sinceBuild = "212.*"
-    untilBuild = "252.*"
+    sinceBuild = "253"
+    untilBuild = "253.*"
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaUltimate '253.25908.13'
+        if (localIdea253Path) {
+            local(localIdea253Path)
+        } else {
+            intellijIdea '2025.3.1.1'
+        }
 //        intellijIdeaCommunity '2025.3.1'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
-    implementation project(":ijplugin")
+    // The parser is embedded as .clazz resources in the main plugin. Compile
+    // against the already compiled main classes instead of its jar, otherwise
+    // main processResources -> parser compile -> main jar forms a task cycle.
+    compileOnly files(project(":ijplugin").sourceSets.main.output.classesDirs)
     implementation('com.github.122006:ExMethodUtil:1.1.8')
     annotationProcessor "org.projectlombok:lombok:1.18.42"
     compileOnly 'org.projectlombok:lombok:1.18.42'
@@ -73,3 +82,15 @@ tasks.withType(JavaCompile) {
     it.options.fork = true
 }
 
+compileJava.dependsOn(":ijplugin:compileJava")
+
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_252 is an embedded compatibility adapter.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
+}

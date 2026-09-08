@@ -161,9 +161,7 @@ public final class TemplateStringSplitter {
                     mode = 2;
                     braceCount = 0;
                 } else {
-                    if (codeEnd > codeStart) {
-                        ranges.add(new Range(CODE, codeStart, codeEnd));
-                    }
+                    ranges.add(new Range(CODE, codeStart, codeEnd));
                     start = codeEnd + 1;
                     cursor = codeEnd;
                     mode = -1;
@@ -185,7 +183,11 @@ public final class TemplateStringSplitter {
     }
 
     private static void addCodeRange(List<Range> ranges, String text, int start, int end, boolean formatted) {
-        if (end <= start) {
+        if (end < start) {
+            return;
+        }
+        if (end == start) {
+            ranges.add(new Range(CODE, start, end));
             return;
         }
         String code = text.substring(start, end);

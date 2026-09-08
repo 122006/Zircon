@@ -11,7 +11,6 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassOwner;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiIdentifier;
 import com.intellij.psi.PsiImportList;
 import com.intellij.psi.PsiImportStatementBase;
 import com.intellij.psi.PsiJavaCodeReferenceElement;
@@ -56,7 +55,10 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 @Override
                 public void visitMethodCallExpression(PsiMethodCallExpression element) {
                     super.visitMethodCallExpression(element);
-                    final PsiMethod method = element.resolveMethod();
+                    preserveExtensionMethodImport(element.resolveMethod());
+                }
+
+                private void preserveExtensionMethodImport(PsiMethod method) {
                     if (method instanceof ZrPsiExtensionMethod) {
                         final ZrPsiExtensionMethod zrMethod = (ZrPsiExtensionMethod) method;
                         final PsiClass containingClass = zrMethod.getTargetMethod().getContainingClass();
@@ -72,11 +74,10 @@ public class ZrJavaCodeStyleManagerImpl extends JavaCodeStyleManagerImpl {
                 @Override
                 public void visitMethodReferenceExpression(PsiMethodReferenceExpression element) {
                     super.visitMethodReferenceExpression(element);
-                }
-
-                @Override
-                public void visitIdentifier(PsiIdentifier identifier) {
-                    super.visitIdentifier(identifier);
+                    PsiElement resolved = element.resolve();
+                    if (resolved instanceof PsiMethod) {
+                        preserveExtensionMethodImport((PsiMethod) resolved);
+                    }
                 }
 
                 @Override

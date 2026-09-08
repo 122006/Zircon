@@ -1,0 +1,16 @@
+<idea-plugin package="com.by122006.zircon.ijplugin261">
+    <!--
+      IDEA 261 moved the Java code-server diagnostics API out of the Java
+      plugin's main module. IDEA 253 skips this content module and continues
+      using the main descriptor's ZrAnnotator/ZrHighlightInfoFilter chain.
+    -->
+    <dependencies>
+        <module name="intellij.java.analysis.impl"/>
+    </dependencies>
+    <extensions defaultExtensionNs="com.intellij">
+        <annotator language="JAVA"
+                   implementationClass="com.by122006.zircon.ijplugin261.ZrTemplateExpressionAnnotator"/>
+        <lang.java.javaErrorFilter
+                implementation="com.by122006.zircon.ijplugin261.ZrJavaErrorFilter"/>
+    </extensions>
+</idea-plugin>

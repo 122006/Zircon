@@ -9,11 +9,13 @@ buildscript {
 
 plugins {
     id 'java'
-    id 'org.jetbrains.intellij.platform' version '2.6.0'
+    id 'org.jetbrains.intellij.platform' version '2.11.0'
 }
 
 group 'com.by122006.zircon'
 version '4.3'
+
+def localIdea223Path = providers.gradleProperty('zircon.idea223.path').orNull
 
 compileJava {
     sourceCompatibility = JavaVersion.VERSION_11
@@ -42,18 +44,22 @@ repositories {
 
 }
 patchPluginXml {
-    sinceBuild = "212.*"
+    sinceBuild = "212"
     untilBuild = "252.*"
 }
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity '2022.3'
+        if (localIdea223Path) {
+            local(localIdea223Path)
+        } else {
+            intellijIdeaCommunity '2022.3.3'
+        }
 //        intellijIdeaCommunity '251.21418.62'
         bundledPlugin 'com.intellij.java'
         instrumentationTools()
     }
     implementation('com.github.122006:ExMethodUtil:1.1.8')
-    implementation project(":ijplugin")
+    compileOnly files(project(":ijplugin").sourceSets.main.output.classesDirs)
     implementation project(":ijplugin_mix")
 
     annotationProcessor project(":javac")
@@ -71,3 +77,15 @@ tasks.withType(JavaCompile) {
     it.options.fork = true
 }
 
+compileJava.dependsOn(":ijplugin:compileJava")
+
+tasks.named('buildPlugin').configure {
+    enabled = false
+    description = 'Disabled: ijplugin_223 is an embedded compatibility adapter.'
+}
+tasks.named('signPlugin').configure {
+    enabled = false
+}
+tasks.named('publishPlugin').configure {
+    enabled = false
+}

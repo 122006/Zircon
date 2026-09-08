@@ -1,20 +1,16 @@
 package com.by122006.zircon.ijplugin;
 
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.impl.source.tree.JavaElementType;
 import com.intellij.psi.impl.source.tree.java.PsiBinaryExpressionImpl;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * @ClassName: ZrPsiBinaryExpressionImpl
- * @Author: 122006
- * @Date: 2025/7/2 9:09
- * @Description:
+ * Binary-expression PSI node retained for the parser adapters used by IDEA
+ * versions before the public Syntax API.
  */
 public class ZrPsiBinaryExpressionImpl extends PsiBinaryExpressionImpl {
-    private static final Logger LOG = Logger.getInstance(ZrPsiBinaryExpressionImpl.class);
+    private Boolean forcePhysical;
 
     public ZrPsiBinaryExpressionImpl() {
         this(JavaElementType.BINARY_EXPRESSION);
@@ -24,15 +20,8 @@ public class ZrPsiBinaryExpressionImpl extends PsiBinaryExpressionImpl {
         super(elementType);
     }
 
-    @Override
-    public void accept(@NotNull PsiElementVisitor visitor) {
-        super.accept(visitor);
-    }
-
-    Boolean forcePhysical = null;
-
-    public void setForcePhysical(boolean b) {
-        forcePhysical = b;
+    public void setForcePhysical(boolean forcePhysical) {
+        this.forcePhysical = forcePhysical;
     }
 
     @Override

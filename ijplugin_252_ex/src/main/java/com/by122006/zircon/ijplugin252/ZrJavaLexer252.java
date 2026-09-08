@@ -2,7 +2,6 @@ package com.by122006.zircon.ijplugin252;
 
 import com.intellij.java.syntax.element.JavaSyntaxTokenType;
 import com.intellij.java.syntax.lexer.JavaLexer;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.platform.syntax.SyntaxElementType;
 import com.intellij.platform.syntax.lexer.Lexer;
 import com.intellij.platform.syntax.lexer.LexerPosition;
@@ -11,18 +10,14 @@ import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.ReflectionUtil;
 import com.sun.tools.javac.parser.ZrStringModel;
 import lombok.Setter;
-import lombok.extern.log4j.Log4j;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
 
-@Log4j
 public class ZrJavaLexer252 implements Lexer {
 
     @Setter
     @NotNull JavaLexer javaLexer252 = null;
-    private static final Logger LOG = Logger.getInstance(ZrJavaLexer252.class.getName());
-
     public ZrJavaLexer252(@NotNull LanguageLevel level) {
         javaLexer252 = new JavaLexer(level);
     }
@@ -33,6 +28,7 @@ public class ZrJavaLexer252 implements Lexer {
 
     @Override
     public void start(@NotNull CharSequence buffer, int startOffset, int endOffset, int initialState) {
+        infos = null;
         javaLexer252.start(buffer, startOffset, endOffset, initialState);
     }
 
@@ -79,7 +75,8 @@ public class ZrJavaLexer252 implements Lexer {
             if (infos.length != 0) {
                 final ElementTypesInfo info = infos[0];
                 infos = Arrays.copyOfRange(infos, 1, infos.length);
-                ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myBufferIndex", info.endTokenEndOffset);
+                ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myBufferIndex", info.startOffset);
+                ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenEndOffset", info.endOffset);
                 ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenType", info.tokenType);
                 return;
             } else {
@@ -112,15 +109,19 @@ public class ZrJavaLexer252 implements Lexer {
                 ReflectionUtil.invokeMethod(javaLexer252, JavaLexer.class, "locateToken");
                 break;
             case '?':
-                if (charAt(currentIndex + 1) == '.' && currentIndex + 1 < myBufferEndOffset && ((charAt(currentIndex + 2) < '0') || (charAt(currentIndex + 2) > '9'))) {
+                if (currentIndex + 1 < myBufferEndOffset
+                        && charAt(currentIndex + 1) == '.'
+                        && (currentIndex + 2 >= myBufferEndOffset
+                        || charAt(currentIndex + 2) < '0'
+                        || charAt(currentIndex + 2) > '9')) {
                     ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenType", JavaSyntaxTokenType.DOT);
                     ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenEndOffset", currentIndex + 2);
-                } else if (charAt(currentIndex + 1) == ':') {
+                } else if (currentIndex + 1 < myBufferEndOffset && charAt(currentIndex + 1) == ':') {
                     infos = new ElementTypesInfo[]{
-                            new ElementTypesInfo(JavaSyntaxTokenType.NULL_KEYWORD, currentIndex + 2),
-                            new ElementTypesInfo(JavaSyntaxTokenType.COLON, currentIndex + 2)};
+                            new ElementTypesInfo(JavaSyntaxTokenType.NULL_KEYWORD, currentIndex + 1, currentIndex + 1),
+                            new ElementTypesInfo(JavaSyntaxTokenType.COLON, currentIndex + 1, currentIndex + 2)};
                     ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenType", JavaSyntaxTokenType.QUEST);
-                    ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenEndOffset", currentIndex + 2);
+                    ReflectionUtil.setDeclaredField(javaLexer252, JavaLexer.class, "myTokenEndOffset", currentIndex + 1);
                 } else {
                     ReflectionUtil.invokeMethod(javaLexer252, JavaLexer.class, "flexLocateToken");
                 }
@@ -129,7 +130,7 @@ public class ZrJavaLexer252 implements Lexer {
                 Formatter formatter = Formatter.getAllFormatters().stream().filter((Formatter a) -> {
                     String prefix = a.prefix();
                     int length = prefix.length();
-                    if (currentIndex + length >= myBuffer.length()) return false;
+                    if (currentIndex + length >= myBufferEndOffset) return false;
                     if (charAt(currentIndex + length) != '"') return false;
                     for (int i = 0; i < length; i++) {
                         if (charAt(currentIndex + i) != prefix.charAt(i)) return false;
@@ -143,7 +144,6 @@ public class ZrJavaLexer252 implements Lexer {
                 } else {
                     ReflectionUtil.invokeMethod(javaLexer252, JavaLexer.class, "locateToken");
                 }
-                ReflectionUtil.invokeMethod(javaLexer252, JavaLexer.class, "locateToken");
 
             }
         }
@@ -162,7 +162,6 @@ public class ZrJavaLexer252 implements Lexer {
         }
         final String s = myBuffer.subSequence(startIndex, offset).toString();
         final ZrStringModel build = formatter.build(s);
-        LOG.info("Read ZrString：" + build.getOriginalString());
         return build.getEndQuoteIndex() + startIndex + 1;
     }
 
@@ -173,22 +172,32 @@ public class ZrJavaLexer252 implements Lexer {
 
     @Override
     public void start(@NotNull CharSequence charSequence, int i, int i1) {
+        infos = null;
         javaLexer252.start(charSequence, i, i1);
     }
 
     @Override
     public void start(@NotNull CharSequence charSequence) {
+        infos = null;
         javaLexer252.start(charSequence);
     }
 
     @Override
     public @NotNull LexerPosition getCurrentPosition() {
-        return javaLexer252.getCurrentPosition();
+        ElementTypesInfo[] pending = infos == null ? null : Arrays.copyOf(infos, infos.length);
+        return new ZrLexerPosition(javaLexer252.getCurrentPosition(), pending);
     }
 
     @Override
     public void restore(@NotNull LexerPosition lexerPosition) {
-        javaLexer252.restore(lexerPosition);
+        if (lexerPosition instanceof ZrLexerPosition) {
+            ZrLexerPosition position = (ZrLexerPosition) lexerPosition;
+            infos = position.infos == null ? null : Arrays.copyOf(position.infos, position.infos.length);
+            javaLexer252.restore(position.delegate);
+        } else {
+            infos = null;
+            javaLexer252.restore(lexerPosition);
+        }
     }
 
     @Override
@@ -202,12 +211,34 @@ public class ZrJavaLexer252 implements Lexer {
     }
 
     public static class ElementTypesInfo {
-        SyntaxElementType tokenType = null;
-        int endTokenEndOffset = -1;
+        final SyntaxElementType tokenType;
+        final int startOffset;
+        final int endOffset;
 
-        public ElementTypesInfo(SyntaxElementType tokenType, int endTokenEndOffset) {
+        public ElementTypesInfo(SyntaxElementType tokenType, int startOffset, int endOffset) {
             this.tokenType = tokenType;
-            this.endTokenEndOffset = endTokenEndOffset;
+            this.startOffset = startOffset;
+            this.endOffset = endOffset;
+        }
+    }
+
+    private static final class ZrLexerPosition implements LexerPosition {
+        private final LexerPosition delegate;
+        private final ElementTypesInfo[] infos;
+
+        private ZrLexerPosition(LexerPosition delegate, ElementTypesInfo[] infos) {
+            this.delegate = delegate;
+            this.infos = infos;
+        }
+
+        @Override
+        public int getOffset() {
+            return delegate.getOffset();
+        }
+
+        @Override
+        public int getState() {
+            return delegate.getState();
         }
     }
 }

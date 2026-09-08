@@ -6,6 +6,7 @@ import com.intellij.codeInsight.daemon.impl.HighlightInfoFilter;
 import com.intellij.java.analysis.JavaAnalysisBundle;
 import com.intellij.lang.java.JavaLanguage;
 import com.intellij.openapi.util.Key;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.*;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -88,14 +89,10 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                     .trim();
             if (highlightInfo.getDescription().matches(matchString)) {
                 final int startOffset = highlightInfo.getStartOffset();
-                if (startOffset <= 0) {
-                    return false;
-                }
                 final PsiElement elementAt = file.findElementAt(startOffset);
                 if (elementAt == null) return true;
-                final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
-                if (expr == null) return true;
-                return false;
+                return !isWholeElvisHighlight(
+                        elementAt, startOffset, highlightInfo.getEndOffset());
             }
         }
         if (highlightInfo.getDescription() != null) {
@@ -115,7 +112,9 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                 if (!(parent instanceof PsiReferenceExpression)) {
                     return true;
                 }
-                final PsiElement prevSibling = elementAt.getPrevSibling().getPrevSibling();
+                PsiElement prevSibling = elementAt.getPrevSibling();
+                if (prevSibling == null) return true;
+                prevSibling = prevSibling.getPrevSibling();
                 if (!(prevSibling instanceof PsiJavaToken)) {
                     return true;
                 }
@@ -137,22 +136,47 @@ public class ZrHighlightInfoFilter implements HighlightInfoFilter {
                     .trim();
             if (highlightInfo.getDescription().matches(matchString) || highlightInfo.getDescription().contains("Unreachable code")) {
                 final int startOffset = highlightInfo.getStartOffset();
-                if (startOffset <= 0) {
-                    return false;
-                }
                 final PsiElement elementAt = file.findElementAt(startOffset);
                 if (elementAt == null) return true;
-                final ZrPsiConditionalExpressionImpl expr = PsiTreeUtil.getParentOfType(elementAt, ZrPsiConditionalExpressionImpl.class);
-                if (expr == null) return true;
-                if (highlightInfo.getStartOffset() == expr.getStartOffset()) return false;
-                if (highlightInfo.getStartOffset() == expr.getStartOffset() + (expr.getElseExpression()?.getStartOffsetInParent() ?:
-                0)){
-                    return false;
-                }
-//                if (expr.getElseExpression() == highlightInfo.getStartOffset()) return false;
-                return true;
+                return !isSyntheticElvisDataflowLocation(elementAt, startOffset);
             }
         }
         return true;
+    }
+
+    private static boolean isWholeElvisHighlight(PsiElement element,
+                                                  int startOffset,
+                                                  int endOffset) {
+        for (PsiElement current = element; current != null; current = current.getParent()) {
+            if (!(current instanceof ZrPsiConditionalExpressionImpl)) continue;
+            ZrPsiConditionalExpressionImpl expression =
+                    (ZrPsiConditionalExpressionImpl) current;
+            if (!expression.isElvisExpression()) continue;
+            TextRange range = expression.getTextRange();
+            if (range.getStartOffset() == startOffset
+                    && range.getEndOffset() <= endOffset) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isSyntheticElvisDataflowLocation(PsiElement element,
+                                                             int startOffset) {
+        for (PsiElement current = element; current != null; current = current.getParent()) {
+            if (!(current instanceof ZrPsiConditionalExpressionImpl)) continue;
+            ZrPsiConditionalExpressionImpl expression =
+                    (ZrPsiConditionalExpressionImpl) current;
+            if (!expression.isElvisExpression()) continue;
+            if (expression.getTextRange().getStartOffset() == startOffset) {
+                return true;
+            }
+            PsiExpression elseExpression = expression.getElseExpression();
+            if (elseExpression != null
+                    && elseExpression.getTextRange().getStartOffset() == startOffset) {
+                return true;
+            }
+        }
+        return false;
     }
 }

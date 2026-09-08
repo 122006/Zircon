@@ -12,7 +12,6 @@ import com.intellij.psi.JavaRecursiveElementWalkingVisitor;
 import com.intellij.psi.JavaTokenType;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiLiteralExpression;
-import com.intellij.psi.impl.source.tree.java.PsiLiteralExpressionImpl;
 import com.sun.tools.javac.parser.FStringFormatter;
 import com.sun.tools.javac.parser.Formatter;
 import com.sun.tools.javac.parser.StringRange;
@@ -40,9 +39,9 @@ public class ZrFoldingBuilder extends FoldingBuilderEx {
         root.accept(new JavaRecursiveElementWalkingVisitor() {
             @Override
             public void visitLiteralExpression(PsiLiteralExpression expression) {
-                if (expression instanceof PsiLiteralExpressionImpl
-                        && expression.getNode().getFirstChildNode() != null
-                        && ((PsiLiteralExpressionImpl) expression).getLiteralElementType() == JavaTokenType.STRING_LITERAL) {
+                ASTNode literalToken = expression.getNode().getFirstChildNode();
+                if (literalToken != null
+                        && literalToken.getElementType() == JavaTokenType.STRING_LITERAL) {
                     if (expression.getText().startsWith("\"")) return;
                     String text = expression.getText();
                     Formatter formatter = ZrUtil.checkPsiLiteralExpression(expression);

@@ -1,5 +1,5 @@
 ext {
-    version = "3.4"
+    version = "3.3.2"
     groupId = "com.github.122006.Zircon"
 }
 
@@ -79,7 +79,10 @@ if (System.getProperty("user.name", "") != "jitpack") {
 
 
     {
-        def moduleNames = rootProject.subprojects.collect { it.name }.findAll { it.matches(/^ijplugin_\d{3}$/) }
+        // These projects are ABI-specific parser adapters embedded as .clazz
+        // resources in the one shipping plugin. Keep the list explicit so the
+        // IDEA 261 compatibility-gate project is never copied wholesale.
+        def moduleNames = ["ijplugin_223", "ijplugin_241"]
         moduleNames.forEach { moduleName ->
             project(":${moduleName}") {
                 task "copyIJPluginClass"(type: Copy) {
@@ -95,7 +98,7 @@ if (System.getProperty("user.name", "") != "jitpack") {
                     rename { String fileName ->
                         fileName.replaceAll(/\.class$/, ".clazz")
                     }
-                    dependsOn "cleanIJPluginClass", "build"
+                    dependsOn "cleanIJPluginClass", "compileJava"
                 }
                 task "cleanIJPluginClass"(type: Delete) {
                     group "zircon"
@@ -107,9 +110,23 @@ if (System.getProperty("user.name", "") != "jitpack") {
             group "zircon"
             dependsOn moduleNames.collect { ":${it}:copyIJPluginClass" }
         }
-        tasks.findByPath(":ijplugin:runIde").dependsOn ":copyIJPluginClass"
+        tasks.findByPath(":ijplugin:check").dependsOn(
+                ":ijplugin_261:test",
+                ":ijplugin_261_ex:compileJava")
+        tasks.findByPath(":ijplugin:buildPlugin").dependsOn(
+                ":ijplugin_261:test")
 
-        tasks.findByPath(":ijplugin:buildPlugin").dependsOn ":copyIJPluginClass"
+        task releaseIjPlugin {
+            group "zircon"
+            description "Builds and verifies the single IntelliJ plugin archive for IDEA 212 through 261."
+            dependsOn(
+                    ":ijplugin:check",
+                    ":ijplugin_261:check",
+                    ":ijplugin:buildPlugin",
+                    ":ijplugin:verifyPlugin")
+        }
+        tasks.findByPath(":ijplugin:publishPlugin").dependsOn(
+                ":releaseIjPlugin")
     }
 
 }

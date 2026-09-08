@@ -7,8 +7,6 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.PsiClassReferenceType;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.ProjectScope;
 import com.intellij.psi.search.PsiSearchHelper;
 import com.intellij.psi.search.UsageSearchContext;
@@ -99,16 +97,7 @@ public class ZrDeReplaceAllAction extends AnAction {
 
     public PsiMethod[] getMapping(Project project, ZrPsiAugmentProvider.CacheMethodInfo cacheMethodInfo) {
         final List<PsiMethod> list = cacheMethodInfo.targetType.stream().map(type -> {
-            PsiClass psiClass;
-            if (type instanceof PsiClassReferenceType) {
-                final String qualifiedName = ((PsiClassReferenceType) type).getReference().getQualifiedName();
-                final PsiClass[] classes = JavaPsiFacade.getInstance(project)
-                        .findClasses(qualifiedName, GlobalSearchScope.allScope(project));
-                psiClass = classes.length > 0 ? classes[0] : null;
-            } else {
-                psiClass = PsiTypesUtil.getPsiClass(type);
-
-            }
+            PsiClass psiClass = PsiTypesUtil.getPsiClass(type);
             if (psiClass == null) return null;
             LOG.warn(" psiClass:" + psiClass.getQualifiedName());
             return ZrPsiAugmentProvider.buildMethodBy(cacheMethodInfo, psiClass, PsiTypesUtil.getClassType(psiClass));

@@ -4,7 +4,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.editor.colors.TextAttributesKey;
+import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.util.xmlb.XmlSerializerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,21 +24,13 @@ public class ZirconSettings implements PersistentStateComponent<ZirconSettings> 
     public boolean enableAll = true;
 
     public StringRangeHighlightSetting[] stringRangeHighlightSettings = StringRangeHighlightSetting.createDefaults();
-    public static TextAttributesKey[] stringRangeHighlightKeys = new TextAttributesKey[StringRangeHighlightSetting.getAllCount()];
 
     public static ZirconSettings getInstance() {
         return ApplicationManager.getApplication().getService(ZirconSettings.class);
     }
 
-    public TextAttributesKey getStringRangeHighlightKey(int index) {
-        if (stringRangeHighlightKeys == null) {
-            stringRangeHighlightKeys = new TextAttributesKey[stringRangeHighlightSettings.length];
-        }
-
-        if (stringRangeHighlightKeys[index] != null) {
-            return stringRangeHighlightKeys[index];
-        }
-        return stringRangeHighlightKeys[index] = stringRangeHighlightSettings[index].toTextAttributesKey(index);
+    public TextAttributes getStringRangeTextAttributes(int index) {
+        return stringRangeHighlightSettings[index].toTextAttributes();
     }
 
     @Nullable

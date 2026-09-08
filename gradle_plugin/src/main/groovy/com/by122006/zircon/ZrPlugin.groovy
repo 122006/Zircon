@@ -16,7 +16,7 @@ class ZrPlugin implements Plugin<Project> {
                     it.options.fork = true
                 }
             }
-            var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.2.6";
+            var version = project.hasProperty("zircon_version") ? project.zircon_version : "3.3.2";
 
             def find = project.buildscript.configurations.classpath.dependencies
                     .find { it.group.equals("com.github.122006.Zircon") && it.name.equals("gradle") };

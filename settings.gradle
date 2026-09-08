@@ -18,6 +18,8 @@ if (System.getProperty("user.name", "") == "jitpack") {
     include ':ijplugin_241'
     include ':ijplugin_252'
     include ':ijplugin_252_ex'
+    include ':ijplugin_261'
+    include ':ijplugin_261_ex'
     include ':ijplugin_mix'
     include ':test'
     include ':inject_java7'

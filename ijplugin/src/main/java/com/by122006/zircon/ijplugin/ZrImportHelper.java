@@ -17,19 +17,11 @@ import com.intellij.psi.codeStyle.CodeStyleSettings;
 import com.intellij.psi.codeStyle.JavaCodeStyleSettings;
 import com.intellij.psi.codeStyle.PackageEntry;
 import com.intellij.psi.codeStyle.PackageEntryTable;
-import com.intellij.psi.impl.PsiFileFactoryImpl;
-import com.intellij.psi.impl.source.PsiJavaCodeReferenceElementImpl;
-import com.intellij.psi.impl.source.SourceTreeToPsiMap;
-import com.intellij.psi.impl.source.jsp.jspJava.JspxImportStatement;
-import com.intellij.psi.impl.source.resolve.ResolveClassUtil;
 import com.intellij.psi.impl.source.resolve.reference.impl.providers.JavaClassReference;
-import com.intellij.psi.impl.source.tree.ElementType;
-import com.intellij.psi.impl.source.tree.JavaJspElementType;
 import com.intellij.psi.jsp.JspFile;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
-import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.ClassUtil;
 import com.intellij.psi.util.InheritanceUtil;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -143,7 +135,6 @@ public final class ZrImportHelper {
             PsiFileFactory factory = PsiFileFactory.getInstance(file.getProject());
             PsiJavaFile dummyFile = (PsiJavaFile) factory.createFileFromText("_Dummy_." + ext, JavaLanguage.INSTANCE, text, false, false);
             PsiUtil.FILE_LANGUAGE_LEVEL_KEY.set(dummyFile, file.getLanguageLevel());
-            PsiFileFactoryImpl.markGenerated(dummyFile);
             CodeStyle.reformatWithFileContext(dummyFile, file);
 
             PsiImportList newImportList = dummyFile.getImportList();
@@ -677,7 +668,7 @@ public final class ZrImportHelper {
                 if (entries[index] < entryIndex) break;
             }
             index++;
-            return index < entries.length ? SourceTreeToPsiMap.psiElementToTree(allStatements[index]) : null;
+            return index < entries.length ? allStatements[index].getNode() : null;
         } else {
             String refText = ref.getCanonicalText();
             if (statement.isOnDemand()) {
@@ -829,12 +820,8 @@ public final class ZrImportHelper {
             PsiElement child = queue.remove();
             if (child instanceof PsiImportList) {
                 for (PsiElement element = child.getFirstChild(); element != null; element = element.getNextSibling()) {
-                    ASTNode node = element.getNode();
-                    if (node == null) {
-                        continue;
-                    }
-                    IElementType elementType = node.getElementType();
-                    if (!ElementType.IMPORT_STATEMENT_BASE_BIT_SET.contains(elementType) && !JavaJspElementType.WHITE_SPACE_BIT_SET.contains(elementType)) {
+                    if (!(element instanceof PsiImportStatementBase)
+                            && !(element instanceof PsiWhiteSpace)) {
                         comments.add(element);
                     }
                 }
@@ -876,15 +863,17 @@ public final class ZrImportHelper {
                         }
                     }
                     if (reference instanceof PsiJavaCodeReferenceElement) {
-                        referenceElement = (PsiJavaCodeReferenceElement) child;
+                        referenceElement = (PsiJavaCodeReferenceElement) reference;
                         if (referenceElement.getQualifier() != null) {
                             continue;
                         }
-                        if (reference instanceof PsiJavaCodeReferenceElementImpl) {
-                            PsiJavaCodeReferenceElementImpl refImpl = (PsiJavaCodeReferenceElementImpl) reference;
-                            if (refImpl.getKindEnum(refImpl.getContainingFile()) == PsiJavaCodeReferenceElementImpl.Kind.CLASS_IN_QUALIFIED_NEW_KIND) {
-                                continue;
-                            }
+                        PsiNewExpression newExpression =
+                                PsiTreeUtil.getParentOfType(
+                                        referenceElement, PsiNewExpression.class, false);
+                        if (newExpression != null
+                                && newExpression.getClassReference() == referenceElement
+                                && newExpression.getQualifier() != null) {
+                            continue;
                         }
                     }
                 }
@@ -895,12 +884,14 @@ public final class ZrImportHelper {
 
                 PsiElement currentFileResolveScope = resolveResult.getCurrentFileResolveScope();
                 if (!(currentFileResolveScope instanceof PsiImportStatementBase) && refElement != null) continue;
-                if (context != null && refElement != null && (!currentFileResolveScope.isValid() || currentFileResolveScope instanceof JspxImportStatement && context != ((JspxImportStatement) currentFileResolveScope).getDeclarationFile())) {
+                if (context != null
+                        && refElement != null
+                        && !currentFileResolveScope.isValid()) {
                     continue;
                 }
 
                 if (refElement == null && referenceElement != null) {
-                    refElement = ResolveClassUtil.resolveClass(referenceElement, referenceElement.getContainingFile()); // might be incomplete code
+                    refElement = referenceElement.advancedResolve(true).getElement();
                 }
                 if (refElement == null) continue;
 

@@ -39,9 +39,23 @@
         ]]></description>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>
+    <!--
+      The main plugin remains loadable on IDEA 212+. Older IDEs skip this
+      content module because intellij.java.syntax is unavailable, while
+      IDEA 253+ loads the modern Syntax API integration from its own descriptor.
+    -->
+    <content>
+        <module name="com.by122006.zircon.ijplugin/modern"/>
+        <module name="com.by122006.zircon.ijplugin/modern-highlighting"/>
+    </content>
     <name>Zircon</name>
     <change-notes><![CDATA[
-        <p>Add 2 features. Allows you to use the <b>'optional chaining' & 'elvis expression'</b> syntax in the Java language.</p>
+        <p>4.9</p>
+        <ul>
+            <li>Improve compatibility with IntelliJ IDEA 2025.3 and 2026.1 using the Syntax API.</li>
+            <li>Fix parsing and highlighting of optional chaining, Elvis expressions, and template strings.</li>
+            <li>Preserve legacy parser loading for older IDEs within a single plugin archive.</li>
+        </ul>
         ]]></change-notes>
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
@@ -76,17 +90,16 @@
                             serviceImplementation="com.by122006.zircon.ijplugin.ZrPsiBuilderFactoryImpl"
                             overrides="true"/>
         <annotator language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrAnnotator"/>
-        <!--        <projectService serviceInterface="com.intellij.psi.impl.source.resolve.JavaResolveCache"-->
-        <!--                        serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaResolveCache" overrides="true"/>-->
-        <!--        <inspection.basicVisitor class="com.by122006.zircon.ijplugin.ZrJavaElementVisitor"/>-->
         <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrStringLiteralTemplateUsageProvider"/>
-        <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>.
+        <implicitUsageProvider implementation="com.by122006.zircon.ijplugin.ZrExMethodUsageProvider"/>
         <lang.foldingBuilder language="JAVA" implementationClass="com.by122006.zircon.ijplugin.ZrFoldingBuilder"/>
+        <lang.formatter language="JAVA"
+                        implementationClass="com.by122006.zircon.ijplugin.ZrJavaFormattingModelBuilder"
+                        order="first"/>
         <daemon.highlightInfoFilter implementation="com.by122006.zircon.ijplugin.ZrHighlightInfoFilter"/>
         <quoteHandler fileType="JAVA" order="first" className="com.by122006.zircon.ijplugin.ZrJavaQuoteHandler"/>
         <enterHandlerDelegate implementation="com.by122006.zircon.ijplugin.ZrEnterInStringLiteralHandler"
                               order="first"/>
-        <highlightVisitor implementation="com.by122006.zircon.ijplugin252.ZrHighlightVisitorNew" order="first"/>
         <projectService serviceInterface="com.intellij.psi.codeStyle.JavaCodeStyleManager"
                         serviceImplementation="com.by122006.zircon.ijplugin.ZrJavaCodeStyleManagerImpl"
                         overrides="true"/>
@@ -114,14 +127,5 @@
 
         <typedHandler implementation="com.by122006.zircon.ijplugin.ZrTypedHandler" id="ZrTypedHandler"
                       order="before java"/>
-
-        <syntax.syntaxDefinition language="JAVA"
-                                 implementationClass="com.by122006.zircon.ijplugin252.ZrJavaSyntaxDefinitionExtension"/>
-        <applicationService serviceInterface="com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory"
-                            serviceImplementation="com.by122006.zircon.ijplugin252.ZrPsiSyntaxBuilderEmptyFactory"/>
-        <applicationService serviceInterface="com.intellij.platform.syntax.psi.PsiSyntaxBuilderFactory"
-                            serviceImplementation="com.by122006.zircon.ijplugin252.ZrPsiSyntaxBuilderFactory"
-                            overrides="true"
-        />
     </extensions>
 </idea-plugin>

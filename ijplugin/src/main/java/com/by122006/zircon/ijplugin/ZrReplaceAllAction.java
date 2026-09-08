@@ -6,7 +6,6 @@ import com.intellij.openapi.command.WriteCommandAction;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
-import com.intellij.psi.impl.source.tree.java.PsiReferenceExpressionImpl;
 import com.intellij.psi.search.ProjectScope;
 import com.intellij.psi.search.searches.ReferencesSearch;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +41,7 @@ public class ZrReplaceAllAction extends AnAction {
                         LOG.info("unknown reference type" + reference.getClass().getSimpleName() + " by method" + reference.resolve());
                         continue;
                     }
-                    final PsiElement parent = ((PsiReferenceExpressionImpl) reference).getParent();
+                    final PsiElement parent = ((PsiReferenceExpression) reference).getParent();
                     if (!(parent instanceof PsiMethodCallExpression)) {
                         LOG.info("unknown reference parent type" + parent.getClass().getSimpleName() + " by method" + reference.resolve());
                         continue;
