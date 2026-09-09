@@ -116,6 +116,10 @@ For a multi-module project, place `buildscript` in the root project, apply the `
 
 The Gradle plugin adds the Zircon dependencies and the `ZrOptionalChain`, `ZrExMethod`, and `ZrString` compiler arguments. Sync the project after making these changes.
 
+To test the latest repository changes through JitPack, use `com.github.122006.Zircon:gradle:master-SNAPSHOT`.
+The plugin on this branch follows the resolved plugin group and version for its compiler modules, and accepts coordinate overrides in `zircon {}` after application.
+See [Gradle plugin configuration and tests](gradle/GRADLE_PLUGIN.md) (Chinese) for repositories, dependency scopes, and compatibility details.
+
 ### Maven
 
 Merge the following configuration into `pom.xml`. This example targets Java 8; adjust it to your project's requirements:

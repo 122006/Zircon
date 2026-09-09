@@ -5,6 +5,7 @@ apply plugin: 'maven-publish'
 dependencies {
     compileOnly gradleApi()
     testImplementation gradleApi()
+    testImplementation gradleTestKit()
     testImplementation 'junit:junit:4.13.2'
 }
 
@@ -38,6 +39,44 @@ compileJava {
     targetCompatibility = JavaVersion.VERSION_1_8
     options.compilerArgs << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
+
+// TestKit runs Gradle on JDK 17; fixture JavaCompile tasks independently select JDK 8/11/17.
+test {
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+    dependsOn jar, ':javac:jar', ':base:jar', ':zircon:jar'
+    systemProperty 'zircon.fixture.gradle', tasks.jar.archiveFile.get().asFile.absolutePath
+    systemProperty 'zircon.test.gradleHome', gradle.gradleHomeDir.absolutePath
+    systemProperty 'zircon.test.legacyGradleHome', providers.gradleProperty('zirconLegacyGradleHome').getOrElse('')
+    systemProperty 'zircon.test.legacyGradleVersion', providers.gradleProperty('zirconLegacyGradleVersion').getOrElse('')
+    systemProperty 'zircon.test.androidSdk', providers.gradleProperty('zirconAndroidSdk').getOrElse('')
+    systemProperty 'zircon.test.gradleUserHome', gradle.gradleUserHomeDir.absolutePath
+    doFirst {
+        // Provision fixture JDKs only when testing, then pass their actual paths to the nested builds.
+        def fixtureHomes = [8, 11, 17].collectEntries { version ->
+            [(version): javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(version)
+            }.get().metadata.installationPath.asFile.absolutePath]
+        }
+        systemProperty 'zircon.test.legacyJavaHome', fixtureHomes[11]
+        systemProperty 'zircon.test.legacyJava8Home', fixtureHomes[8]
+        systemProperty 'zircon.test.javaInstallations', fixtureHomes.values().join(',')
+    }
+}
+
+gradle.projectsEvaluated {
+    tasks.named('test') {
+        ['javac', 'base', 'zircon'].each { module ->
+            def fixtureJar = project(':' + module).tasks.named('jar').get().archiveFile
+            inputs.file(fixtureJar).withPropertyName('fixture.' + module)
+            systemProperty 'zircon.fixture.' + module, fixtureJar.get().asFile.absolutePath
+        }
+    }
+}
+
+processTestResources {
+    from(rootProject.file('gradle/central-smoke/src/main/java')) { into 'smoke' }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {

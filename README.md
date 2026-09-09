@@ -116,6 +116,10 @@ repositories {
 
 Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrString` 编译参数。配置后重新同步项目。
 
+测试本仓库的最新改动时，可通过 JitPack 使用 `com.github.122006.Zircon:gradle:master-SNAPSHOT`。
+分支中的 Gradle 插件会让编译模块跟随插件实际解析到的组名和版本，支持在应用插件后通过 `zircon {}` 覆盖坐标。
+仓库配置、依赖作用域与兼容性说明见 [Gradle 插件接入与测试](gradle/GRADLE_PLUGIN.md)。
+
 ### Maven
 
 将以下配置合并到 `pom.xml`。这里以 Java 8 为编译目标，可按项目需要调整：
