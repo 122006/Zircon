@@ -1,7 +1,6 @@
 package test;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.lang.Nullable;
 import test.TestExMethod;
 import zircon.example.ExArray;
 import zircon.example.ExCollection;
@@ -652,7 +651,6 @@ public class TestOptionalChaining {
             return this;
         }
 
-        @Nullable
         public TestClass returnNull() {
             TestExMethod.methodNames.add("returnNull");
             return null;

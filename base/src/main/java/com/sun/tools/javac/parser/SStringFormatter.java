@@ -15,10 +15,12 @@ public class SStringFormatter implements Formatter {
         List<Item> items = new ArrayList<>();
         if (build.isEmpty()) {
             items.add(Item.loadStringToken(0, 0, ""));
-            return items;
+            return Item.withSourcePositions(items, groupStartIndex);
         }
         int prefixLength = prefix().length();
-        items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
+        // The outer expression belongs to the prefix; each embedded expression
+        // gets its own opening delimiter, outside the embedded Java code.
+        items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, 0, 0));
         if (build.size() > 0) {
             for (int i = 0; i < build.size(); i++) {
                 StringRange stringRange = build.get(i);
@@ -32,22 +34,25 @@ public class SStringFormatter implements Formatter {
                     } else {
                         items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
                     }
-                    items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
-                    codeTransfer(buf, groupStartIndex, text, startIndex, endIndex);
-                    items.add(Item.loadJavacCode(startIndex, endIndex));
-                    items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, prefixLength, prefixLength));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex - 1, startIndex - 1));
+                    Formatter.CodeTransferResult transfer = transferCode(buf, groupStartIndex, text, startIndex, endIndex);
+                    items.add(Item.loadJavacCode(startIndex, endIndex, transfer));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex));
                 } else if (stringRange.codeStyle == 0) {
                     if (i > 0) {
                         items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
                     }
                     items.add(Item.loadStringToken(startIndex, startIndex, stringRange.stringVal));
                 } else {
-                    throw new Error("\"[error(使用了"+prefix()+"字符串语法不支持格式化字符串功能，请使用f前缀字符串)]\\n原始字符串：\" + text");
+                    throw new TemplateSyntaxException(new TemplateStringSplitter.Diagnostic(
+                            "ZR1003", startIndex, endIndex,
+                            "当前插值前缀不支持格式化说明符",
+                            "请改用 f 前缀，例如 f\"${%03d:value}\"。"));
                 }
             }
         }
-        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length(), text.length()));
-        return items;
+        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length() - 1, text.length() - 1));
+        return Item.withSourcePositions(items, groupStartIndex);
     }
 
     @Override
@@ -73,7 +78,8 @@ public class SStringFormatter implements Formatter {
                     stringBuilder.append(stringRange.stringVal);
                     stringBuilder.append("\"");
                 } else {
-                    System.err.println("[error(使用了"+prefix()+"字符串语法不支持格式化字符串功能，请使用f前缀字符串)]");
+                    // Keep IDE preview tolerant while the compiler reports the
+                    // structured diagnostic through ZrStringModel.
                 }
             }
             stringBuilder.append(")");

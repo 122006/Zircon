@@ -4,7 +4,6 @@ package com.sun.tools.javac.parser;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 public interface Formatter {
@@ -32,25 +31,20 @@ public interface Formatter {
         if (!FORMATTERS.isEmpty()) {
             return FORMATTERS;
         }
-        List<Class<? extends Formatter>> classes = getAllFormattersClazz()
-                .stream()
-                .map(a -> {
-                    try {
-                        return (Class<? extends Formatter>) Class.forName(a);
-                    } catch (ClassNotFoundException e) {
-                        e.printStackTrace();
-                        return null;
-                    }
-                }).filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        List<Formatter> collect = classes.stream().map(a -> {
+        List<Formatter> collect = new ArrayList<>();
+        for (String className : getAllFormattersClazz()) {
             try {
-                return (Formatter) a.getConstructor().newInstance();
-            } catch (Exception e) {
-                e.printStackTrace();
-                return null;
+                Class<?> clazz = Class.forName(className);
+                Object value = clazz.getConstructor().newInstance();
+                if (!(value instanceof Formatter)) {
+                    throw new LinkageError("not a Formatter");
+                }
+                collect.add((Formatter) value);
+            } catch (ReflectiveOperationException | LinkageError failure) {
+                throw new IllegalStateException("[ZR9002] 无法加载字符串适配器 " + className
+                        + "，JDK=" + System.getProperty("java.version"), failure);
             }
-        }).filter(Objects::nonNull).collect(Collectors.toList());
+        }
         FORMATTERS.addAll(collect);
         return collect;
     }
@@ -78,6 +72,7 @@ public interface Formatter {
         TemplateStringSplitter.Result split = TemplateStringSplitter.split(text, formatter.prefix(), syntax);
         ZrStringModel model = new ZrStringModel();
         model.setFormatter(formatter);
+        model.addDiagnostics(split.diagnostics);
         for (TemplateStringSplitter.Range range : split.ranges) {
             if (range.style == TemplateStringSplitter.CODE) {
                 // Empty interpolation is an established Zircon no-op
@@ -165,17 +160,22 @@ public interface Formatter {
     }
 
     default String codeTransfer(char[] buf, int groupStartIndex, String text, int startIndex, int endIndex) {
-        String str = text.substring(startIndex, endIndex);
-        String toStr = codeTransfer(str);
-        int replaceCount = str.length() - toStr.length();
-        if (!Objects.equals(str, toStr)) {
-//            System.err.println( "替代后续文本 ${" + str + "}->${" + toStr + "}");
-            System.arraycopy(toStr.toCharArray(), 0, buf, groupStartIndex + startIndex, toStr.length());
-            char[] array = new char[replaceCount];
-            Arrays.fill(array, ' ');
-            System.arraycopy(array, 0, buf, groupStartIndex + startIndex + toStr.length(), replaceCount);
+        return transferCode(buf, groupStartIndex, text, startIndex, endIndex).getText();
+    }
+
+    default CodeTransferResult transferCode(char[] buf, int groupStartIndex, String text,
+                                             int startIndex, int endIndex) {
+        CodeTransferResult transfer = codeTransferWithOffsets(text.substring(startIndex, endIndex));
+        String source = text.substring(startIndex, endIndex);
+        if (!source.equals(transfer.getText())) {
+            System.arraycopy(transfer.getText().toCharArray(), 0, buf,
+                    groupStartIndex + startIndex, transfer.getText().length());
+            char[] padding = new char[source.length() - transfer.getText().length()];
+            Arrays.fill(padding, ' ');
+            System.arraycopy(padding, 0, buf,
+                    groupStartIndex + startIndex + transfer.getText().length(), padding.length);
         }
-        return toStr;
+        return transfer;
     }
 
     final class MappedCharacter {

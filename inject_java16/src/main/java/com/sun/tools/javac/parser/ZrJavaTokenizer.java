@@ -2,6 +2,7 @@ package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Position;
+import com.sun.tools.javac.util.ZrDiagnosticReporter;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -57,11 +58,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 Tokens.Token[] newTokens = new Tokens.Token[appendTokens.length - 1];
                 System.arraycopy(appendTokens, 1, newTokens, 0, newTokens.length);
                 appendTokens = newTokens;
-                return appendToken;
+                return Item.remapToken(appendToken, activeCodeItem, groupStartIndex);
             } else if (appendTokens.length == 1) {
                 final Tokens.Token appendToken = appendTokens[0];
                 appendTokens = null;
-                return appendToken;
+                return Item.remapToken(appendToken, activeCodeItem, groupStartIndex);
             }
         }
         try {
@@ -81,10 +82,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
 
             return handler;
+        } catch (TemplateSyntaxException e) {
+            return rejectTemplate(java.util.Collections.singletonList(e.diagnostic));
         } catch (JavaCException e) {
-            throw new RuntimeException("index[" + e.getErrorIndex() + "]发生错误: " + e.getMessage());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw ZrDiagnosticReporter.internalFailure(fac.log, e.getErrorIndex(),
+                    diagnosticTemplate, diagnosticPhase, e);
+        } catch (Exception | LinkageError | AssertionError e) {
+            throw ZrDiagnosticReporter.internalFailure(fac.log, diagnosticTemplateStart,
+                    diagnosticTemplate, diagnosticPhase, e);
         }
 
     }
@@ -131,6 +136,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 startIndex++;
             }
 
+            activeCodeItem = null;
+            diagnosticTemplateStart = startIndex;
+            diagnosticTemplate = null;
+            diagnosticPhase = "scan";
             String usePrefix = null;
 
             for (String prefix : getPrefixes()) {
@@ -166,12 +175,22 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             }
 
             String searchText = subChars(startIndex, endIndex);
+            groupStartIndex = startIndex;
+            groupEndIndex = endIndex;
+            diagnosticTemplate = searchText;
+            diagnosticPhase = "split";
             final ZrStringModel build = formatter.build(searchText);
             List<StringRange> group = build.getList();
             endIndex = startIndex + build.getEndQuoteIndex() + 1;
             searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;
+            diagnosticTemplateStart = startIndex;
+            diagnosticTemplate = searchText;
+            if (!build.getDiagnostics().isEmpty()) {
+                return rejectTemplate(build.getDiagnostics());
+            }
+            diagnosticPhase = "expand";
 
             items = formatter.stringRange2Group(this, getReaderBuf(), group, searchText, groupStartIndex);
             itemsIndex = 0;
@@ -190,6 +209,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             if (getReaderBp() >= nowItem.mappingEndIndex + groupStartIndex) {
                 itemsIndex++;
                 if (itemsIndex >= items.size()) {
+                    activeCodeItem = null;
                     reIndex(groupEndIndex);
                 } else {
                     nowItem = items.get(itemsIndex);
@@ -198,12 +218,15 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
                 return handler();
             } else {
-                return superReadToken();
+                activeCodeItem = nowItem;
+                diagnosticPhase = "tokenize";
+                return Item.remapToken(superReadToken(), activeCodeItem, groupStartIndex);
             }
 
         }
 
         Tokens.Token token = nowItem.token;
+        activeCodeItem = null;
         itemsIndex++;
         if (itemsIndex >= items.size()) {
             reIndex(groupEndIndex);
@@ -212,6 +235,31 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             reIndex(nowItem.mappingStartIndex + groupStartIndex);
         }
         return token;
+    }
+
+
+    private Tokens.Token rejectTemplate(List<TemplateStringSplitter.Diagnostic> diagnostics) {
+        for (TemplateStringSplitter.Diagnostic diagnostic : diagnostics) {
+            ZrDiagnosticReporter.report(fac.log, diagnosticTemplateStart, diagnostic);
+        }
+        items = null;
+        itemsIndex = 0;
+        activeCodeItem = null;
+        appendTokens = null;
+        reIndex(Math.min(groupEndIndex, getReaderBuflen()));
+        return new Tokens.StringToken(Tokens.TokenKind.STRINGLITERAL,
+                diagnosticTemplateStart, groupEndIndex, "", null);
+    }
+
+    @Override
+    protected void lexError(int position, com.sun.tools.javac.util.JCDiagnostic.Error error) {
+        super.lexError(Item.remapPosition(position, activeCodeItem, groupStartIndex), error);
+    }
+
+    @Override
+    protected void lexError(com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag flag, int position,
+                            com.sun.tools.javac.util.JCDiagnostic.Error error) {
+        super.lexError(flag, Item.remapPosition(position, activeCodeItem, groupStartIndex), error);
     }
 
     private Tokens.Token superReadToken() {
@@ -300,13 +348,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
         try {
             final Field bufferField = UnicodeReader.class.getDeclaredField("buffer");
             bufferField.setAccessible(true);
-            return (char[]) bufferField.get(this);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException("不支持的javac版本: no field 'buffer' in UnicodeReader");
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            return buffer = (char[]) bufferField.get(this);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("无法访问 javac 的 UnicodeReader.buffer，JDK="
+                    + System.getProperty("java.version"), e);
         }
-        return getRawCharacters();
     }
 
     private int bpAdd() {
@@ -404,6 +450,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
     private List<Formatter> formatters;
     private List<Item> items;
     private int itemsIndex = 0;
+    private Item activeCodeItem;
+    private int diagnosticTemplateStart;
+    private String diagnosticTemplate;
+    private String diagnosticPhase = "scan";
 
     public static class JavaCException extends RuntimeException {
         public JavaCException(int errorIndex, String errorMsg) {

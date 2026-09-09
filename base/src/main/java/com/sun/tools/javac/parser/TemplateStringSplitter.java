@@ -36,23 +36,13 @@ public final class TemplateStringSplitter {
 
     private static Result splitDollar(String text, String prefix, boolean formatted) {
         List<Range> ranges = new ArrayList<>();
+        List<Diagnostic> diagnostics = new ArrayList<>();
         int start = prefix.length() + 1;
         int mode = -1;
         int parenthesisCount = 0;
-        for (int cursor = start; cursor < text.length() - 1; cursor++) {
+        for (int cursor = start; cursor < text.length(); cursor++) {
             char current = text.charAt(cursor);
             if (isSinglyEscaped(text, cursor)) {
-                continue;
-            }
-            if (mode == 2) {
-                if (current == '{') {
-                    parenthesisCount++;
-                }
-                if (current == '}' && --parenthesisCount == 0) {
-                    addCodeRange(ranges, text, start, cursor, formatted);
-                    start = cursor + 1;
-                    mode = -1;
-                }
                 continue;
             }
             if (mode == 1) {
@@ -90,11 +80,11 @@ public final class TemplateStringSplitter {
                     int codeStart = cursor + 2;
                     int codeEnd = findEmbeddedExpressionEnd(text, codeStart);
                     if (codeEnd < 0) {
-                        start = codeStart;
-                        mode = 2;
-                        parenthesisCount = 0;
+                        diagnostics.add(new Diagnostic("ZR1002", cursor, cursor + 2,
+                                "插值表达式缺少结束符 }", "在表达式末尾补上 }。"));
+                        return incomplete(ranges, diagnostics, text, prefix, codeStart, CODE);
                     } else {
-                        addCodeRange(ranges, text, codeStart, codeEnd, formatted);
+                        addCodeRange(ranges, text, codeStart, codeEnd, formatted, diagnostics);
                         start = codeEnd + 1;
                         cursor = codeEnd;
                         mode = -1;
@@ -110,41 +100,21 @@ public final class TemplateStringSplitter {
                 if (cursor > start) {
                     ranges.add(new Range(STRING, start, cursor));
                 }
-                return new Result(ranges, text.substring(0, cursor + 1), cursor);
+                return new Result(ranges, text.substring(0, cursor + 1), cursor, diagnostics);
             }
         }
-        int fallbackEnd = Math.max(0, text.length() - 1);
-        if (fallbackEnd > start) {
-            if (mode > 0) {
-                addCodeRange(ranges, text, start, fallbackEnd, formatted);
-            } else {
-                ranges.add(new Range(STRING, start, fallbackEnd));
-            }
-        }
-        return new Result(ranges, text, fallbackEnd);
+        diagnostics.add(new Diagnostic("ZR1001", 0, prefix.length() + 1,
+                "插值字符串的引号未闭合", "在当前行内补上结束引号。"));
+        return incomplete(ranges, diagnostics, text, prefix, start, mode > 0 ? CODE : STRING);
     }
 
     private static Result splitStr(String text, String prefix) {
         List<Range> ranges = new ArrayList<>();
+        List<Diagnostic> diagnostics = new ArrayList<>();
         int start = prefix.length() + 1;
-        int mode = -1;
-        int braceCount = 0;
-        for (int cursor = start; cursor < text.length() - 1; cursor++) {
+        for (int cursor = start; cursor < text.length(); cursor++) {
             char current = text.charAt(cursor);
             if (current != '{' && isSinglyEscaped(text, cursor)) {
-                continue;
-            }
-            if (mode == 2) {
-                if (current == '{') {
-                    braceCount++;
-                }
-                if (current == '}' && --braceCount == 0) {
-                    if (cursor > start) {
-                        ranges.add(new Range(CODE, start, cursor));
-                    }
-                    start = cursor + 1;
-                    mode = -1;
-                }
                 continue;
             }
             if (current == '\\'
@@ -157,32 +127,42 @@ public final class TemplateStringSplitter {
                 int codeStart = cursor + 2;
                 int codeEnd = findEmbeddedExpressionEnd(text, codeStart);
                 if (codeEnd < 0) {
-                    start = codeStart;
-                    mode = 2;
-                    braceCount = 0;
+                    diagnostics.add(new Diagnostic("ZR1002", cursor, cursor + 2,
+                            "插值表达式缺少结束符 }", "在表达式末尾补上 }。"));
+                    return incomplete(ranges, diagnostics, text, prefix, codeStart, CODE);
                 } else {
-                    ranges.add(new Range(CODE, codeStart, codeEnd));
+                    addCodeRange(ranges, text, codeStart, codeEnd, false, diagnostics);
                     start = codeEnd + 1;
                     cursor = codeEnd;
-                    mode = -1;
                 }
                 continue;
             }
-            if (mode == -1 && current == '"') {
+            if (current == '"') {
                 if (cursor > start) {
                     ranges.add(new Range(STRING, start, cursor));
                 }
-                return new Result(ranges, text.substring(0, cursor + 1), cursor);
+                return new Result(ranges, text.substring(0, cursor + 1), cursor, diagnostics);
             }
         }
-        int fallbackEnd = Math.max(0, text.length() - 1);
-        if (fallbackEnd > start) {
-            ranges.add(new Range(mode > 0 ? CODE : STRING, start, fallbackEnd));
-        }
-        return new Result(ranges, text, fallbackEnd);
+        diagnostics.add(new Diagnostic("ZR1001", 0, prefix.length() + 1,
+                "插值字符串的引号未闭合", "在当前行内补上结束引号。"));
+        return incomplete(ranges, diagnostics, text, prefix, start, STRING);
     }
 
-    private static void addCodeRange(List<Range> ranges, String text, int start, int end, boolean formatted) {
+    private static Result incomplete(List<Range> ranges, List<Diagnostic> diagnostics, String text,
+                                     String prefix, int rangeStart, int style) {
+        int quote = text.lastIndexOf('"');
+        int recoveryEnd = quote > prefix.length() ? quote + 1 : text.indexOf(';', prefix.length() + 1);
+        if (recoveryEnd < 0) recoveryEnd = text.length();
+        int rangeEnd = quote > prefix.length() ? recoveryEnd - 1 : recoveryEnd;
+        if (rangeStart >= 0 && rangeStart < rangeEnd) {
+            ranges.add(new Range(style, rangeStart, rangeEnd));
+        }
+        return new Result(ranges, text.substring(0, recoveryEnd), recoveryEnd - 1, diagnostics);
+    }
+
+    private static void addCodeRange(List<Range> ranges, String text, int start, int end, boolean formatted,
+                                     List<Diagnostic> diagnostics) {
         if (end < start) {
             return;
         }
@@ -190,16 +170,81 @@ public final class TemplateStringSplitter {
             ranges.add(new Range(CODE, start, end));
             return;
         }
-        String code = text.substring(start, end);
-        if (formatted && code.startsWith("%")) {
-            int separator = code.indexOf(':');
-            if (separator >= 0) {
-                ranges.add(new Range(FORMAT, start, start + separator));
-                ranges.add(new Range(CODE, start + separator + 1, end));
+        int formatStart = start;
+        while (formatStart < end && Character.isWhitespace(text.charAt(formatStart))) formatStart++;
+        if (formatStart < end && text.charAt(formatStart) == '%') {
+            int separator = text.indexOf(':', formatStart);
+            if (separator >= end) separator = -1;
+            if (!formatted) {
+                diagnostics.add(new Diagnostic("ZR1003", formatStart, separator < 0 ? end : separator,
+                        "当前插值前缀不支持格式化说明符", "请改用 f 前缀，例如 f\"${%03d:value}\"。"));
+            } else if (separator < 0) {
+                diagnostics.add(new Diagnostic("ZR1004", formatStart, end,
+                        "格式化说明符后缺少分隔符 :", "使用 ${格式说明符:表达式}，例如 ${%03d:value}。"));
+            } else {
+                String format = text.substring(formatStart, separator);
+                if (!validFormat(format)) {
+                    diagnostics.add(new Diagnostic("ZR1006", formatStart, separator,
+                            "无效的格式说明符 " + format, "检查格式转换符、宽度和精度，例如 %03d 或 %.2f。"));
+                }
+                if (text.substring(separator + 1, end).trim().isEmpty()) {
+                    diagnostics.add(new Diagnostic("ZR1005", separator + 1, Math.min(text.length(), end + 1),
+                            "格式化说明符后缺少表达式", "在 : 后填写表达式；空插值请使用 ${}。"));
+                }
+                ranges.add(new Range(FORMAT, formatStart, separator));
+                ranges.add(new Range(CODE, separator + 1, end));
                 return;
             }
         }
         ranges.add(new Range(CODE, start, end));
+    }
+
+    private static boolean validFormat(String format) {
+        // A field may contain literal suffixes and repeated/reused conversions.
+        java.util.regex.Pattern specifier = java.util.regex.Pattern.compile(
+                "%(?:[1-9][0-9]*\\$)?[-#+ 0,(<]*[0-9]*(?:\\.[0-9]+)?(?:[tT][HIklMSLNpzZsQBbhAaCYyjmdeRTrDFc]|[bBhHsScCdoxXeEfgGaA%n])");
+        for (int index = 0; index < format.length(); index++) {
+            if (format.charAt(index) != '%') continue;
+            java.util.regex.Matcher matcher = specifier.matcher(format).region(index, format.length());
+            if (!matcher.lookingAt() || !validSpecifier(matcher.group())) return false;
+            index = matcher.end() - 1;
+        }
+        return true;
+    }
+
+    private static boolean validSpecifier(String format) {
+        // Validate syntax only, without evaluating an expression or allocating
+        // potentially enormous padding for non-consuming conversions.
+        if (format.endsWith("n") || format.endsWith("%")) {
+            int argumentIndex = format.indexOf('$');
+            if (argumentIndex >= 0) {
+                try {
+                    Integer.parseInt(format.substring(1, argumentIndex));
+                } catch (NumberFormatException invalid) {
+                    return false;
+                }
+                format = "%" + format.substring(argumentIndex + 1);
+            }
+        }
+        if (format.endsWith("n")) return format.equals("%n");
+        if (format.endsWith("%")) {
+            if (format.equals("%%")) return true;
+            if (!format.matches("%-?[1-9][0-9]*%")) return false;
+            try {
+                Integer.parseInt(format.substring(format.charAt(1) == '-' ? 2 : 1, format.length() - 1));
+                return true;
+            } catch (NumberFormatException invalid) {
+                return false;
+            }
+        }
+        try (java.util.Formatter validator = new java.util.Formatter(java.util.Locale.ROOT)) {
+            validator.format(format);
+            return true;
+        } catch (java.util.MissingFormatArgumentException expected) {
+            return true;
+        } catch (java.util.IllegalFormatException invalid) {
+            return false;
+        }
     }
 
     private static boolean isInterpolationStart(char value) {
@@ -287,7 +332,7 @@ public final class TemplateStringSplitter {
         return -1;
     }
 
-    private static boolean isTransferredQuoteDelimiter(String text, int quoteIndex) {
+    static boolean isTransferredQuoteDelimiter(String text, int quoteIndex) {
         int backslashes = 0;
         for (int index = quoteIndex - 1; index >= 0 && text.charAt(index) == '\\'; index--) {
             backslashes++;
@@ -313,11 +358,38 @@ public final class TemplateStringSplitter {
         public final List<Range> ranges;
         public final String originalString;
         public final int endQuoteIndex;
+        public final List<Diagnostic> diagnostics;
 
         Result(List<Range> ranges, String originalString, int endQuoteIndex) {
+            this(ranges, originalString, endQuoteIndex, Collections.emptyList());
+        }
+
+        Result(List<Range> ranges, String originalString, int endQuoteIndex, List<Diagnostic> diagnostics) {
             this.ranges = Collections.unmodifiableList(new ArrayList<>(ranges));
             this.originalString = originalString;
             this.endQuoteIndex = endQuoteIndex;
+            this.diagnostics = Collections.unmodifiableList(new ArrayList<>(diagnostics));
+        }
+    }
+
+    /** A source-relative diagnostic; safe for IDEs parsing incomplete input. */
+    public static final class Diagnostic {
+        public final String code;
+        public final int start;
+        public final int end;
+        public final String message;
+        public final String hint;
+
+        public Diagnostic(String code, int start, int end, String message, String hint) {
+            this.code = code;
+            this.start = Math.max(0, start);
+            this.end = Math.max(this.start, end);
+            this.message = message;
+            this.hint = hint;
+        }
+
+        public String displayMessage() {
+            return "[" + code + "] " + message + (hint.isEmpty() ? "" : "\n建议：" + hint);
         }
     }
 }

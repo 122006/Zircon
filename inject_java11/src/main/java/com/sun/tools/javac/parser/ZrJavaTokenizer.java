@@ -2,6 +2,7 @@ package com.sun.tools.javac.parser;
 
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Position;
+import com.sun.tools.javac.util.ZrDiagnosticReporter;
 
 import java.lang.reflect.Method;
 import java.nio.CharBuffer;
@@ -28,6 +29,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
 
     int groupStartIndex, groupEndIndex;
     Tokens.Token[] appendTokens = null;
+    Item activeCodeItem;
+    int diagnosticTemplateStart;
+    String diagnosticTemplate;
+    private String diagnosticPhase = "scan";
 
     public Tokens.Token readToken() {
         if (appendTokens != null) {
@@ -36,11 +41,11 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 Tokens.Token[] newTokens = new Tokens.Token[appendTokens.length - 1];
                 System.arraycopy(appendTokens, 1, newTokens, 0, newTokens.length);
                 appendTokens = newTokens;
-                return appendToken;
+                return Item.remapToken(appendToken, activeCodeItem, groupStartIndex);
             } else if (appendTokens.length == 1) {
                 final Tokens.Token appendToken = appendTokens[0];
                 appendTokens = null;
-                return appendToken;
+                return Item.remapToken(appendToken, activeCodeItem, groupStartIndex);
             }
         }
         try {
@@ -63,10 +68,14 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 System.out.print(s1);
             }
             return handler;
+        } catch (TemplateSyntaxException e) {
+            return rejectTemplate(java.util.Collections.singletonList(e.diagnostic));
         } catch (JavaCException e) {
-            throw new RuntimeException("index[" + e.errorIndex + "]发生错误: " + e.getMessage());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw ZrDiagnosticReporter.internalFailure(fac.log, e.errorIndex,
+                    diagnosticTemplate, diagnosticPhase, e);
+        } catch (Exception | LinkageError | AssertionError e) {
+            throw ZrDiagnosticReporter.internalFailure(fac.log, diagnosticTemplateStart,
+                    diagnosticTemplate, diagnosticPhase, e);
         }
     }
 
@@ -111,6 +120,10 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             while (startIndex < reader.buflen && isBlankChar(charAt(startIndex))) {
                 startIndex++;
             }
+            activeCodeItem = null;
+            diagnosticTemplateStart = startIndex;
+            diagnosticTemplate = null;
+            diagnosticPhase = "scan";
             String usePrefix = null;
 
             for (String prefix : getPrefixes()) {
@@ -141,12 +154,22 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 }
             }
             String searchText = subChars(startIndex, endIndex);
+            groupStartIndex = startIndex;
+            groupEndIndex = endIndex;
+            diagnosticTemplate = searchText;
+            diagnosticPhase = "split";
             final ZrStringModel build = formatter.build(searchText);
             List<StringRange> group = build.getList();
-            endIndex = startIndex + +build.getEndQuoteIndex() + 1;
+            endIndex = startIndex + build.getEndQuoteIndex() + 1;
             searchText = subChars(startIndex, endIndex);
             groupStartIndex = startIndex;
             groupEndIndex = endIndex;
+            diagnosticTemplateStart = startIndex;
+            diagnosticTemplate = searchText;
+            if (!build.getDiagnostics().isEmpty()) {
+                return rejectTemplate(build.getDiagnostics());
+            }
+            diagnosticPhase = "expand";
             items = formatter.stringRange2Group(this, reader.buf, group, searchText, groupStartIndex);
             itemsIndex = 0;
         }
@@ -162,6 +185,7 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             if (reader.bp >= nowItem.mappingEndIndex + groupStartIndex) {
                 itemsIndex++;
                 if (itemsIndex >= items.size()) {
+                    activeCodeItem = null;
                     reIndex(groupEndIndex);
                 } else {
                     nowItem = items.get(itemsIndex);
@@ -169,10 +193,13 @@ public class ZrJavaTokenizer extends JavaTokenizer {
                 }
                 return handler();
             } else {
-                return superReadToken();
+                activeCodeItem = nowItem;
+                diagnosticPhase = "tokenize";
+                return Item.remapToken(superReadToken(), activeCodeItem, groupStartIndex);
             }
         }
         Tokens.Token token = nowItem.token;
+        activeCodeItem = null;
         itemsIndex++;
         if (itemsIndex >= items.size()) {
             reIndex(groupEndIndex);
@@ -181,6 +208,31 @@ public class ZrJavaTokenizer extends JavaTokenizer {
             reIndex(nowItem.mappingStartIndex + groupStartIndex);
         }
         return token;
+    }
+
+
+    private Tokens.Token rejectTemplate(List<TemplateStringSplitter.Diagnostic> diagnostics) {
+        for (TemplateStringSplitter.Diagnostic diagnostic : diagnostics) {
+            ZrDiagnosticReporter.report(fac.log, diagnosticTemplateStart, diagnostic);
+        }
+        items = null;
+        itemsIndex = 0;
+        activeCodeItem = null;
+        appendTokens = null;
+        reIndex(Math.min(groupEndIndex, reader.buflen));
+        return new Tokens.StringToken(Tokens.TokenKind.STRINGLITERAL,
+                diagnosticTemplateStart, groupEndIndex, "", null);
+    }
+
+    @Override
+    protected void lexError(int position, com.sun.tools.javac.util.JCDiagnostic.Error error) {
+        super.lexError(Item.remapPosition(position, activeCodeItem, groupStartIndex), error);
+    }
+
+    @Override
+    protected void lexError(com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag flag, int position,
+                            com.sun.tools.javac.util.JCDiagnostic.Error error) {
+        super.lexError(flag, Item.remapPosition(position, activeCodeItem, groupStartIndex), error);
     }
 
     private Tokens.Token superReadToken() {

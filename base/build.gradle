@@ -9,6 +9,7 @@ repositories {
 dependencies {
     compileOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
     testImplementation 'junit:junit:4.13.2'
+    testRuntimeOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
 }
 java {
     toolchain {

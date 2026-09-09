@@ -81,7 +81,7 @@ tasks.register('stageCentral') {
     group = 'publishing'
     description = 'Build, test and stage the four Maven Central modules locally.'
     dependsOn moduleInfo.keySet().collect { ":${it}:publishMavenPublicationToCentralStagingRepository" }
-    dependsOn ':base:test', ':gradle_plugin:test'
+    dependsOn ':javac:compilerRegression', ':gradle_plugin:test'
     doFirst {
         if (!project.hasProperty('centralRelease')) {
             throw new GradleException('Use -PcentralRelease to rebuild the compiler adapters for a release.')

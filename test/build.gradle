@@ -1,74 +1,11 @@
-buildscript {
-    repositories {
-        maven {
-            url uri('../../repo')
-        }
-        maven { url 'https://jitpack.io' }
-    }
-//    dependencies {
-//        classpath 'com.github.122006.Zircon:gradle:master-SNAPSHOT'
-//    }
+plugins {
+    id 'java'
 }
 
-apply plugin: 'java'
-//apply plugin: 'zircon'
+// The original Java files contain Zircon syntax. The compiler fixture runner
+// owns their compilation, so negative fixtures cannot break compileTestJava.
+sourceSets.test.java.setSrcDirs([])
 
-java.getToolchain().languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
-
-repositories {
-    maven { url 'https://maven.aliyun.com/repository/public/' }
-    maven {
-        url uri('../../repo')
-    }
-    maven { url 'https://jitpack.io' }
-    mavenCentral()
-}
-
-
-//sourceCompatibility = JavaVersion.VERSION_1_8
-//targetCompatibility = JavaVersion.VERSION_1_8
-
-test {
-    useJUnitPlatform()
-    testLogging {
-        events "passed", "skipped", "failed", "STANDARD_OUT", "STANDARD_ERROR"
-    }
-}
-dependencies {
-    annotationProcessor project(":javac")
-    implementation project(":zircon")
-    annotationProcessor "org.projectlombok:lombok:1.18.20"
-    compileOnly 'org.projectlombok:lombok:1.18.20'
-    implementation('com.github.122006:ExMethodUtil:1.1.8')
-    implementation 'com.alibaba:fastjson:1.1.72.android'
-    implementation('org.springframework.boot:spring-boot-starter-web:2.7.3')
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
-    testAnnotationProcessor project(":javac")
-}
-tasks.withType(JavaCompile).configureEach {
-    javaCompiler = javaToolchains.compilerFor {
-        languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
-    }
-    if (rootProject.extensions.ext.testJavaVersion <= 11) {
-        options.compilerArgs << "-Xplugin:ZrOptionalChain"
-        options.compilerArgs << "-Xplugin:ZrExMethod"
-        options.compilerArgs << "-Xplugin:ZrString"
-    }
-    def version = (it as JavaCompile).javaCompiler.get().metadata.languageVersion.asInt()
-    if (version >= 21) {
-        options.compilerArgs += "--enable-preview"
-    }
-    options.fork = true;
-}
-tasks.withType(Test).configureEach {
-    javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(rootProject.extensions.ext.testJavaVersion)
-    }
-    if (rootProject.extensions.ext.testJavaVersion >= 21) {
-        jvmArgs += "--enable-preview"
-    }
-}
-tasks.withType(JavaExec).configureEach {
-    jvmArgs += "--enable-preview"
+tasks.named('test') {
+    dependsOn ':javac:compilerRegression'
 }

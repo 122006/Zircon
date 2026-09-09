@@ -10,11 +10,17 @@ repositories {
     maven {
         url uri('../../repo')
     }
+    maven { url 'https://jitpack.io' }
 }
 dependencies {
     compileOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
     api project(":base")
     api project(":zircon")
+    testImplementation 'junit:junit:4.13.2'
+    testCompileOnly rootProject.fileTree(dir: 'tools', include: ['*.jar'])
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-api:5.13.4'
+    testRuntimeOnly 'com.github.122006:ExMethodUtil:1.1.8'
+    testRuntimeOnly 'com.alibaba:fastjson:1.2.78'
 }
 java {
     toolchain {
@@ -34,6 +40,49 @@ compileJava {
     targetCompatibility = JavaVersion.VERSION_1_8
     options.fork = true
     options.compilerArgs << "-Xlint:deprecation" << "-XDignore.symbol.file"
+}
+
+test {
+    // Default to the JDK affected by the argument-cache regression; -Ptjv overrides it.
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(rootProject.hasProperty('tjv')
+                ? rootProject.ext.testJavaVersion : 11)
+    }
+    // Before modules, plugin classes also need javac on their parent classloader.
+    classpath += files(javaLauncher.map { launcher ->
+        launcher.metadata.languageVersion.asInt() == 8
+                ? launcher.metadata.installationPath.file('lib/tools.jar').asFile : []
+    })
+    systemProperty 'zircon.test.classpath', sourceSets.main.runtimeClasspath.asPath
+    doFirst {
+        systemProperty 'zircon.test.legacyClasspath', sourceSets.test.runtimeClasspath.asPath
+    }
+}
+
+processTestResources {
+    // Keep the existing feature examples as fixtures, not Gradle compilation inputs.
+    from(rootProject.file('test/src/test/java')) {
+        into 'compiler/legacy'
+        exclude 'test/TestClass2.java', 'test/TextStringFormat2.java'
+    }
+}
+
+tasks.register('compilerRegression') {
+    group = 'verification'
+    description = 'Runs shared parser tests and positive/negative compiler fixtures (-Ptjv=8/11/17).'
+    dependsOn ':base:test', test
+}
+
+// The compatibility :test:test entry must also rebuild the adapter it exercises.
+// centralRelease already rebuilds all adapters through processResources.
+gradle.projectsEvaluated {
+    if (!rootProject.hasProperty('centralRelease')) {
+        def version = rootProject.hasProperty('tjv') ? rootProject.ext.testJavaVersion : 11
+        def adapter = version >= 16 ? ':inject_java16' : version >= 11 ? ':inject_java11' : ':inject_java7'
+        if (rootProject.findProject(adapter) != null) {
+            tasks.named('test') { dependsOn adapter + ':copyJavacClass' }
+        }
+    }
 }
 task sourceJar(type: Jar) {
     from sourceSets.main.allJava

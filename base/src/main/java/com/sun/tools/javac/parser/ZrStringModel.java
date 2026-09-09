@@ -9,6 +9,15 @@ public class ZrStringModel {
     Formatter formatter;
     String originalString;
     int endQuoteIndex=-1;
+    private final List<TemplateStringSplitter.Diagnostic> diagnostics = new ArrayList<>();
+
+    public List<TemplateStringSplitter.Diagnostic> getDiagnostics() {
+        return java.util.Collections.unmodifiableList(diagnostics);
+    }
+
+    public void addDiagnostics(List<TemplateStringSplitter.Diagnostic> diagnostics) {
+        this.diagnostics.addAll(diagnostics);
+    }
 
     public List<StringRange> getList() {
         return list;

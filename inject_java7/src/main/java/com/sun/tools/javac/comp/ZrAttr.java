@@ -221,13 +221,14 @@ public class ZrAttr extends Attr {
     }
 
     protected Symbol.ClassSymbol getBiopClass() {
-        final Symbol.PackageSymbol zircon = syms.packages.get(names.fromString("zircon"));
-        if (zircon == null)
-            throw new ZrUnSupportCodeError("编译时未找到zircon相关模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
-        final Iterable<Symbol> symbolsByName = zircon.members().getElementsByName(names.fromString("BiOp"));
-        for (Symbol symsClass : symbolsByName) {
-            return (Symbol.ClassSymbol) symsClass;
+        try {
+            // A package need not have been imported before the first optional
+            // chain. Query the classpath instead of only the entered packages.
+            return com.sun.tools.javac.jvm.ClassReader.instance(context)
+                    .loadClass(names.fromString("zircon.BiOp"));
+        } catch (Symbol.CompletionFailure failure) {
+            throw new ZrUnSupportCodeError("无法加载 zircon.BiOp，请检查编译 classpath 中的 zircon 核心模块",
+                    context, env.tree, failure);
         }
-        throw new ZrUnSupportCodeError("编译时未找到zircon核心模块，请确认项目是否引用依赖[\"com.github.122006.Zircon:zircon:${zirconVersion}\"]");
     }
 }

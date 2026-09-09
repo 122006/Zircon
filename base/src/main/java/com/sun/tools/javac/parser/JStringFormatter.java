@@ -71,10 +71,10 @@ public class JStringFormatter implements Formatter {
         List<Item> items = new ArrayList<>();
         if (build.isEmpty()) {
             items.add(Item.loadStringToken(0, 0, ""));
-            return items;
+            return Item.withSourcePositions(items, groupStartIndex);
         }
         int prefixLength = prefix().length();
-        items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
+        items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, 0, 0));
         List<StringRange> stringRanges = new ArrayList<>();
         for (StringRange a : build) {
             if (stringRanges.isEmpty() || a.codeStyle == 1) {
@@ -113,10 +113,10 @@ public class JStringFormatter implements Formatter {
                     items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "BiOp"));
                     items.add(Item.loadCommaToken(Tokens.TokenKind.DOT, prefixLength, prefixLength));
                     items.add(Item.loadIdentifierToken(javaTokenizer, 0, prefixLength, "jString"));
-                    items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, prefixLength, prefixLength));
-                    codeTransfer(buf, groupStartIndex, text, startIndex, endIndex);
-                    items.add(Item.loadJavacCode(startIndex, endIndex));
-                    items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, prefixLength, prefixLength));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.LPAREN, startIndex - 1, startIndex - 1));
+                    Formatter.CodeTransferResult transfer = transferCode(buf, groupStartIndex, text, startIndex, endIndex);
+                    items.add(Item.loadJavacCode(startIndex, endIndex, transfer));
+                    items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, endIndex, endIndex));
                 } else if (stringRange.codeStyle == 0) {
                     if (i > 0) {
                         items.add(Item.loadCommaToken(Tokens.TokenKind.PLUS, startIndex, startIndex));
@@ -125,190 +125,176 @@ public class JStringFormatter implements Formatter {
                 }
             }
         }
-        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length(), text.length()));
-        return items;
+        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length() - 1, text.length() - 1));
+        return Item.withSourcePositions(items, groupStartIndex);
     }
 
     @Override
     public ZrStringModel build(String text) {
-        ZrStringModel model = new ZrStringModel();
-        model.setFormatter(this);
-        final StringRange[] elements = parseJson(this, text);
-        Collections.addAll(model.getList(), elements);
-        model.setOriginalString(text);
-        model.setEndQuoteIndex(elements[elements.length - 1].endIndex);
-        return model;
+        return buildJson(this, text);
     }
 
+    private static ZrStringModel buildJson(Formatter formatter, String text) {
+        ZrStringModel model = new ZrStringModel();
+        model.setFormatter(formatter);
+        if (text == null || text.isEmpty()) {
+            model.setOriginalString("");
+            return model;
+        }
+        int end;
+        try {
+            end = scanJson(formatter, text, model.getList());
+        } catch (TemplateSyntaxException failure) {
+            model.addDiagnostics(Collections.singletonList(failure.diagnostic));
+            int quote = text.lastIndexOf('"');
+            int recoveryEnd = quote > formatter.prefix().length() ? quote + 1
+                    : text.indexOf(';', formatter.prefix().length() + 1);
+            if (recoveryEnd < 0) recoveryEnd = text.length();
+            end = recoveryEnd - 1;
+        }
+        model.setEndQuoteIndex(end);
+        model.setOriginalString(text.substring(0, end + 1));
+        return model;
+    }
 
     @Override
     public String stringTransfer(String str) {
         return str.replace("%", "%%").replace("\\$", "$");
     }
 
+    /** Keeps partial ranges available to IDE callers, including incomplete input. */
+    public static StringRange[] parseJson(Formatter formatter, String text) {
+        return buildJson(formatter, text).getList().toArray(new StringRange[0]);
+    }
 
-    /**
-     * 解析 JSON 字符串为 StringRange 数组
-     *
-     * @param jsonStr 输入的 JSON 字符串
-     * @return StringRange 数组，表示 JSON 的各个 token
-     */
-    public static StringRange[] parseJson(Formatter formatter, String jsonStr) {
-        if (jsonStr == null || jsonStr.isEmpty()) {
-            return new StringRange[0];
+    private static int scanJson(Formatter formatter, String text, List<StringRange> ranges) {
+        int start = formatter.prefix().length() + 1;
+        int limit = text.lastIndexOf('"');
+        if (limit < start) limit = text.length();
+        int cursor = start;
+        while (cursor < limit && Character.isWhitespace(text.charAt(cursor))) cursor++;
+        if (cursor >= limit || text.charAt(cursor) != '{' && text.charAt(cursor) != '[') {
+            throw jsonError(cursor, "JSON 模板必须以对象 { 或数组 [ 开始", "使用 j\"{key:value}\" 或 j\"[value]\"。");
         }
-
-        List<StringRange> ranges = new ArrayList<>();
-        int len = jsonStr.lastIndexOf("\"");
-        int i = 2;
-        char[] chars = jsonStr.toCharArray();
-        java.util.Stack<Character> structureStack = new java.util.Stack<>();
-        outer:
-        while (i < len) {
-            char c = chars[i];
-            switch (c) {
-                case ' ':
-                case '\t':
-                case '\n':
-                case '\r':
-                case '\f':
-                    break;
-                case '{':
-                case '[':
-                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
-                    structureStack.push(c);
-                    break;
-                case ']':
-                case '}':
-                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
-                    structureStack.pop();
-                    if (structureStack.isEmpty()) {
-                        int start = i;
-                        while (i < len) {
-                            if (chars[i] == '"') break;
-                            i++;
-                        }
-                        ranges.add(StringRange.of(-1, formatter, jsonStr, start + 1, i));
-                        break outer;
-                    }
-                    break;
-                case ',':
-                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
-                    break;
-                case ':':
-                    ranges.add(StringRange.of(0, formatter, jsonStr, i, i + 1));
-                    break;
-                default:
-                    int start = i;
-                    boolean scanCode = false;
-                    if (structureStack.peek() == '{') {
-                        if (Objects.equals(ranges.get(ranges.size() - 1).stringVal, ":")) {
-                            scanCode = true;
-                        } else {
-                            in:
-                            while (i < len) {
-                                switch (chars[i]) {
-                                    case ' ':
-                                    case '\t':
-                                    case '\n':
-                                    case '\r':
-                                    case '\f':
-                                    case ':':
-                                    case ',':
-                                        break in;
-                                }
-                                i++;
-                            }
-                            final StringRange e = StringRange.of(0, formatter, jsonStr, start, i);
-                            e.highlight = 1;
-                            ranges.add(e);
-                            i--;
-                            break;
-                        }
-                    } else {
-                        scanCode = true;
-                    }
-                    if (scanCode) {
-                        java.util.Stack<Character> valueStack = new java.util.Stack<>();
-
-                        ScanValue:
-                        while (i < len) {
-                            char _c = chars[i];
-                            switch (_c) {
-                                case '\'':
-                                    while (i < len) {
-                                        char _c2 = chars[i];
-                                        if (_c2 == '\'' && chars[i - 1] != '\\') {
-                                            break;
-                                        }
-                                        i++;
-                                    }
-                                    break;
-                                case '"':
-                                    i++;
-                                    while (i < len) {
-                                        char _c2 = chars[i];
-                                        if (_c2 == '"' && chars[i - 1] != '\\') {
-                                            break;
-                                        }
-                                        i++;
-                                    }
-                                    break;
-                                case '{':
-                                case '[':
-                                case '(':
-                                    valueStack.push(_c);
-                                    break;
-                                case ']':
-                                case '}':
-                                case ')':
-                                    if (valueStack.isEmpty()) {
-                                        break ScanValue;
-                                    }
-                                    valueStack.pop();
-                                    break;
-                                case ',': {
-                                    if (valueStack.isEmpty()) {
-                                        break ScanValue;
-                                    }
-                                }
-                            }
-                            i++;
-                        }
-                        int iSpace = i - 1;
-                        in2:
-                        while (iSpace > 0) {
-                            switch (chars[iSpace]) {
-                                case ' ':
-                                case '\t':
-                                case '\n':
-                                case '\r':
-                                case '\f':
-                                case ':':
-                                case ',':
-                                    iSpace--;
-                                default:
-                                    break in2;
-                            }
-                        }
-                        final StringRange e = StringRange.of(1, formatter, jsonStr, start, iSpace + 1);
-                        e.highlight = 2;
-                        ranges.add(e);
-                        ranges.add(StringRange.of(-1, "", iSpace + 1, i));
-                        i--;
-                    }
-                    break;
+        java.util.ArrayDeque<Integer> structures = new java.util.ArrayDeque<>();
+        while (cursor < limit) {
+            char current = text.charAt(cursor);
+            if (Character.isWhitespace(current)) {
+                cursor++;
+                continue;
             }
-
-            i++;
-        }
-        for (StringRange stringRange : ranges) {
-            if (stringRange.codeStyle == 1) {
-                if (stringRange.stringVal.trim().matches("^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
-                    stringRange.codeStyle = 0;
+            if (current == '{' || current == '[') {
+                structures.push(cursor);
+                ranges.add(StringRange.of(0, formatter, text, cursor, ++cursor));
+                continue;
+            }
+            if (current == '}' || current == ']') {
+                if (structures.isEmpty()) {
+                    throw jsonError(cursor, "JSON 结构出现多余的结束符 " + current, "移除多余的括号。");
                 }
+                char expected = closing(text.charAt(structures.peek()));
+                if (current != expected) {
+                    throw jsonError(cursor, "JSON 结构中的 " + current + " 与起始括号不匹配",
+                            "此处应使用 " + expected + "。");
+                }
+                structures.pop();
+                ranges.add(StringRange.of(0, formatter, text, cursor, ++cursor));
+                if (structures.isEmpty()) {
+                    int trailingStart = cursor;
+                    while (cursor < text.length() && Character.isWhitespace(text.charAt(cursor))) cursor++;
+                    if (cursor >= text.length() || text.charAt(cursor) != '"') {
+                        throw new TemplateSyntaxException(new TemplateStringSplitter.Diagnostic(
+                                "ZR1001", 0, start, "插值字符串的引号未闭合", "在 JSON 结构后补上结束引号。"));
+                    }
+                    // Preserve the established trailing whitespace inside j strings.
+                    ranges.add(StringRange.of(-1, formatter, text, trailingStart, cursor));
+                    return cursor;
+                }
+                continue;
+            }
+            if (current == ',' || current == ':') {
+                ranges.add(StringRange.of(0, formatter, text, cursor, ++cursor));
+                continue;
+            }
+            boolean key = text.charAt(structures.peek()) == '{'
+                    && !Objects.equals(ranges.get(ranges.size() - 1).stringVal, ":");
+            int rangeStart = cursor;
+            if (key) {
+                if (current == '"' || current == '\\' && cursor + 1 < limit && text.charAt(cursor + 1) == '"') {
+                    if (current == '\\') cursor++;
+                    cursor = afterQuoted(text, cursor, limit);
+                } else {
+                    while (cursor < limit && !Character.isWhitespace(text.charAt(cursor))
+                            && ":,{}[]".indexOf(text.charAt(cursor)) < 0) cursor++;
+                }
+                if (cursor == rangeStart) throw jsonError(cursor, "JSON 键名缺失", "在 : 前填写键名。");
+                StringRange range = StringRange.of(0, formatter, text, rangeStart, cursor);
+                range.highlight = 1;
+                ranges.add(range);
+            } else {
+                cursor = afterValue(text, cursor, limit);
+                int rangeEnd = cursor;
+                while (rangeEnd > rangeStart && Character.isWhitespace(text.charAt(rangeEnd - 1))) rangeEnd--;
+                if (rangeEnd == rangeStart) throw jsonError(cursor, "JSON 值缺失", "填写值或 Java 表达式。");
+                StringRange range = StringRange.of(1, formatter, text, rangeStart, rangeEnd);
+                range.highlight = 2;
+                if (range.stringVal.trim().matches("^(?:\"(?:[^\"\\\\]|\\\\.)*\"|true|false|null|-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?)$")) {
+                    range.codeStyle = 0;
+                }
+                ranges.add(range);
+                ranges.add(StringRange.of(-1, "", rangeEnd, cursor));
             }
         }
-        return ranges.toArray(new StringRange[0]);
+        int opening = structures.peek();
+        char expected = closing(text.charAt(opening));
+        throw jsonError(opening, "JSON 结构缺少结束符 " + expected, "在对象或数组末尾补上 " + expected + "。");
+    }
+
+    private static int afterValue(String text, int cursor, int limit) {
+        java.util.ArrayDeque<Character> stack = new java.util.ArrayDeque<>();
+        while (cursor < limit) {
+            char current = text.charAt(cursor);
+            if ((current == '"' || current == '\'') && TemplateStringSplitter.isTransferredQuoteDelimiter(text, cursor)) {
+                cursor = afterQuoted(text, cursor, limit);
+                continue;
+            }
+            if (current == '/' && cursor + 1 < limit) {
+                if (text.charAt(cursor + 1) == '*') {
+                    int close = text.indexOf("*/", cursor + 2);
+                    cursor = close < 0 ? limit : Math.min(limit, close + 2);
+                    continue;
+                }
+                if (text.charAt(cursor + 1) == '/') return limit;
+            }
+            if (current == '{' || current == '[' || current == '(') stack.push(current);
+            else if (current == '}' || current == ']' || current == ')') {
+                if (stack.isEmpty()) return cursor;
+                char expected = closing(stack.pop());
+                if (current != expected) {
+                    throw jsonError(cursor, "JSON 值中的括号不匹配", "此处应使用 " + expected + "。");
+                }
+            } else if (current == ',' && stack.isEmpty()) return cursor;
+            cursor++;
+        }
+        return cursor;
+    }
+
+    private static int afterQuoted(String text, int opening, int limit) {
+        char quote = text.charAt(opening);
+        for (int cursor = opening + 1; cursor < limit; cursor++) {
+            if (text.charAt(cursor) == quote && TemplateStringSplitter.isTransferredQuoteDelimiter(text, cursor)) {
+                return cursor + 1;
+            }
+        }
+        throw jsonError(opening, "JSON 值或键名的引号未闭合", "补上对应的结束引号。");
+    }
+
+    private static char closing(char opening) {
+        return opening == '{' ? '}' : opening == '[' ? ']' : ')';
+    }
+
+    private static TemplateSyntaxException jsonError(int position, String message, String hint) {
+        return new TemplateSyntaxException(new TemplateStringSplitter.Diagnostic(
+                "ZR1010", position, position + 1, message, hint));
     }
 }

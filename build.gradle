@@ -52,10 +52,7 @@ if (System.getProperty("user.name", "") != "jitpack" && !hasProperty('centralRel
 
         task testWithDiffJavaVersion {
             group "zircon"
-            dependsOn "buildClazzByJava${useJavaVersion}", ":test:clean", ":test:compileTestJava"
-            doLast {
-                project(":test").test.executeTests()
-            }
+            dependsOn "buildClazzByJava${useJavaVersion}", ":javac:compilerRegression"
         }
 
         allData.forEach(data -> {

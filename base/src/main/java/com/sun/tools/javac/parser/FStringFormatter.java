@@ -52,7 +52,7 @@ public class FStringFormatter implements Formatter {
         List<Item> items = new ArrayList<>();
         if (build.isEmpty()) {
             items.add(Item.loadStringToken(0, 0, ""));
-            return items;
+            return Item.withSourcePositions(items, groupStartIndex);
         }
         int prefixLength = prefix().length();
 
@@ -68,12 +68,12 @@ public class FStringFormatter implements Formatter {
             int endIndex = a.endIndex;
             if (a.codeStyle == 1) {
                 items.add(Item.loadCommaToken(Tokens.TokenKind.COMMA, endIndex, endIndex));
-                codeTransfer(buf, groupStartIndex, text, startIndex, endIndex);
-                items.add(Item.loadJavacCode(startIndex, endIndex));
+                Formatter.CodeTransferResult transfer = transferCode(buf, groupStartIndex, text, startIndex, endIndex);
+                items.add(Item.loadJavacCode(startIndex, endIndex, transfer));
             }
         }
-        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length(), text.length()));
-        return items;
+        items.add(Item.loadCommaToken(Tokens.TokenKind.RPAREN, text.length() - 1, text.length() - 1));
+        return Item.withSourcePositions(items, groupStartIndex);
     }
 
     @Override

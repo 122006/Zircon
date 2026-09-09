@@ -28,6 +28,10 @@ public class ZirconStringPlugin extends ZirconPlugin {
         reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Syntax", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Range", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Result", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.TemplateStringSplitter$Diagnostic", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.parser.TemplateSyntaxException", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.util.ZrDiagnosticReporter", pcl, classLoader);
+        reloadClass("com.sun.tools.javac.util.ZrDiagnosticReporter$Span", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.Item", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.ZrStringModel", pcl, classLoader);
         reloadClass("com.sun.tools.javac.parser.StringRange", pcl, classLoader);
