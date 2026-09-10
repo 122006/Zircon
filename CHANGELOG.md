@@ -6,6 +6,15 @@
 
 ## 编译与基础依赖
 
+### v3.3.4
+
+1. 修复模板展开生成的 token 源码位置冲突，避免 JDK 11 的 javac 参数类型缓存错误；改进转义表达式、词法错误与可选链 token 的源码位置映射。
+2. 模板及 JSON 解析错误增加 ZR 错误码、文件位置和修复建议，支持错误恢复；内部异常保留原始原因和编译环境信息。
+3. 统一编译测试框架，严格区分编译成功、预期拒绝和编译器崩溃；覆盖 JDK 8/11/17 的正例与负例，修复 JDK 8 可选链辅助类型加载。
+4. Gradle 插件按实际解析结果同步 `javac/base/zircon` 的组名和版本，支持 Central 与 JitPack 坐标、分支/提交版本、父项目继承及应用插件后的坐标覆盖。
+5. Gradle 依赖延迟注入，覆盖后创建的 source set 和 Android 测试配置；编译器依赖放入 annotation processor 路径，保留现有处理器，应用运行时只自动添加 `zircon`。
+6. Gradle JVM 参数按实际编译工具链配置，支持配置缓存及 up-to-date 复用，并验证 Gradle 6.7.1 下的 JDK 8/11 编译兼容性。
+
 ### v3.3.3
 
 1. 四个编译模块迁移到 Maven Central，统一坐标为 `io.github.122006.Zircon`，可直接使用 `mavenCentral()`。

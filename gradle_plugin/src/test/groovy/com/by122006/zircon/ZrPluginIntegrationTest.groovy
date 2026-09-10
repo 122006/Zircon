@@ -166,7 +166,7 @@ ${assertCoordinates(ZrPlugin.JITPACK_GROUP, 'selected-commit')}
 
     @Test
     void ioGithubAliasPreservesBranchAndCommitCoordinates() {
-        // Different from the packaged 3.3.3: falling back to jar metadata must fail this test.
+        // Different from the packaged release: falling back to jar metadata must fail this test.
         ['master-SNAPSHOT', '79c0c0910f'].each { version ->
             def repository = repository(ZrPlugin.GROUP, version)
             def project = fixture(repository, ZrPlugin.GROUP, version, 11)

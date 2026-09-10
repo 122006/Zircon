@@ -1,6 +1,6 @@
 # Gradle 插件接入与测试
 
-本文说明当前分支的 Gradle 插件行为。已发布的 `3.3.3` 插件不会因分支提交而更新。
+本文说明 `3.3.4` 起的 Gradle 插件行为。正式接入使用 `io.github.122006.Zircon:gradle:3.3.4` 和 `mavenCentral()`；测试开发分支时使用下述 JitPack 配置。
 
 ## 通过 JitPack 测试分支
 

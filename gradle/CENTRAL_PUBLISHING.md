@@ -28,7 +28,7 @@ Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17 
 ```powershell
 .\gradlew.bat -p gradle/central-smoke clean smoke `
   '-PzirconRepository=../../build/central/repository' `
-  '-PzirconVersion=3.3.3' '-PsmokeJava=8'
+  '-PzirconVersion=3.3.4' '-PsmokeJava=8'
 ```
 
 如果工具链不在 Gradle 自动发现路径中，传入 `-Porg.gradle.java.installations.paths=...`。该独立项目只从指定仓库解析 Zircon，验证扩展方法、可选链短路、Elvis 默认值和模板字符串。
@@ -38,7 +38,7 @@ Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17 
 ```powershell
 mvn -f gradle/central-smoke/pom.xml clean package `
   '-DzirconRepository=file:///absolute/path/to/build/central/repository/' `
-  '-DzirconVersion=3.3.3'
+  '-DzirconVersion=3.3.4'
 java -cp gradle/central-smoke/target/classes smoke.Main
 ```
 
@@ -68,7 +68,7 @@ PowerShell 7.3+ 打包示例：
 
 脚本检查坐标、POM 元数据、传递依赖、源码/Javadoc 内容及 Java 8 字节码，然后对 JAR、POM、`.module` 逐一签名并验证，生成 MD5/SHA1/SHA256/SHA512。ZIP 只包含指定版本的四个模块，不携带仓库根元数据、密钥或测试文件。
 
-输出：`build/central/zircon-3.3.3-central.zip`。输出目录已存在时脚本停止，以免覆盖已审核的包；重试前把旧输出移走。
+输出：`build/central/zircon-3.3.4-central.zip`。输出目录已存在时脚本停止，以免覆盖已审核的包；重试前把旧输出移走。
 
 ## 3. 发布
 

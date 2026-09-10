@@ -19,11 +19,13 @@ Zircon 为 Java 增加**扩展方法、可选链、Elvis 表达式和模板字�
 
 | 组件 | 当前版本 | 用途 |
 | --- | --- | --- |
-| Zircon 编译与基础依赖 | **3.3.3** | `gradle`、`javac`、`zircon`、`base` |
+| Zircon 编译与基础依赖 | **3.3.4** | `gradle`、`javac`、`zircon`、`base` |
 | IntelliJ IDEA 插件 | 4.9 | 一个 ZIP，按 IDEA 版本自动选择兼容实现 |
 | VS Code 扩展 | 0.0.1 | 开发中的编辑器支持，安装方式见下文 |
 
 编译依赖与编辑器插件独立版本管理，无需使用相同的版本号。
+
+**3.3.4** 修复模板展开后的源码位置冲突，改善 JDK 11 编译兼容性；模板错误现在提供 ZR 错误码、文件位置和修复建议。Gradle 插件同步改进了依赖版本解析、Android 测试依赖作用域和配置缓存支持，详见[更新记录](CHANGELOG.md)。
 
 ## 语法预览
 
@@ -100,7 +102,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'io.github.122006.Zircon:gradle:3.3.3'
+        classpath 'io.github.122006.Zircon:gradle:3.3.4'
     }
 }
 
@@ -116,8 +118,8 @@ repositories {
 
 Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrString` 编译参数。配置后重新同步项目。
 
-测试本仓库的最新改动时，可通过 JitPack 使用 `com.github.122006.Zircon:gradle:master-SNAPSHOT`。
-分支中的 Gradle 插件会让编译模块跟随插件实际解析到的组名和版本，支持在应用插件后通过 `zircon {}` 覆盖坐标。
+从 **3.3.4** 起，Gradle 插件让 `javac/base/zircon` 跟随插件实际解析到的组名和版本，支持 `io.github.122006.Zircon` 和 `com.github.122006.Zircon`，也支持在应用插件后通过 `zircon {}` 覆盖坐标。编译器依赖放入 annotation processor 路径，应用运行时只自动添加 `zircon`。
+测试开发分支时，可使用 `io.github.122006.Zircon:gradle:master-SNAPSHOT`，并在 buildscript 和项目依赖仓库中添加 `https://jitpack.io`。
 仓库配置、依赖作用域与兼容性说明见 [Gradle 插件接入与测试](gradle/GRADLE_PLUGIN.md)。
 
 ### Maven
@@ -126,7 +128,7 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 
 ```xml
 <properties>
-    <zircon.version>3.3.3</zircon.version>
+    <zircon.version>3.3.4</zircon.version>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 </properties>
@@ -201,7 +203,7 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 - [扩展方法](mds/README_ZrExMethod.md)：声明、导入、泛型、覆盖规则与注解约束。
 - [可选链与 Elvis 表达式](mds/README_ZrOptionalChaining.md)：短路、默认值、赋值与括号边界。
 - [模板字符串](mds/README_ZrString.md)：插值、格式符、引号与表达式范围。
-- [更新记录](CHANGELOG.md)：3.3.3、IDEA 插件及历史版本变更。
+- [更新记录](CHANGELOG.md)：3.3.4、IDEA 插件及历史版本变更。
 
 ## 常见问题
 
@@ -221,7 +223,7 @@ Zircon 本身不预置扩展方法。可自行声明，或引入 [ExMethodUtil](
 implementation 'com.github.122006:ExMethodUtil:1.1.8'
 ```
 
-`ExMethodUtil` 是单独的旧扩展库，仍需 JitPack 仓库；上述 Zircon 3.3.3 编译依赖本身只需 Maven Central。
+`ExMethodUtil` 是单独的旧扩展库，仍需 JitPack 仓库；上述 Zircon 3.3.4 编译依赖本身只需 Maven Central。
 
 ## 参与开发
 

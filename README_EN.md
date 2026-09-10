@@ -19,11 +19,13 @@ The compiler produces standard Java bytecode, so no custom JVM is required. Zirc
 
 | Component | Current version | Purpose |
 | --- | --- | --- |
-| Zircon compiler and core dependencies | **3.3.3** | `gradle`, `javac`, `zircon`, and `base` |
+| Zircon compiler and core dependencies | **3.3.4** | `gradle`, `javac`, `zircon`, and `base` |
 | IntelliJ IDEA plugin | 4.9 | One ZIP that selects the appropriate implementation for your IDEA version |
 | VS Code extension | 0.0.1 | Editor support under active development; see installation steps below |
 
 Compiler dependencies and editor plugins are versioned independently. Their version numbers do not need to match.
+
+**3.3.4** fixes source position collisions in expanded templates that affected JDK 11 compilation. Template diagnostics now include ZR error codes, source locations, and repair hints. The Gradle plugin also improves dependency version selection, Android test dependency scopes, and configuration cache support. See the [changelog](CHANGELOG.md).
 
 ## Syntax at a glance
 
@@ -100,7 +102,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'io.github.122006.Zircon:gradle:3.3.3'
+        classpath 'io.github.122006.Zircon:gradle:3.3.4'
     }
 }
 
@@ -116,8 +118,8 @@ For a multi-module project, place `buildscript` in the root project, apply the `
 
 The Gradle plugin adds the Zircon dependencies and the `ZrOptionalChain`, `ZrExMethod`, and `ZrString` compiler arguments. Sync the project after making these changes.
 
-To test the latest repository changes through JitPack, use `com.github.122006.Zircon:gradle:master-SNAPSHOT`.
-The plugin on this branch follows the resolved plugin group and version for its compiler modules, and accepts coordinate overrides in `zircon {}` after application.
+Starting with **3.3.4**, the Gradle plugin aligns `javac/base/zircon` with the resolved plugin group and version. It supports both `io.github.122006.Zircon` and `com.github.122006.Zircon`, and accepts coordinate overrides in `zircon {}` after application. Compiler dependencies go on the annotation processor path; only `zircon` is added to the application runtime.
+To test the development branch, use `io.github.122006.Zircon:gradle:master-SNAPSHOT` and add `https://jitpack.io` to both the buildscript and project dependency repositories.
 See [Gradle plugin configuration and tests](gradle/GRADLE_PLUGIN.md) (Chinese) for repositories, dependency scopes, and compatibility details.
 
 ### Maven
@@ -126,7 +128,7 @@ Merge the following configuration into `pom.xml`. This example targets Java 8; a
 
 ```xml
 <properties>
-    <zircon.version>3.3.3</zircon.version>
+    <zircon.version>3.3.4</zircon.version>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 </properties>
@@ -205,7 +207,7 @@ The detailed guides and changelog below are currently in Chinese:
 - [Extension methods](mds/README_ZrExMethod.md): declarations, imports, generics, replacement rules, and annotation constraints.
 - [Optional chaining and Elvis expressions](mds/README_ZrOptionalChaining.md): short-circuiting, defaults, assignments, and parentheses.
 - [Template strings](mds/README_ZrString.md): interpolation, format specifiers, quotes, and expression boundaries.
-- [Changelog](CHANGELOG.md): changes in 3.3.3, IDEA plugin updates, and earlier releases.
+- [Changelog](CHANGELOG.md): changes in 3.3.4, IDEA plugin updates, and earlier releases.
 
 ## FAQ
 
@@ -225,7 +227,7 @@ Zircon does not include predefined extension methods. Define your own, or add [E
 implementation 'com.github.122006:ExMethodUtil:1.1.8'
 ```
 
-`ExMethodUtil` is a separate legacy extension library and still requires the JitPack repository. The Zircon 3.3.3 compiler dependencies above require only Maven Central.
+`ExMethodUtil` is a separate legacy extension library and still requires the JitPack repository. The Zircon 3.3.4 compiler dependencies above require only Maven Central.
 
 ## Contributing
 
