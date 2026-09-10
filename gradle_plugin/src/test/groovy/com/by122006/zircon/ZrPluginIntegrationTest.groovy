@@ -165,6 +165,18 @@ ${assertCoordinates(ZrPlugin.JITPACK_GROUP, 'selected-commit')}
     }
 
     @Test
+    void ioGithubAliasPreservesBranchAndCommitCoordinates() {
+        // Different from the packaged 3.3.3: falling back to jar metadata must fail this test.
+        ['master-SNAPSHOT', '79c0c0910f'].each { version ->
+            def repository = repository(ZrPlugin.GROUP, version)
+            def project = fixture(repository, ZrPlugin.GROUP, version, 11)
+            def result = runner(project, 'smoke').build()
+            assertEquals(result.output, TaskOutcome.SUCCESS, result.task(':compileJava').outcome)
+            assertTrue(result.output, result.output.contains('smoke passed on Java'))
+        }
+    }
+
+    @Test
     void pluginDslResolvesThePluginImplementationCoordinates() {
         def repository = repository(ZrPlugin.JITPACK_GROUP, 'plugin-dsl-commit')
         artifact(repository, 'zircon', 'zircon.gradle.plugin', 'plugin-dsl-commit', null,

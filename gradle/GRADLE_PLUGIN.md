@@ -30,6 +30,15 @@ repositories {
 也识别 `io.github.122006.Zircon` 坐标，支持在父项目声明 classpath、在子模块应用插件，以及通过 plugin marker 使用 `plugins {}`。
 插件不自动添加仓库：构建依赖仓库和模块依赖仓库都需要配置 JitPack。
 
+使用 JitPack 的 `io.github.122006` 别名时，也可以声明：
+
+```groovy
+classpath 'io.github.122006.Zircon:gradle:master-SNAPSHOT'
+```
+
+自动注入的 `javac`、`base`、`zircon` 会保留 `io.github.122006.Zircon` 组名和插件实际解析到的版本。
+使用提交 SHA 时同理；分支和提交版本需要从 JitPack 获取，Maven Central 提供已发布的版本。
+
 `master-SNAPSHOT` 是变化中的分支。重新测试最新提交时，在项目原有的编译命令后加 `--refresh-dependencies`；复现某次结果时，使用该次提交的 SHA 作为版本。
 
 ## 显式覆盖坐标
