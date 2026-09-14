@@ -1,6 +1,6 @@
 # Maven Central 发布
 
-命名空间为 `io.github.122006`，四个模块保持 JitPack 别名的多模块坐标：
+四个模块通过 Maven Central 发布，组名统一为 `io.github.122006.Zircon`：
 
 | groupId | artifactId | 说明 |
 | --- | --- | --- |
@@ -19,7 +19,9 @@ IDEA、VS Code 插件及 Gradle 短插件 ID 的 marker 不在此发布包中。
 .\gradlew.bat -PcentralRelease stageCentral --no-daemon
 ```
 
-Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17 工具链；发布字节码目标均为 Java 8。发布构建不配置 IDE 插件和演示项目。`javac` 包中的 `.clazz` 从源码重新生成，源码包同时包含适配模块源码，开发目录中的已跟踪资源不会被覆盖。
+Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17、25 工具链；发布字节码目标均为 Java 8。JDK 25 工具链编译 `inject_java24` 的两个方法查找类，供 JDK 24/25 使用；其余类复用 `java16`。发布构建不配置 IDE 插件和演示项目。`javac` 包中的 `.clazz` 从源码重新生成，源码包同时包含适配模块源码，开发目录中的已跟踪资源不会被覆盖。
+
+Gradle 插件回归中的 JDK 25 场景使用 Gradle 9.1.0，首次运行需要下载发行版；可用 `-PzirconModernGradleHome=/path/to/gradle-9.1.0` 指定本地安装。发布前应另行运行 [编译器回归矩阵](../javac/src/test/README.md)，包括 javac 25 编译目标 21、25 和 `--release 21`。
 
 输出为 `build/central/repository`，只包含四个模块的 Maven 发布任务。构建会运行基础解析和 Gradle 插件回归测试。
 
@@ -28,7 +30,7 @@ Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17 
 ```powershell
 .\gradlew.bat -p gradle/central-smoke clean smoke `
   '-PzirconRepository=../../build/central/repository' `
-  '-PzirconVersion=3.3.4' '-PsmokeJava=8'
+  '-PzirconVersion=3.3.5' '-PsmokeJava=8'
 ```
 
 如果工具链不在 Gradle 自动发现路径中，传入 `-Porg.gradle.java.installations.paths=...`。该独立项目只从指定仓库解析 Zircon，验证扩展方法、可选链短路、Elvis 默认值和模板字符串。
@@ -38,7 +40,7 @@ Gradle 使用 JDK 17 运行，编译器适配模块分别使用 JDK 8、11、17 
 ```powershell
 mvn -f gradle/central-smoke/pom.xml clean package `
   '-DzirconRepository=file:///absolute/path/to/build/central/repository/' `
-  '-DzirconVersion=3.3.4'
+  '-DzirconVersion=3.3.5'
 java -cp gradle/central-smoke/target/classes smoke.Main
 ```
 
@@ -52,23 +54,23 @@ java -cp gradle/central-smoke/target/classes smoke.Main
 
 公钥已上传 `keyserver.ubuntu.com`，有效期至 2028-09-07。更新有效期后须重新上传公钥。
 
-私钥、撤销证书和口令必须保存在仓库外。当前维护者机器使用受限目录 `%USERPROFILE%\.codex\secrets\zircon-central`：`gnupg` 保存密钥，`passphrase.dpapi` 保存仅该 Windows 用户可解密的口令。备份时需一并处理私钥与口令；DPAPI 文件不能直接搬到另一台机器使用。
+私钥、撤销证书和口令必须保存在仓库外的安全位置，不得提交到 Git。公开文档仅提供公钥和签名验证信息。
 
-PowerShell 7.3+ 打包示例：
+PowerShell 7.3+ 打包示例（路径为占位符，须替换为本机仓库外的位置）：
 
 ```powershell
 .\gradle\central-bundle.ps1 `
   -SigningKey '582E8FEC363958282843D0AE374A1352D1A8AD02' `
-  -GpgExecutable 'D:\Program Files\Git\usr\bin\gpg.exe' `
-  -GpgHome "$env:USERPROFILE\.codex\secrets\zircon-central\gnupg" `
-  -PassphraseFile "$env:USERPROFILE\.codex\secrets\zircon-central\passphrase.dpapi"
+  -GpgExecutable 'gpg' `
+  -GpgHome '<GPG 主目录>' `
+  -PassphraseFile '<DPAPI 加密口令文件>'
 ```
 
-其他机器可指定自己的 GPG 路径/主目录；使用已解锁的 GPG agent 时可省略 `PassphraseFile`。脚本不上传私钥，也不会读取 Central 登录凭据。
+按本机配置指定 GPG 可执行文件和主目录。`PassphraseFile` 使用当前 Windows 用户的 DPAPI 加密格式；使用已解锁的 GPG agent 时可省略该参数。脚本不上传私钥，也不会读取 Central 登录凭据。
 
 脚本检查坐标、POM 元数据、传递依赖、源码/Javadoc 内容及 Java 8 字节码，然后对 JAR、POM、`.module` 逐一签名并验证，生成 MD5/SHA1/SHA256/SHA512。ZIP 只包含指定版本的四个模块，不携带仓库根元数据、密钥或测试文件。
 
-输出：`build/central/zircon-3.3.4-central.zip`。输出目录已存在时脚本停止，以免覆盖已审核的包；重试前把旧输出移走。
+输出：`build/central/zircon-3.3.5-central.zip`。输出目录已存在时脚本停止，以免覆盖已审核的包；重试前把旧输出移走。
 
 ## 3. 发布
 

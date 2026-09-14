@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    // Only the two helpers whose javac superclass changed are rebuilt here.
+    // The rest of the adapter continues to come from java16.
+    compileOnly project(':inject_java16')
+    compileOnly project(':base')
+    compileOnly project(':zircon')
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+compileJava {
+    // Keep the overlay loadable on JDK 24 as well as 25, while compiling
+    // against the actual post-23 javac API rather than the --release stubs.
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    options.compilerArgs << '-XDignore:symbol.file'
+}
+
+tasks.register('copyJavacClass', Copy) {
+    dependsOn compileJava
+    from "${buildDir}/classes/java/main/com/sun/tools/javac/comp"
+    into "${rootDir}/javac/src/main/resources/clazz/java24"
+    rename ~/(.*)\.class/, '$1.clazz'
+}

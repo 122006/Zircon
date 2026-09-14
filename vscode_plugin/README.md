@@ -2,14 +2,33 @@
 
 为 Java 项目提供 Zircon 扩展方法、模板字符串、可选链和 Elvis 表达式的编辑器支持，原生补全与搜索通过 JDT Agent 接入。
 
-当前扩展版本为 **0.0.1**，仍在开发中；Zircon 编译依赖版本为 **3.3.2**。项目接入说明见[项目首页](../README.md)。
+当前扩展版本为 **0.0.1**，仍在开发中；Zircon 编译依赖版本为 **3.3.5**。项目接入说明见[项目首页](../README.md)。
 
 ## 安装与启用
 
-1. 安装 VS Code 1.75 或更新版本，以及 [Language Support for Java by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.java)（`redhat.java`）。配置满足该扩展要求的 Language Server JDK。
-2. 在扩展视图中选择 **Install from VSIX…**，安装构建得到的 `zircon-vscode-<version>.vsix`。
-3. 打开已配置 Zircon 编译依赖的 Java 项目，按提示重启 Java Language Server。
-4. 执行 `Zircon: 查看项目状态`，确认项目检测和 Agent 注入状态。
+先安装 VS Code 1.75 或更新版本，以及 [Language Support for Java by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.java)（`redhat.java`），并配置满足该扩展要求的 Java Language Server JDK。
+
+选择以下任意一种方式获取安装包。
+
+### 方式一：使用已编译的 VSIX
+
+直接使用已编译的 `vscode_plugin/zircon-vscode-<version>.vsix` 安装包。
+
+### 方式二：从源码构建 VSIX
+
+准备好[构建环境](#从源码构建)后，在仓库根目录执行：
+
+```powershell
+.\gradlew.bat :vscode_plugin_agent:packageVsix
+```
+
+macOS / Linux 使用 `./gradlew` 替换 `.\gradlew.bat`。构建产物位于 `vscode_plugin/zircon-vscode-<version>.vsix`。
+
+### 安装步骤
+
+1. 在 VS Code 扩展视图中打开 **… → Install from VSIX…**，选择通过上述任一方式获取的 VSIX 文件。
+2. 打开已配置 Zircon 编译依赖的 Java 项目，按提示重启 Java Language Server。
+3. 执行 `Zircon: 查看项目状态`，确认项目检测和 Agent 注入状态。
 
 默认只对检测到 Zircon 的项目自动注入 Agent，配置写入工作区的 `java.jdt.ls.vmargs`。扩展方法调用仍需导入对应的声明类。
 
@@ -132,15 +151,15 @@ TypeScript 回归使用 `npm test`，Agent 测试使用：
 
 ## 常见问题
 
-**项目已就绪，但扩展方法没有补全？**
+### 项目已就绪，但扩展方法没有补全？
 
 先确认调用文件已导入声明类、方法满足 `@ExMethod` 约束，然后执行 `Zircon: 查看项目状态`。添加或更新依赖后可执行 `Zircon: 刷新扩展方法索引`。
 
-**更新 Agent 后没有生效？**
+### 更新 Agent 后没有生效？
 
 运行完整扩展构建，确认两个 JAR 已同步，再执行 `Zircon: 重新注入 Java Agent` 并按提示重启 Java Language Server。
 
-**编辑器正常，Gradle / Maven 仍报错？**
+### 编辑器正常，Gradle / Maven 仍报错？
 
 JDT Agent 只影响 Java Language Server。实际构建还需按[项目首页](../README.md)配置 Zircon 的 javac 插件。
 

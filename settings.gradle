@@ -10,7 +10,7 @@ include ':gradle_plugin'
 
 if (providers.gradleProperty('centralRelease').isPresent()) {
     // Rebuild all javac adapters without configuring the IDE and demo projects.
-    include ':inject_java7', ':inject_java11', ':inject_java16'
+    include ':inject_java7', ':inject_java11', ':inject_java16', ':inject_java24'
 } else if (System.getProperty("user.name", "") == "jitpack") {
     System.out.println("build by JITPACK")
 } else {
@@ -28,6 +28,7 @@ if (providers.gradleProperty('centralRelease').isPresent()) {
     include ':inject_java7'
     include ':inject_java11'
     include ':inject_java16'
+    include ':inject_java24'
 }
 
 

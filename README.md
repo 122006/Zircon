@@ -3,10 +3,9 @@
 **简体中文** | [English](README_EN.md)
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.122006.Zircon/zircon)](https://central.sonatype.com/artifact/io.github.122006.Zircon/zircon)
-[![JitPack](https://jitpack.io/v/122006/Zircon.svg)](https://jitpack.io/#io.github.122006/Zircon)
 [![GitHub Release](https://img.shields.io/github/v/release/122006/Zircon)](https://github.com/122006/Zircon/releases)
 [![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/19146-zircon.svg)](https://plugins.jetbrains.com/plugin/19146-zircon)
-![Java 8–23](https://img.shields.io/badge/Java-8%E2%80%9323-green)
+![Java 8–25](https://img.shields.io/badge/Java-8%E2%80%9325-green)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 Zircon 为 Java 增加**扩展方法、可选链、Elvis 表达式和模板字符串**。通过 javac 编译插件接入已有项目，并使用 IntelliJ IDEA 或 VS Code 插件获得补全、导航和语义检查。
@@ -19,13 +18,11 @@ Zircon 为 Java 增加**扩展方法、可选链、Elvis 表达式和模板字�
 
 | 组件 | 当前版本 | 用途 |
 | --- | --- | --- |
-| Zircon 编译与基础依赖 | **3.3.4** | `gradle`、`javac`、`zircon`、`base` |
+| Zircon 编译与基础依赖 | **3.3.5** | `gradle`、`javac`、`zircon`、`base` |
 | IntelliJ IDEA 插件 | 4.9 | 一个 ZIP，按 IDEA 版本自动选择兼容实现 |
 | VS Code 扩展 | 0.0.1 | 开发中的编辑器支持，安装方式见下文 |
 
 编译依赖与编辑器插件独立版本管理，无需使用相同的版本号。
-
-**3.3.4** 修复模板展开后的源码位置冲突，改善 JDK 11 编译兼容性；模板错误现在提供 ZR 错误码、文件位置和修复建议。Gradle 插件同步改进了依赖版本解析、Android 测试依赖作用域和配置缓存支持，详见[更新记录](CHANGELOG.md)。
 
 ## 语法预览
 
@@ -87,9 +84,8 @@ String formatted = f"Age: ${%02d:age}"; // Age: 07
 
 先配置构建依赖，再按需安装编辑器插件。javac 插件负责实际编译，编辑器插件提供补全、导航和语义检查。
 
-从 **3.3.3** 起，四个编译模块发布到 Maven Central，统一使用 `io.github.122006.Zircon`。
+四个编译模块通过 Maven Central 提供，组名统一为 `io.github.122006.Zircon`。
 Gradle 只需 `mavenCentral()`，Maven 默认即可解析，无需添加额外仓库。
-JitPack 的 `io.github.122006` 别名也使用这些模块坐标；旧版本是否可用取决于 JitPack 的构建产物。
 维护者发布流程见 [Maven Central 发布指南](gradle/CENTRAL_PUBLISHING.md)。
 
 ### Gradle（Groovy DSL）
@@ -102,7 +98,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'io.github.122006.Zircon:gradle:3.3.4'
+        classpath 'io.github.122006.Zircon:gradle:3.3.5'
     }
 }
 
@@ -118,8 +114,7 @@ repositories {
 
 Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrString` 编译参数。配置后重新同步项目。
 
-从 **3.3.4** 起，Gradle 插件让 `javac/base/zircon` 跟随插件实际解析到的组名和版本，支持 `io.github.122006.Zircon` 和 `com.github.122006.Zircon`，也支持在应用插件后通过 `zircon {}` 覆盖坐标。编译器依赖放入 annotation processor 路径，应用运行时只自动添加 `zircon`。
-测试开发分支时，可使用 `io.github.122006.Zircon:gradle:master-SNAPSHOT`，并在 buildscript 和项目依赖仓库中添加 `https://jitpack.io`。
+`javac`、`base` 和 `zircon` 统一使用 `io.github.122006.Zircon`，版本与 Gradle 插件保持一致。编译器依赖放入 annotation processor 路径，应用运行时自动添加 `zircon`。
 仓库配置、依赖作用域与兼容性说明见 [Gradle 插件接入与测试](gradle/GRADLE_PLUGIN.md)。
 
 ### Maven
@@ -128,7 +123,7 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 
 ```xml
 <properties>
-    <zircon.version>3.3.4</zircon.version>
+    <zircon.version>3.3.5</zircon.version>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 </properties>
@@ -176,25 +171,41 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 
 ### IntelliJ IDEA
 
-推荐下载 [Zircon IDEA 插件 4.9](ijplugin/build/distributions/ijplugin-4.9.zip)，在 **Settings → Plugins → 齿轮 → Install Plugin from Disk…** 中选择 ZIP，安装后重启 IDEA。也可在 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/19146-zircon) 搜索 Zircon；市场版本可能因审核而滞后。
+1. 下载 [Zircon IDEA 插件 4.9](ijplugin/build/distributions/ijplugin-4.9.zip)。
+2. 打开 **Settings → Plugins → 齿轮 → Install Plugin from Disk…**，选择下载的 ZIP 文件。
+3. 安装完成后重启 IDEA。
 
-只需安装一个插件 ZIP。包内保留旧版 `ZrClassLoaderHelper` 加载机制，并为新版 IDEA 提供 Syntax API 适配。
+也可在 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/19146-zircon) 搜索并安装 Zircon。
 
-声明兼容范围为 IDEA 2021.2–2026.1（build `212–261.*`）。已有 Plugin Verifier 检查覆盖 2022.3.3、2024.2.1、2025.3.1.1、2026.1.4；2025.3.1.1 与 2026.1.4 各通过 8 项语法回归测试。2021.2 尚未实测，静态兼容检查也不等同于全部编辑器功能验证。
+插件会根据 IDEA 版本自动选择适配实现。
 
 构建、测试和版本适配说明见 [IDEA 插件 README](ijplugin/README.md)。
 
 ### VS Code
 
-先安装 [Language Support for Java by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.java)（`redhat.java`），并按它的要求配置 Java Language Server 的 JDK。
+先安装 VS Code 1.75 或更新版本，以及 [Language Support for Java by Red Hat](https://marketplace.visualstudio.com/items?itemName=redhat.java)（`redhat.java`），并按它的要求配置 Java Language Server 的 JDK。
 
-从源码构建 VSIX，在仓库根目录执行：
+选择以下任意一种方式获取安装包。
+
+#### 方式一：使用已编译的 VSIX
+
+直接使用已编译的 `vscode_plugin/zircon-vscode-<version>.vsix` 安装包。
+
+#### 方式二：从源码构建 VSIX
+
+准备好[构建环境](vscode_plugin/README.md#从源码构建)后，在仓库根目录执行：
 
 ```powershell
 .\gradlew.bat :vscode_plugin_agent:packageVsix
 ```
 
-在 VS Code 扩展视图中选择 **Install from VSIX…**，安装 `vscode_plugin/zircon-vscode-<version>.vsix`。打开已配置 Zircon 的项目，按提示重启 Java Language Server。
+macOS / Linux 使用 `./gradlew` 替换 `.\gradlew.bat`。构建产物位于 `vscode_plugin/zircon-vscode-<version>.vsix`。
+
+#### 安装与启用
+
+1. 在 VS Code 扩展视图中打开 **… → Install from VSIX…**，选择通过上述任一方式获取的 VSIX 文件。
+2. 打开已配置 Zircon 编译依赖的 Java 项目，按提示重启 Java Language Server。
+3. 执行 `Zircon: 查看项目状态`，确认项目检测和 Agent 注入状态。
 
 扩展通过 JDT Agent 接入原生补全、引用、重命名、CodeLens 和调用层次，并提供语法检查、意图操作、批量转换、格式化和导入优化。构建环境、命令和排查方式见 [VS Code 扩展 README](vscode_plugin/README.md)。
 
@@ -203,27 +214,22 @@ Gradle 插件会添加 Zircon 依赖及 `ZrOptionalChain`、`ZrExMethod`、`ZrSt
 - [扩展方法](mds/README_ZrExMethod.md)：声明、导入、泛型、覆盖规则与注解约束。
 - [可选链与 Elvis 表达式](mds/README_ZrOptionalChaining.md)：短路、默认值、赋值与括号边界。
 - [模板字符串](mds/README_ZrString.md)：插值、格式符、引号与表达式范围。
-- [更新记录](CHANGELOG.md)：3.3.4、IDEA 插件及历史版本变更。
 
 ## 常见问题
 
-**安装编辑器插件后，命令行构建仍报语法错误？**
+### 安装编辑器插件后，命令行构建仍报语法错误？
 
 检查项目是否引入同版本的 Zircon 编译依赖，以及 javac 是否加载了上述三个插件。VS Code 使用 JDT 提供编辑服务，项目构建仍需使用配置好的 javac。
 
-**扩展方法没有提示或无法解析？**
+### 扩展方法没有提示或无法解析？
 
 确认方法是 `static`、声明了 `@ExMethod`，并在调用文件中导入声明类；还应检查接收者类型、泛型约束和 `filterAnnotation`。添加或更新依赖后重新同步项目。VS Code 可执行 `Zircon: 查看项目状态` 和 `Zircon: 刷新扩展方法索引`。
 
-**能直接使用 `List.create(...).map(...)` 吗？**
+### 有推荐的扩展方法库吗？
 
-Zircon 本身不预置扩展方法。可自行声明，或引入 [ExMethodUtil](https://github.com/122006/ExMethodUtil) 并导入对应的扩展声明类：
+Zircon 本身不预置扩展方法。推荐搭配 [ZirconExtensions](https://github.com/122006/ZirconExtensions) 使用，提供空值处理、集合转换、文本解析与 I/O 扩展。接入后，在调用文件中导入对应的扩展声明类，例如 `zircon.extensions.CollectionExtensions`。
 
-```groovy
-implementation 'com.github.122006:ExMethodUtil:1.1.8'
-```
-
-`ExMethodUtil` 是单独的旧扩展库，仍需 JitPack 仓库；上述 Zircon 3.3.4 编译依赖本身只需 Maven Central。
+也可通过 `@ExMethod` 自行声明扩展方法，详见[扩展方法文档](mds/README_ZrExMethod.md)。
 
 ## 参与开发
 

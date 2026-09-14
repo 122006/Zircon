@@ -1,5 +1,5 @@
 ext {
-    version = "3.3.4"
+    version = "3.3.5"
     groupId = "io.github.122006.Zircon"
 }
 
@@ -47,7 +47,8 @@ if (System.getProperty("user.name", "") != "jitpack" && !hasProperty('centralRel
         def allData = [
                 [version: 8, project: ":inject_java7"]
                 , [version: 11, project: ":inject_java11"]
-                , [version: 17, project: ":inject_java16"]]
+                , [version: 17, project: ":inject_java16"]
+                , [version: 24, project: ":inject_java24"]]
         def useJavaVersion = allData.collect { it -> it.get("version") }.findAll { it <= ext.testJavaVersion }.max { it }
 
         task testWithDiffJavaVersion {

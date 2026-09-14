@@ -54,6 +54,8 @@ test {
                 ? launcher.metadata.installationPath.file('lib/tools.jar').asFile : []
     })
     systemProperty 'zircon.test.classpath', sourceSets.main.runtimeClasspath.asPath
+    systemProperty 'zircon.test.target', providers.gradleProperty('testTarget').getOrElse('8')
+    systemProperty 'zircon.test.release', providers.gradleProperty('testRelease').getOrElse('')
     doFirst {
         systemProperty 'zircon.test.legacyClasspath', sourceSets.test.runtimeClasspath.asPath
     }
@@ -69,7 +71,7 @@ processTestResources {
 
 tasks.register('compilerRegression') {
     group = 'verification'
-    description = 'Runs shared parser tests and positive/negative compiler fixtures (-Ptjv=8/11/17).'
+    description = 'Runs shared parser tests and positive/negative compiler fixtures (-Ptjv=8/11/17/21/23/24/25).'
     dependsOn ':base:test', test
 }
 
@@ -81,6 +83,9 @@ gradle.projectsEvaluated {
         def adapter = version >= 16 ? ':inject_java16' : version >= 11 ? ':inject_java11' : ':inject_java7'
         if (rootProject.findProject(adapter) != null) {
             tasks.named('test') { dependsOn adapter + ':copyJavacClass' }
+        }
+        if (version >= 24 && rootProject.findProject(':inject_java24') != null) {
+            tasks.named('test') { dependsOn ':inject_java24:copyJavacClass' }
         }
     }
 }

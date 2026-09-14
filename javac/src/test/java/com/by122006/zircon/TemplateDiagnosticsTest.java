@@ -32,6 +32,14 @@ public class TemplateDiagnosticsTest extends CompilerTestCase {
             try (Reader reader = Files.newBufferedReader(fixture.resolve("expected.properties"), StandardCharsets.UTF_8)) {
                 expected.load(reader);
             }
+            int jdk = Integer.parseInt(System.getProperty("java.specification.version").replace("1.", ""));
+            if (jdk > Integer.parseInt(expected.getProperty("maxJdk", "999"))) {
+                // STR. is deliberately left to javac from JDK 21 onward;
+                // its native diagnostics are not Zircon's template diagnostics.
+                System.out.println("Skipping " + fixture.getFileName() + " on JDK " + jdk
+                        + " (maxJdk=" + expected.getProperty("maxJdk") + ")");
+                continue;
+            }
             String source = new String(Files.readAllBytes(fixture.resolve("CacheCase.java")), StandardCharsets.UTF_8);
             String anchor = expected.getProperty("anchor");
             int position = source.indexOf(anchor);

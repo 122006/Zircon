@@ -12,7 +12,7 @@
 
 > 在项目任意位置中，声明一个包含注解`@ExMethod`的方法。后续你可以在项目任何地方中使用这个方法。
 
-> 如何定义一个拓展方法？[*快速跳转至示例`ExMethodUtil`*](https://github.com/122006/ExMethodUtil/tree/main/impl/src/main/java/zircon/example)
+> 推荐拓展库：[ZirconExtensions](https://github.com/122006/ZirconExtensions)，提供空值处理、集合转换、文本解析与 I/O 拓展，也可参考其源码学习如何定义拓展方法。
 
 
 #### 1.添加静态方法

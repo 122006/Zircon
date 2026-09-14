@@ -47,6 +47,35 @@ assert zircon.group'''))
     }
 
     @Test
+    void jdk25CompilesBoth21And25TargetsAndReusesConfigurationCache() {
+        def repository = repository(ZrPlugin.GROUP, 'jdk25-SNAPSHOT')
+        addProcessor(repository)
+        [21, 25].each { target ->
+            def project = fixture(repository, ZrPlugin.GROUP, 'jdk25-SNAPSHOT', 25)
+            write(project, 'build.gradle', new File(project, 'build.gradle').text.replace('assert zircon.group', """
+java {
+    sourceCompatibility = JavaVersion.toVersion(${target})
+    targetCompatibility = JavaVersion.toVersion(${target})
+}
+dependencies { annotationProcessor 'fixture:processor:1.0' }
+assert zircon.group"""))
+            write(project, 'src/main/java/smoke/VerifyProcessor.java',
+                    'package smoke; class VerifyProcessor { fixture.GeneratedMarker marker; }')
+            def first = modernRunner(project, 'smoke', '--configuration-cache').build()
+            assertEquals(first.output, TaskOutcome.SUCCESS, first.task(':compileJava').outcome)
+            assertTrue(first.output, first.output.contains('smoke passed on Java 25'))
+            new DataInputStream(new File(project, 'build/classes/java/main/smoke/Main.class').newInputStream()).withCloseable {
+                assertEquals(0xCAFEBABE as int, it.readInt())
+                it.readUnsignedShort()
+                assertEquals(target + 44, it.readUnsignedShort())
+            }
+            def second = modernRunner(project, 'smoke', '--configuration-cache').build()
+            assertEquals(second.output, TaskOutcome.UP_TO_DATE, second.task(':compileJava').outcome)
+            assertTrue(second.output, second.output.contains('Configuration cache entry reused.'))
+        }
+    }
+
+    @Test
     void legacyGradleCompilesOn8And11() {
         def installation = System.getProperty('zircon.test.legacyGradleHome')
         def gradleVersion = System.getProperty('zircon.test.legacyGradleVersion')
@@ -275,12 +304,20 @@ assert runtimeCoordinates == ['${group}:zircon:${version}'] as Set
         runner(project, true, arguments)
     }
 
+    private GradleRunner modernRunner(File project, String... arguments) {
+        // Gradle 9.1 is the first version that officially supports JDK 25.
+        def result = runner(project, arguments)
+        def installation = System.getProperty('zircon.test.modernGradleHome')
+        installation ? result.withGradleInstallation(new File(installation))
+                : result.withGradleVersion(System.getProperty('zircon.test.modernGradleVersion'))
+    }
+
     private GradleRunner runner(File project, boolean offline, String... arguments) {
         def options = ['--gradle-user-home', System.getProperty('zircon.test.gradleUserHome')] +
                 arguments.toList() + ['--stacktrace'] + (offline ? ['--offline'] : []) + ['--max-workers=2',
                                            '-Dorg.gradle.java.installations.auto-download=false']
         def installations = System.getProperty('zircon.test.javaInstallations')
-        if (installations) options.add('-Dorg.gradle.java.installations.paths=' + installations)
+        if (installations) options.add('-Porg.gradle.java.installations.paths=' + installations)
         GradleRunner.create().withProjectDir(project)
                 .withGradleInstallation(new File(System.getProperty('zircon.test.gradleHome')))
                 .withArguments(options)

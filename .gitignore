@@ -14,6 +14,7 @@
 /test/build/
 /gradle_plugin/build/
 /inject_java16/build/
+/inject_java24/build/
 /inject_java7/build/
 /inject_java11/build/
 /ijplugin_223/build/

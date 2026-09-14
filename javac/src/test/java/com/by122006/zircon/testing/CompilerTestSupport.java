@@ -47,8 +47,14 @@ public final class CompilerTestSupport {
         try (StandardJavaFileManager manager = compiler.getStandardFileManager(diagnostics, Locale.ROOT,
                 StandardCharsets.UTF_8)) {
             manager.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(directory));
-            List<String> options = new ArrayList<>(Arrays.asList("-source", "8", "-target", "8",
-                    "-encoding", "UTF-8", "-classpath", classpath));
+            List<String> options = new ArrayList<>(Arrays.asList("-encoding", "UTF-8", "-classpath", classpath));
+            String release = System.getProperty("zircon.test.release", "");
+            if (release.isEmpty()) {
+                String target = System.getProperty("zircon.test.target", "8");
+                options.addAll(Arrays.asList("-source", target, "-target", target));
+            } else {
+                options.addAll(Arrays.asList("--release", release));
+            }
             if (processors == null) options.add("-proc:none");
             boolean java8 = System.getProperty("java.specification.version").equals("1.8");
             if (!java8) {

@@ -213,7 +213,13 @@ public abstract class ZirconPlugin extends TreeScanner<Void, Void> implements Pl
                 dir = "java7";
             }
         }
-        final String oPath = "clazz/" + dir + "/" + simpleClassName + ".clazz";
+        // JDK 24 removed BasicLookupHelper.lookup's final doLookup bridge.
+        // Only these classes need the new ABI; keep all other classes shared.
+        // Use an explicit list so a missing overlay fails instead of silently
+        // falling back to an incompatible java16 helper.
+        final boolean newLookup = javaVersionUpper(24)
+                && (simpleClassName.equals("ZrLookupHelper") || simpleClassName.equals("ZrLookupHelper2"));
+        final String oPath = "clazz/" + (newLookup ? "java24" : dir) + "/" + simpleClassName + ".clazz";
         return reloadClass(claz, incl, outcl, oPath);
     }
 

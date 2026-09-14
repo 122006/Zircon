@@ -91,7 +91,7 @@ tasks.register('stageCentral') {
 
 if (project.hasProperty('centralRelease')) {
     gradle.projectsEvaluated {
-        def adapters = [inject_java7: 'java7', inject_java11: 'java11', inject_java16: 'java16']
+        def adapters = [inject_java7: 'java7', inject_java11: 'java11', inject_java16: 'java16', inject_java24: 'java24']
         def generatedAdapters = layout.buildDirectory.dir('central/adapters')
         adapters.each { module, directory ->
             project(":${module}").tasks.named('copyJavacClass', Copy) {

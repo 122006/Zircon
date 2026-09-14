@@ -1,14 +1,22 @@
 # 编译器回归测试与诊断
 
-统一入口是 `:javac:compilerRegression`，包含 `:base:test` 和 `:javac:test`。Gradle 用 JDK 17 启动；本地工具链需要 JDK 8、11、17（分别编译三个适配层）。
+统一入口是 `:javac:compilerRegression`，包含 `:base:test` 和 `:javac:test`。Gradle 用 JDK 17 启动；本地工具链需要 JDK 8、11、17、25。前三者编译原有适配层，JDK 25 编译 `inject_java24` 中两个适用于 JDK 24/25 的方法查找类。
 
 ```powershell
 .\gradlew.bat -PcentralRelease -Ptjv=8 :javac:compilerRegression
 .\gradlew.bat -PcentralRelease -Ptjv=11 :javac:compilerRegression
 .\gradlew.bat -PcentralRelease -Ptjv=17 :javac:compilerRegression
+.\gradlew.bat -PcentralRelease -Ptjv=24 -PtestTarget=24 :javac:compilerRegression
+.\gradlew.bat -PcentralRelease -Ptjv=25 -PtestTarget=21 :javac:compilerRegression
+.\gradlew.bat -PcentralRelease -Ptjv=25 -PtestTarget=25 :javac:compilerRegression
+.\gradlew.bat -PcentralRelease -Ptjv=25 -PtestRelease=21 :javac:compilerRegression
 ```
 
-`-Ptjv` 选择编译器测试进程使用的 JDK，默认 11。共享解析器单测用 JDK 8 运行，其实现也会由三个 JDK 的编译器用例覆盖。`-PcentralRelease` 只配置编译器相关模块，从源码重建适配层，不依赖仓库中预编译的 `.clazz`，也不改写这些开发资源。
+`-Ptjv` 选择编译器测试进程使用的 JDK，默认 11；`-PtestTarget` 同时设置用例的 `-source/-target`，默认 8；`-PtestRelease` 改为使用 `--release`，设置时优先于 `testTarget`。实际 javac 与语言级别独立选择，因此可以重现 issue #20 的“javac 25 编译目标 21”。工具链不在自动发现路径时，传入 `-Porg.gradle.java.installations.paths=/path/to/jdk25,/path/to/jdk24`。
+
+共享解析器单测用 JDK 8 运行，其实现也会由各个 JDK 的编译器用例覆盖。`-PcentralRelease` 只配置编译器相关模块，从源码重建适配层，不依赖仓库中预编译的 `.clazz`，也不改写这些开发资源。
+
+`CompilerCompatibilityTest` 覆盖普通方法调用、隐式接收者、泛型、装箱、可变参数、扩展方法引用、构造器引用、cover、协变返回类型、歧义诊断，以及可选链与模板混用时的求值次数。它还检查生成的 class 文件版本，确认目标 21/25 配置实际生效。
 
 普通开发模式中的 `:test:test` 和 `testWithDiffJavaVersion -Ptjv=...` 已转到同一个入口；前者也会重建所选 JDK 的适配层。原来的 `test/src/test/java` 示例由 `LegacyCompilerTest` 作为资源编译并运行，Java `assert` 已启用。Spring 独立示例 `TestClass2.java` 和全注释文件 `TextStringFormat2.java` 不属于回归用例。
 
@@ -41,6 +49,8 @@ hint=检查格式
 JDK 8 的可选链适配层现在通过 classpath 主动加载 `zircon.BiOp`，不再把尚未导入的包误判为缺少依赖。`ZrUnSupportCodeError` 保留堆栈；传入 Context 和 AST 时补充源码位置、表达式与 JDK，加载失败还保留原始 cause。
 
 ## 当前诊断范围
+
+负例可设置 `maxJdk` 限定适用的编译器版本。`str-unclosed-expression` 设置为 20：现有 `Formatter` 从 JDK 21 起不注册 Zircon 的 `STR.` 兼容前缀，因此更高版本由 javac 自己诊断，不应断言 Zircon 的 ZR1002；`$`、`f`、`j` 的诊断用例仍在所有测试 JDK 上执行。
 
 | 编号 | 含义 |
 | --- | --- |

@@ -6,6 +6,12 @@
 
 ## 编译与基础依赖
 
+### v3.3.5
+
+1. 修复 JDK 24/25 编译时 `Resolve.LookupHelper.lookup` 缺少实现引发的 `AbstractMethodError`（[#20](https://github.com/122006/Zircon/issues/20)）。新增两个按实际 JDK 版本加载的方法查找适配类，保留旧 JDK 实现，其余编译阶段复用 `java16`。
+2. 编译器回归可分别指定实际 JDK、source/target 和 `--release`；覆盖扩展方法解析、方法引用、歧义诊断、可选链求值次数及字节码目标版本。
+3. 发布构建纳入 JDK 24+ 适配资源；Gradle 9.1 集成用例验证 JDK 25 编译目标 21/25、注解处理器共存和配置缓存复用。
+
 ### v3.3.4
 
 1. 修复模板展开生成的 token 源码位置冲突，避免 JDK 11 的 javac 参数类型缓存错误；改进转义表达式、词法错误与可选链 token 的源码位置映射。

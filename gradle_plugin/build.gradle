@@ -40,19 +40,21 @@ compileJava {
     options.compilerArgs << "-Xlint:deprecation" << "-XDignore:symbol.file"
 }
 
-// TestKit runs Gradle on JDK 17; fixture JavaCompile tasks independently select JDK 8/11/17.
+// TestKit runs Gradle on JDK 17; fixture JavaCompile tasks independently select their JDKs.
 test {
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
     dependsOn jar, ':javac:jar', ':base:jar', ':zircon:jar'
     systemProperty 'zircon.fixture.gradle', tasks.jar.archiveFile.get().asFile.absolutePath
     systemProperty 'zircon.test.gradleHome', gradle.gradleHomeDir.absolutePath
+    systemProperty 'zircon.test.modernGradleHome', providers.gradleProperty('zirconModernGradleHome').getOrElse('')
+    systemProperty 'zircon.test.modernGradleVersion', providers.gradleProperty('zirconModernGradleVersion').getOrElse('9.1.0')
     systemProperty 'zircon.test.legacyGradleHome', providers.gradleProperty('zirconLegacyGradleHome').getOrElse('')
     systemProperty 'zircon.test.legacyGradleVersion', providers.gradleProperty('zirconLegacyGradleVersion').getOrElse('')
     systemProperty 'zircon.test.androidSdk', providers.gradleProperty('zirconAndroidSdk').getOrElse('')
     systemProperty 'zircon.test.gradleUserHome', gradle.gradleUserHomeDir.absolutePath
     doFirst {
         // Provision fixture JDKs only when testing, then pass their actual paths to the nested builds.
-        def fixtureHomes = [8, 11, 17].collectEntries { version ->
+        def fixtureHomes = [8, 11, 17, 25].collectEntries { version ->
             [(version): javaToolchains.launcherFor {
                 languageVersion = JavaLanguageVersion.of(version)
             }.get().metadata.installationPath.asFile.absolutePath]
